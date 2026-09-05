@@ -1,37 +1,102 @@
-# Plan review
+# Review (5 September 2026)
 
-After round 3 the plan is buildable. Below are accepted risks, not open decisions.
+The August questionnaire is closed. This is a snapshot of the **implemented**
+app, not another round of product questions. Locked decisions stay in
+[product.md](product.md). How to run it is in [operations.md](operations.md).
 
-## Locked (rounds 1–3)
+## Locked (and shipped)
 
-- Web, not Expo. React + FastAPI + Postgres. No SMTP or Google in MVP.
-- Five panels: Home, Calendar, Tasks, Notes, Account. AI bar visible, disabled.
-- Home = block preview (~1 h back, 3 h forward) + today’s tasks + **recent** notes.
-- Tasks: title + done + description + day; undated only in Tasks; pin to a block later.
-- Block = one id. Repeat = the same row shows on many days; change applies everywhere. No occurrence exceptions.
-- Notes **have no date** (Keep). P3 “on a day” overridden by P30.
-- Auth: email/password; verify and reset = `INSTANCE_CODE` in env. Mail in v2.
-- Open registration. Delete account in MVP.
-- Success: ≥ 20 days of September. Cuts: tasks → blocks → notes.
+- Web, not Expo. React 19 + FastAPI + Postgres 18. No SMTP or Google in MVP.
+- Five panels: Home, Calendar, Tasks, Notes, Account. AI bar off until `AI_ENABLED`.
+- Home = around-now (1 h back, ≥3 h forward; desktop matches today’s tasks) + today’s **open** tasks (max 4,
+  with a chevron to expand the rest) + **four** recent notes.
+- Tasks: title + done + description + day; undated only in Tasks; pin to a
+  block occurrence (`date` + `timeBlockId`).
+- Block = one id. Repeat = the same row on many days. No occurrence exceptions.
+  Overnight: `end < start`. Desktop Calendar is seven 24 h columns; a phone
+  shows one day plus a week strip.
+- Notes have no date (Keep). Pin to a block **series** (`timeBlockId`) and
+  optionally to a task (`taskId`) from the note form.
+- Auth: email/password; verify and reset = one `INSTANCE_CODE`. Delete account
+  in MVP. Verify/reset UI is on guest routes, not on Account.
+- HTTPS Compose, Alembic, CI (ruff + pytest; client lint / test / build).
 
-## Risks (not questions)
+## Before a public VPS
 
-**1. Instance code vs “open registration”**  
-The account stays inactive until you enter the env secret. On a public VPS you either publish the code (weak anti-spam) or keep it to yourself (then strangers cannot verify — that is no longer fully open). A conscious compromise instead of SMTP.
+These block opening registration to strangers. A private box for yourself is
+fine.
 
-**2. Week 3 still has two pillars**  
-Recurrence is now thin (a flag on one row, expand on read). Notes too (a flat list). Both should land; if cutting, recurrence goes first.
+### 1. Shared `INSTANCE_CODE` is account recovery — High
 
-**3. Spam**  
-Open form + a code that may be public. Rate-limit at deploy.
+The same env secret verifies _and_ resets. `reset_password` does not require
+the old password. Anyone with the code and an email can take the account,
+including accounts that were already verified.
 
-**4. Bindings that dropped**  
-Note–day: no. Task–block and note–task: they do not block MVP readiness.
+Publishing the code to make signup “open” is therefore a takeover primitive.
+Hiding the code means strangers cannot verify — so registration is not actually
+open.
 
-## Anti-persona
+**Target (v2, not this chore):** SMTP plus a random, hashed, short-lived,
+single-use token per user and purpose (`verify` vs `reset`). Request/confirm
+endpoints that do not leak whether the email exists. Rate limit per IP and per
+email. Consume atomically. Keep codes out of logs. Reset still bumps
+`session_version`. Until that exists, **do not publish `INSTANCE_CODE`** and do
+not treat the VPS as a public instance.
 
-Teams, GTD purists, grocery-list-only people, anyone who only wants Google Calendar.
+Production only checks that the code is non-empty. A one-character code boots.
+Development still skips verify when the code is empty.
+
+### 2. Register enumerates emails — addressed
+
+`POST /api/auth/register` no longer returns `409` for a duplicate email. The
+response matches a fresh unverified signup (`201`, no cookies). Verify already
+used a uniform error for unknown vs already-verified accounts.
+
+### 3. Refresh rotation vs two tabs — addressed
+
+A second use of a just-rotated refresh token within a short grace window
+follows the family to the live token instead of calling `_revoke_chain`.
+Reuse after the window is still treated as replay.
+
+### 4. In-memory rate limit, one worker — Medium
+
+`InMemoryRateLimiter` keys on `request.client.host`. Limits do not survive
+process restart and do not share across workers. Fine for a private box; not
+an anti-spam plan. Production Uvicorn now trusts `X-Forwarded-*` only from
+the Compose network CIDR (`172.28.0.0/16`), not `*`.
+
+## Addressed after this review
+
+Not blockers for a private deploy; shipped so the snapshot stays true.
+
+- Home: chevron expands the rest of today’s open tasks after the first four.
+- Calendar: one day + week strip below `md`; desktop week unchanged.
+- Note form: pin to a task (`taskId`), shown on the card.
+- Account: unverified status only; verify/reset stay on guest routes.
+- Calendar tiles: pinned titles are buttons; leftover count is “+N more”.
+- Cards: no full-card edit overlay; title edits, ⋮ is 44px.
+- Caddy: CSP, `Cache-Control` split (`no-cache` HTML vs immutable `/assets`).
+- `PATCH /api/users/me` detail is “Changing email is not available yet.”
+
+## Safety, privacy, performance
+
+| Item                                                                                                                | Severity     | Notes                                                                    |
+| ------------------------------------------------------------------------------------------------------------------- | ------------ | ------------------------------------------------------------------------ |
+| Passwords bcrypt (12), dummy hash on unknown login, HttpOnly cookies, `Secure` when origin is HTTPS, `SameSite=lax` | Good         | Keep it                                                                  |
+| Markdown links strip `javascript:` / `data:` / `vbscript:`                                                          | Good         | `MarkdownBody.tsx`                                                       |
+| SPA loads **all** tasks, notes, and blocks, then fingerprints via `/state` every 60 s                               | Medium later | Fine for one user; N01 will fail if collections grow. `DataProvider.tsx` |
+| No pagination, no `ETag`                                                                                            | Low now      | Same                                                                     |
+| Caddy CSP + Cache-Control split for `/index.html` vs hashed assets                                                  | Good         | Keep it                                                                  |
+
+## What can wait
+
+- Captcha, admin roles, export, Google, Expo.
+- Streaming, conversation history, OpenRouter, AI pins/edits.
+- Benchmarks for N01.
+- Redis (or shared) rate limits.
+- `userApi.update` on the client until the server implements it.
 
 ## Next
 
-No round 4. Week 1: Docker + auth + 5 panels. Colors, exactly how many “recent” notes, JWT vs cookie — at code time, not in a questionnaire.
+No round 4. Use the app in September. If it goes on the VPS, keep the instance
+code off the public internet. Email tokens are the gate for open registration.

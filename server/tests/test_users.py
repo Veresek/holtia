@@ -10,6 +10,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.task import Task
 from app.models.time_block import TimeBlock
 from app.models.user import User
+from app.models.user_ai_settings import UserAiSettings
 from app.services.tokens import ACCESS_COOKIE, REFRESH_COOKIE
 from tests.conftest import login, register_verified
 
@@ -63,7 +64,7 @@ def test_delete_me_removes_only_current_account_and_clears_cookies(
     with SessionLocal() as db:
         assert db.get(User, ada_id) is None
         assert db.get(User, grace_id) is not None
-        for model in (RefreshToken, Task, TimeBlock, Note):
+        for model in (RefreshToken, Task, TimeBlock, Note, UserAiSettings):
             count = db.scalar(
                 select(func.count())
                 .select_from(model)
@@ -85,3 +86,14 @@ def test_delete_me_requires_the_current_session(client: TestClient) -> None:
     response = client.delete("/api/users/me")
 
     assert response.status_code == 401
+
+
+def test_update_me_is_not_implemented(client: TestClient) -> None:
+    register_verified(client)
+    response = client.patch(
+        "/api/users/me",
+        json={"email": "new@example.com"},
+    )
+
+    assert response.status_code == 501
+    assert response.json()["detail"] == "Changing email is not available yet."

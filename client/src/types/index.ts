@@ -58,12 +58,14 @@ export interface Note {
   markdown: string;
   updatedAt: string;
   taskId: string | null;
+  timeBlockId: string | null;
 }
 
 export interface NoteCreate {
   title: string;
   markdown?: string;
   taskId?: string | null;
+  timeBlockId?: string | null;
 }
 
 export type NoteUpdate = Partial<NoteCreate>;
@@ -77,4 +79,67 @@ export interface AppState {
   tasks: CollectionFingerprint;
   notes: CollectionFingerprint;
   blocks: CollectionFingerprint;
+}
+
+export type AiProvider = "openai" | "xai" | "gemini";
+
+export interface AiModelOption {
+  id: string;
+  label: string;
+}
+
+export interface AiKey {
+  id: string;
+  provider: AiProvider;
+  model: string;
+  keyHint: string;
+}
+
+export interface AiSettings {
+  enabled: boolean;
+  configured: boolean;
+  provider: AiProvider | null;
+  model: string | null;
+  keyHint: string | null;
+  activeKeyId: string | null;
+  keys: AiKey[];
+  models: Record<AiProvider, AiModelOption[]>;
+}
+
+export interface AiKeyCreate {
+  provider: AiProvider;
+  model: string;
+  apiKey: string;
+}
+
+export interface AiKeyUpdate {
+  provider?: AiProvider;
+  model?: string;
+  apiKey?: string;
+}
+
+export type AiProposal =
+  | {
+      kind: "task";
+      title: string;
+      description: string;
+      date: string | null;
+    }
+  | {
+      kind: "note";
+      title: string;
+      markdown: string;
+    }
+  | {
+      kind: "block";
+      title: string;
+      description: string;
+      date: string;
+      start: string;
+      end: string;
+    };
+
+export interface AiPlanResponse {
+  reply: string;
+  items: AiProposal[];
 }

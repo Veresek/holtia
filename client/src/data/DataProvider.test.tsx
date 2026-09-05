@@ -48,6 +48,7 @@ const sampleNote: Note = {
   title: "Launch notes",
   markdown: "",
   taskId: null,
+  timeBlockId: null,
   updatedAt: "2026-09-01T10:00:00Z",
 };
 

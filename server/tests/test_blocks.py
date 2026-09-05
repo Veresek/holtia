@@ -356,6 +356,50 @@ def test_deleting_a_block_clears_task_pin(client: TestClient) -> None:
     assert client.get(f"/api/tasks/{task['id']}").json()["timeBlockId"] is None
 
 
+def test_changing_recurrence_clears_stale_task_pins(client: TestClient) -> None:
+    register_verified(client)
+    block = create_block(
+        client,
+        recurrence="weekdays",
+        recurrence_days=[0, 1, 2, 3, 4],
+    )
+    monday = client.post(
+        "/api/tasks",
+        json={
+            "title": "Monday work",
+            "date": "2026-08-31",
+            "timeBlockId": block["id"],
+        },
+    ).json()
+    wednesday = client.post(
+        "/api/tasks",
+        json={
+            "title": "Wednesday work",
+            "date": "2026-09-02",
+            "timeBlockId": block["id"],
+        },
+    ).json()
+    note = client.post(
+        "/api/notes",
+        json={"title": "Series note", "timeBlockId": block["id"]},
+    ).json()
+
+    updated = client.patch(
+        f"/api/blocks/{block['id']}",
+        json={"recurrenceDays": [2, 3]},
+    )
+    assert updated.status_code == 200
+
+    assert client.get(f"/api/tasks/{monday['id']}").json()["timeBlockId"] is None
+    assert (
+        client.get(f"/api/tasks/{wednesday['id']}").json()["timeBlockId"]
+        == block["id"]
+    )
+    assert (
+        client.get(f"/api/notes/{note['id']}").json()["timeBlockId"] == block["id"]
+    )
+
+
 def test_blocks_are_isolated_between_users(client: TestClient) -> None:
     register_verified(client, "ada@example.com")
     adas_block = create_block(client, "Ada’s block")

@@ -18,6 +18,7 @@ class NoteCreate(ApiModel):
     title: str = Field(min_length=1, max_length=TITLE_MAX_LENGTH)
     markdown: str = Field(default="", max_length=MARKDOWN_MAX_LENGTH)
     task_id: uuid.UUID | None = None
+    time_block_id: uuid.UUID | None = None
 
     @field_validator("title")
     @classmethod
@@ -29,6 +30,7 @@ class NoteUpdate(ApiModel):
     title: str | None = None
     markdown: str | None = None
     task_id: uuid.UUID | None = None
+    time_block_id: uuid.UUID | None = None
 
     @field_validator("title")
     @classmethod
@@ -52,4 +54,5 @@ class NoteRead(ApiReadModel):
     title: str
     markdown: str
     task_id: uuid.UUID | None
+    time_block_id: uuid.UUID | None
     updated_at: datetime

@@ -1,12 +1,17 @@
 import { useState, type FormEvent } from "react";
 
-import type { NoteCreate } from "../types";
+import { formatTimeLabel } from "../time";
+import type { NoteCreate, Task, TimeBlock } from "../types";
 
 interface NoteFormProps {
   initial?: {
     title: string;
     markdown: string;
+    taskId?: string | null;
+    timeBlockId?: string | null;
   };
+  blocks?: TimeBlock[];
+  tasks?: Task[];
   submitLabel: string;
   onSubmit: (payload: NoteCreate) => Promise<unknown>;
   onCancel?: () => void;
@@ -14,12 +19,16 @@ interface NoteFormProps {
 
 export function NoteForm({
   initial,
+  blocks = [],
+  tasks = [],
   submitLabel,
   onSubmit,
   onCancel,
 }: NoteFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [markdown, setMarkdown] = useState(initial?.markdown ?? "");
+  const [taskId, setTaskId] = useState(initial?.taskId ?? "");
+  const [timeBlockId, setTimeBlockId] = useState(initial?.timeBlockId ?? "");
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -30,10 +39,17 @@ export function NoteForm({
     }
     setSaving(true);
     try {
-      await onSubmit({ title: normalizedTitle, markdown });
+      await onSubmit({
+        title: normalizedTitle,
+        markdown,
+        taskId: taskId || null,
+        timeBlockId: timeBlockId || null,
+      });
       if (!initial) {
         setTitle("");
         setMarkdown("");
+        setTaskId("");
+        setTimeBlockId("");
       }
     } catch {
       // The shared note state renders the API error.
@@ -71,6 +87,47 @@ export function NoteForm({
         placeholder="Write anything. Markdown is welcome."
         value={markdown}
       />
+
+      <label
+        className="mt-4 block text-sm font-medium text-ink"
+        htmlFor="note-task"
+      >
+        Task
+      </label>
+      <select
+        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        id="note-task"
+        onChange={(event) => setTaskId(event.target.value)}
+        value={taskId}
+      >
+        <option value="">No task</option>
+        {tasks.map((task) => (
+          <option key={task.id} value={task.id}>
+            {task.title}
+          </option>
+        ))}
+      </select>
+
+      <label
+        className="mt-4 block text-sm font-medium text-ink"
+        htmlFor="note-time-block"
+      >
+        Time block
+      </label>
+      <select
+        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        id="note-time-block"
+        onChange={(event) => setTimeBlockId(event.target.value)}
+        value={timeBlockId}
+      >
+        <option value="">No time block</option>
+        {blocks.map((block) => (
+          <option key={block.id} value={block.id}>
+            {block.title} · {formatTimeLabel(block.start)}–
+            {formatTimeLabel(block.end)}
+          </option>
+        ))}
+      </select>
 
       <div className="mt-4 flex justify-end gap-2">
         {onCancel ? (

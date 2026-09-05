@@ -1,7 +1,7 @@
 import secrets
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, Response, status
 from sqlalchemy import select, update
@@ -29,8 +29,8 @@ from app.services.tokens import (
 INVALID_CREDENTIALS = "Invalid email or password."
 NOT_AUTHENTICATED = "Not authenticated."
 UNVERIFIED = "Verify your account with the instance code."
-DUPLICATE_EMAIL = "An account with this email already exists."
 INVALID_INSTANCE_CODE = "Invalid instance code."
+REFRESH_REUSE_GRACE = timedelta(seconds=15)
 VERIFICATION_UNAVAILABLE = (
     "Account cannot be verified. Sign in or check the details."
 )
@@ -133,6 +133,70 @@ def _revoke_chain(db: Session, token: RefreshToken) -> None:
         current = db.get(RefreshToken, current.replaced_by_id)
 
 
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _within_reuse_grace(token: RefreshToken) -> bool:
+    if token.revoked_at is None or token.replaced_by_id is None:
+        return False
+    age = datetime.now(UTC) - _as_utc(token.revoked_at)
+    return age <= REFRESH_REUSE_GRACE
+
+
+def _live_family_token(db: Session, token: RefreshToken) -> RefreshToken | None:
+    current: RefreshToken | None = token
+    seen: set[uuid.UUID] = set()
+    while current is not None and current.id not in seen:
+        seen.add(current.id)
+        if current.revoked_at is None:
+            return current
+        if current.replaced_by_id is None:
+            return None
+        current = db.get(RefreshToken, current.replaced_by_id)
+    return None
+
+
+def _opaque_unverified_user(email: str) -> User:
+    return User(
+        id=uuid.uuid4(),
+        email=email,
+        password_hash="",
+        verified_at=None,
+        created_at=datetime.now(UTC),
+    )
+
+
+def _rotate_refresh(
+    db: Session,
+    settings: Settings,
+    current: RefreshToken,
+    user: User,
+) -> SessionTokens:
+    raw = new_refresh_token()
+    replacement = RefreshToken(
+        user_id=user.id,
+        token_hash=hash_refresh_token(raw),
+        session_version=user.session_version,
+    )
+    db.add(replacement)
+    db.flush()
+    current.revoked_at = datetime.now(UTC)
+    current.replaced_by_id = replacement.id
+    db.commit()
+    return SessionTokens(
+        access_token=create_access_token(
+            user.id,
+            settings.secret_key,
+            session_version=user.session_version,
+            ttl_minutes=settings.access_token_minutes,
+        ),
+        refresh_token=raw,
+    )
+
+
 def _revoke_all_for_user(db: Session, user_id: uuid.UUID) -> None:
     db.execute(
         update(RefreshToken)
@@ -163,10 +227,8 @@ def register(
     email = normalize_email(email)
     existing = db.scalar(select(User).where(User.email == email))
     if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=DUPLICATE_EMAIL,
-        )
+        hash_password(password)
+        return _opaque_unverified_user(email), None
 
     verified_at = datetime.now(UTC) if settings.instance_code == "" else None
     user = User(
@@ -177,12 +239,10 @@ def register(
     db.add(user)
     try:
         db.flush()
-    except IntegrityError as exc:
+    except IntegrityError:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=DUPLICATE_EMAIL,
-        ) from exc
+        hash_password(password)
+        return _opaque_unverified_user(email), None
 
     tokens = issue_session(db, settings, user) if verified_at is not None else None
     db.commit()
@@ -236,12 +296,24 @@ def refresh(
             detail=NOT_AUTHENTICATED,
         )
     if row.revoked_at is not None:
-        _revoke_chain(db, row)
-        db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=NOT_AUTHENTICATED,
-        )
+        if _within_reuse_grace(row):
+            live = _live_family_token(db, row)
+            if live is not None:
+                row = live
+            else:
+                _revoke_chain(db, row)
+                db.commit()
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=NOT_AUTHENTICATED,
+                )
+        else:
+            _revoke_chain(db, row)
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=NOT_AUTHENTICATED,
+            )
 
     user = db.get(User, row.user_id)
     if (
@@ -256,26 +328,7 @@ def refresh(
             detail=NOT_AUTHENTICATED,
         )
 
-    raw = new_refresh_token()
-    replacement = RefreshToken(
-        user_id=user.id,
-        token_hash=hash_refresh_token(raw),
-        session_version=user.session_version,
-    )
-    db.add(replacement)
-    db.flush()
-    row.revoked_at = datetime.now(UTC)
-    row.replaced_by_id = replacement.id
-    db.commit()
-    return SessionTokens(
-        access_token=create_access_token(
-            user.id,
-            settings.secret_key,
-            session_version=user.session_version,
-            ttl_minutes=settings.access_token_minutes,
-        ),
-        refresh_token=raw,
-    )
+    return _rotate_refresh(db, settings, row, user)
 
 
 def logout(db: Session, raw_refresh: str | None) -> None:

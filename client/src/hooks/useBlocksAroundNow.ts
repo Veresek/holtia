@@ -1,7 +1,12 @@
 import { useMemo } from "react";
 
 import { useData } from "../data/DataProvider";
-import { aroundNowWindow, blockSegmentsOnDay, calendarDayOffset } from "../time";
+import {
+  AROUND_NOW_MIN_LOOKAHEAD_MINUTES,
+  aroundNowWindow,
+  blockSegmentsOnDay,
+  calendarDayOffset,
+} from "../time";
 import type { TimeBlock } from "../types";
 import { useNow } from "./useNow";
 
@@ -12,13 +17,16 @@ export interface BlockOccurrence {
   endMinutes: number;
 }
 
-export function useBlocksAroundNow() {
+export function useBlocksAroundNow(
+  lookAheadMinutes = AROUND_NOW_MIN_LOOKAHEAD_MINUTES,
+) {
   const now = useNow();
-  const window = aroundNowWindow(now);
-  const { blocks, blocksLoading, blocksError, retryBlocks } = useData();
+  const window = aroundNowWindow(now, lookAheadMinutes);
+  const { blocks, blocksLoading, blocksError, retryBlocks, createBlock } =
+    useData();
 
   const occurrences = useMemo(() => {
-    const current = aroundNowWindow(now);
+    const current = aroundNowWindow(now, lookAheadMinutes);
     const next: BlockOccurrence[] = [];
     for (const date of current.dates) {
       const dayOffset = calendarDayOffset(current.originDate, date) * 1440;
@@ -42,7 +50,7 @@ export function useBlocksAroundNow() {
       }
     }
     return next;
-  }, [blocks, now]);
+  }, [blocks, lookAheadMinutes, now]);
 
   return {
     occurrences,
@@ -52,5 +60,6 @@ export function useBlocksAroundNow() {
     loading: blocksLoading,
     error: blocksError,
     retry: retryBlocks,
+    createBlock,
   };
 }

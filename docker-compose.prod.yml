@@ -14,6 +14,8 @@ services:
     restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql
+    networks:
+      - internal
 
   server:
     build:
@@ -24,7 +26,7 @@ services:
       - >-
         python scripts/migrate.py &&
         exec uvicorn app.main:app --host 0.0.0.0 --port 8000
-        --proxy-headers --forwarded-allow-ips=*
+        --proxy-headers --forwarded-allow-ips=172.28.0.0/16
     environment:
       ENVIRONMENT: production
       DATABASE_URL: postgresql+psycopg://trium:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/trium
@@ -32,6 +34,8 @@ services:
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY}
       TIMEZONE: ${TIMEZONE:-Europe/Warsaw}
       CLIENT_ORIGIN: https://${DOMAIN:?Set DOMAIN}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_ENCRYPTION_KEY: ${AI_ENCRYPTION_KEY:-}
     depends_on:
       db:
         condition: service_healthy
@@ -49,6 +53,8 @@ services:
       start_period: 20s
     init: true
     restart: unless-stopped
+    networks:
+      - internal
 
   web:
     build:
@@ -73,6 +79,15 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   caddy_config:

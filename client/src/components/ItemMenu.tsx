@@ -60,7 +60,7 @@ export function ItemMenu({ label, disabled = false, onEdit, onDelete }: ItemMenu
         aria-haspopup="menu"
         aria-controls={open ? menuId : undefined}
         aria-label={label}
-        className="rounded-md p-1.5 text-ink-soft hover:bg-paper"
+        className="-my-1.5 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-ink-soft hover:bg-paper"
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
         type="button"

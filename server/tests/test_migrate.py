@@ -77,13 +77,19 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
 
     migrate(url)
 
-    assert current_revision(url) == "20260902_0005"
+    assert current_revision(url) == "20260906_0008"
     assert "session_version" in column_names(url, "users")
     assert "session_version" in column_names(url, "refresh_tokens")
     assert "updated_at" in column_names(url, "tasks")
     assert "updated_at" in column_names(url, "time_blocks")
+    assert "time_block_id" in column_names(url, "notes")
+    assert "user_ai_settings" in table_names(url)
+    assert "key_ciphertext" in column_names(url, "user_ai_settings")
+    assert "id" in column_names(url, "user_ai_settings")
+    assert "is_active" in column_names(url, "user_ai_settings")
     assert column_nullable(url, "tasks", "updated_at") is False
     assert column_nullable(url, "time_blocks", "updated_at") is False
+    assert column_nullable(url, "notes", "time_block_id") is True
     engine = create_engine(url)
     try:
         inspector = inspect(engine)
@@ -95,6 +101,7 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
         assert "ix_tasks_user_id_date" in task_indexes
         assert "ix_tasks_time_block_id" in task_indexes
         assert "ix_notes_task_id" in note_indexes
+        assert "ix_notes_time_block_id" in note_indexes
         assert "ix_time_blocks_user_id_date" in block_indexes
     finally:
         engine.dispose()
@@ -129,7 +136,7 @@ def test_migrate_stamps_legacy_schema_and_preserves_data(tmp_path: Path) -> None
 
     migrate(url)
 
-    assert current_revision(url) == "20260902_0005"
+    assert current_revision(url) == "20260906_0008"
     assert column_nullable(url, "tasks", "date") is True
     assert column_nullable(url, "tasks", "updated_at") is False
     engine = create_engine(url)

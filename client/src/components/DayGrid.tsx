@@ -1,3 +1,4 @@
+import type { BlockPin } from "../assignments";
 import { formatHourLabel, hourTicks } from "../time";
 import { MarkdownBody } from "./MarkdownBody";
 
@@ -30,6 +31,10 @@ interface DayGridProps {
   framed?: boolean;
   className?: string;
   onSelect?: (id: string) => void;
+  onSelectTask?: (id: string) => void;
+  onSelectNote?: (id: string) => void;
+  tasksByBlock?: Record<string, BlockPin[]>;
+  notesByBlock?: Record<string, BlockPin[]>;
 }
 
 function layoutOverlaps(blocks: DayGridBlock[], rangeStart: number, rangeEnd: number) {
@@ -86,6 +91,81 @@ function layoutOverlaps(blocks: DayGridBlock[], rangeStart: number, rangeEnd: nu
   return laidOut;
 }
 
+const PIN_LIMIT = 3;
+
+function BlockPins({
+  blockId,
+  notes,
+  onSelect,
+  onSelectNote,
+  onSelectTask,
+  tasks,
+}: {
+  blockId: string;
+  notes: BlockPin[];
+  onSelect?: (id: string) => void;
+  onSelectNote?: (id: string) => void;
+  onSelectTask?: (id: string) => void;
+  tasks: BlockPin[];
+}) {
+  const shownTasks = tasks.slice(0, PIN_LIMIT);
+  const shownNotes = notes.slice(0, PIN_LIMIT - shownTasks.length);
+  const extra = tasks.length + notes.length - shownTasks.length - shownNotes.length;
+
+  function pinButton(
+    pin: BlockPin,
+    kind: "task" | "note",
+    onOpen?: (id: string) => void,
+  ) {
+    const className = "relative z-10 block w-full truncate text-left text-[0.7rem] text-ink-faint hover:text-ink";
+    if (!onOpen) {
+      return (
+        <span className="block truncate text-[0.7rem] text-ink-faint" key={`${kind}-${pin.id}`}>
+          {pin.title}
+        </span>
+      );
+    }
+    return (
+      <button
+        className={className}
+        key={`${kind}-${pin.id}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen(pin.id);
+        }}
+        type="button"
+      >
+        {pin.title}
+      </button>
+    );
+  }
+
+  return (
+    <>
+      {shownTasks.map((pin) => pinButton(pin, "task", onSelectTask))}
+      {shownNotes.map((pin) => pinButton(pin, "note", onSelectNote))}
+      {extra > 0 ? (
+        onSelect ? (
+          <button
+            className="relative z-10 block w-full truncate text-left text-[0.7rem] text-ink-faint hover:text-ink"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect(blockId);
+            }}
+            type="button"
+          >
+            +{extra} more
+          </button>
+        ) : (
+          <span className="block truncate text-[0.7rem] text-ink-faint">
+            +{extra} more
+          </span>
+        )
+      ) : null}
+    </>
+  );
+}
+
 export function DayGrid({
   label,
   rangeStartMinutes,
@@ -98,6 +178,10 @@ export function DayGrid({
   framed = true,
   className = "",
   onSelect,
+  onSelectTask,
+  onSelectNote,
+  tasksByBlock,
+  notesByBlock,
 }: DayGridProps) {
   const duration = Math.max(rangeEndMinutes - rangeStartMinutes, 1);
   const height = (duration / 60) * pixelsPerHour;
@@ -112,16 +196,16 @@ export function DayGrid({
     <div
       aria-label={label}
       className={[
-        "overflow-hidden",
+        "min-w-0 overflow-hidden",
         framed ? "rounded-lg border border-line bg-paper-raised" : "",
         className,
       ].join(" ")}
       role={readOnly ? "list" : "group"}
     >
-      <div className="flex">
+      <div className="flex min-w-0">
         {showAxis ? (
           <div
-            className="relative w-[4.5rem] shrink-0 border-r border-line/80"
+            className="relative w-12 shrink-0 border-r border-line/80 md:w-18"
             style={{ height }}
           >
             {ticks.map((tick) => (
@@ -168,7 +252,7 @@ export function DayGrid({
               left,
               width,
             };
-            const body = (
+            const heading = readOnly ? (
               <>
                 <span className="block truncate text-sm font-medium text-ink">
                   {block.title}
@@ -176,6 +260,38 @@ export function DayGrid({
                 <span className="block text-[0.7rem] text-ink-soft">
                   {block.startLabel}–{block.endLabel}
                 </span>
+              </>
+            ) : (
+              <button
+                aria-label={`${block.title}, ${block.startLabel}–${block.endLabel}`}
+                className="block w-full text-left"
+                onClick={() => onSelect?.(block.id)}
+                type="button"
+              >
+                <span className="block truncate text-sm font-medium text-ink">
+                  {block.title}
+                </span>
+                <span className="block text-[0.7rem] text-ink-soft">
+                  {block.startLabel}–{block.endLabel}
+                </span>
+              </button>
+            );
+            return (
+              <article
+                className={className}
+                key={`${block.id}-${block.startMinutes}`}
+                role={readOnly ? "listitem" : undefined}
+                style={style}
+              >
+                {heading}
+                <BlockPins
+                  blockId={block.id}
+                  notes={notesByBlock?.[block.id] ?? []}
+                  onSelect={onSelect}
+                  onSelectNote={onSelectNote}
+                  onSelectTask={onSelectTask}
+                  tasks={tasksByBlock?.[block.id] ?? []}
+                />
                 {block.description ? (
                   <MarkdownBody
                     className="mt-1 wrap-break-word text-[0.7rem] leading-4 text-ink-soft line-clamp-3"
@@ -184,31 +300,7 @@ export function DayGrid({
                     markdown={block.description}
                   />
                 ) : null}
-              </>
-            );
-            if (readOnly) {
-              return (
-                <article
-                  className={className}
-                  key={`${block.id}-${block.startMinutes}`}
-                  role="listitem"
-                  style={style}
-                >
-                  {body}
-                </article>
-              );
-            }
-            return (
-              <button
-                aria-label={`${block.title}, ${block.startLabel}–${block.endLabel}`}
-                className={className}
-                key={`${block.id}-${block.startMinutes}`}
-                onClick={() => onSelect?.(block.id)}
-                style={style}
-                type="button"
-              >
-                {body}
-              </button>
+              </article>
             );
           })}
           {showNow ? (

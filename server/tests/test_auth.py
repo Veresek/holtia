@@ -1,8 +1,13 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.config import Settings, get_settings
+from app.db import SessionLocal
 from app.main import app
+from app.models.refresh_token import RefreshToken
 from app.services.passwords import PASSWORD_HINT
 from app.services.rate_limits import RATE_LIMITED
 from tests.conftest import login, register, register_verified, verify
@@ -26,12 +31,17 @@ def test_register_creates_an_unverified_account(client: TestClient) -> None:
     assert not any("access_token=" in header for header in _cookie_headers(response))
 
 
-def test_register_rejects_a_duplicate_email(client: TestClient) -> None:
-    register(client)
-    response = register(client)
+def test_register_does_not_reveal_a_duplicate_email(client: TestClient) -> None:
+    created = register(client)
+    duplicate = register(client)
 
-    assert response.status_code == 409
-    assert response.json()["detail"] == "An account with this email already exists."
+    assert created.status_code == duplicate.status_code == 201
+    assert created.json()["email"] == duplicate.json()["email"] == "ada@example.com"
+    assert created.json()["verifiedAt"] is None
+    assert duplicate.json()["verifiedAt"] is None
+    assert created.json()["id"] != duplicate.json()["id"]
+    assert not any("access_token=" in header for header in _cookie_headers(duplicate))
+    assert client.get("/api/users/me").status_code == 401
 
 
 def test_register_rejects_a_short_password(client: TestClient) -> None:
@@ -179,7 +189,7 @@ def test_refresh_rotates_the_refresh_token(client: TestClient) -> None:
     assert me.status_code == 200
 
 
-def test_refresh_rejects_a_rotated_token(client: TestClient) -> None:
+def test_refresh_reuses_a_rotated_token_within_grace(client: TestClient) -> None:
     register_verified(client)
     old_refresh = client.cookies.get("refresh_token")
     assert old_refresh
@@ -189,7 +199,29 @@ def test_refresh_rejects_a_rotated_token(client: TestClient) -> None:
     stale.cookies.set("refresh_token", old_refresh)
     response = stale.post("/api/auth/refresh")
 
+    assert response.status_code == 204
+    assert stale.get("/api/users/me").status_code == 200
+
+
+def test_refresh_rejects_a_rotated_token_after_grace(client: TestClient) -> None:
+    register_verified(client)
+    old_refresh = client.cookies.get("refresh_token")
+    assert old_refresh
+    assert client.post("/api/auth/refresh").status_code == 204
+
+    past = datetime.now(UTC) - timedelta(seconds=30)
+    with SessionLocal() as db:
+        for token in db.scalars(select(RefreshToken)).all():
+            if token.revoked_at is not None:
+                token.revoked_at = past
+        db.commit()
+
+    stale = TestClient(app)
+    stale.cookies.set("refresh_token", old_refresh)
+    response = stale.post("/api/auth/refresh")
+
     assert response.status_code == 401
+    assert client.post("/api/auth/refresh").status_code == 401
 
 
 def test_logout_revokes_the_refresh_token(client: TestClient) -> None:

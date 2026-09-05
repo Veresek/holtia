@@ -1,14 +1,22 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
-import type { TaskCreate } from "../types";
+import {
+  blockOccursOn,
+  formatTimeLabel,
+  nextOccurrenceOnOrAfter,
+  warsawDateValue,
+} from "../time";
+import type { TaskCreate, TimeBlock } from "../types";
 
 interface TaskFormProps {
   initial?: {
     title: string;
     description: string;
     date: string | null;
+    timeBlockId?: string | null;
   };
   defaultDate?: string;
+  blocks?: TimeBlock[];
   submitLabel: string;
   onSubmit: (payload: TaskCreate) => Promise<unknown>;
   onCancel?: () => void;
@@ -17,6 +25,7 @@ interface TaskFormProps {
 export function TaskForm({
   initial,
   defaultDate,
+  blocks = [],
   submitLabel,
   onSubmit,
   onCancel,
@@ -24,7 +33,37 @@ export function TaskForm({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [date, setDate] = useState(initial?.date ?? defaultDate ?? "");
+  const [timeBlockId, setTimeBlockId] = useState(initial?.timeBlockId ?? "");
   const [saving, setSaving] = useState(false);
+  const availableBlocks = useMemo(
+    () =>
+      date
+        ? blocks.filter((block) => blockOccursOn(block, date))
+        : blocks,
+    [blocks, date],
+  );
+
+  function handleDateChange(value: string) {
+    setDate(value);
+    if (!timeBlockId || !value) {
+      return;
+    }
+    const selected = blocks.find((block) => block.id === timeBlockId);
+    if (selected && !blockOccursOn(selected, value)) {
+      setTimeBlockId("");
+    }
+  }
+
+  function handleBlockChange(value: string) {
+    setTimeBlockId(value);
+    if (!value || date) {
+      return;
+    }
+    const selected = blocks.find((block) => block.id === value);
+    if (selected) {
+      setDate(nextOccurrenceOnOrAfter(selected, warsawDateValue(new Date())));
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,10 +77,12 @@ export function TaskForm({
         title: normalizedTitle,
         description: description.trim(),
         date: date || null,
+        timeBlockId: timeBlockId || null,
       });
       if (!initial) {
         setTitle("");
         setDescription("");
+        setTimeBlockId("");
         if (!defaultDate) {
           setDate("");
         }
@@ -95,12 +136,33 @@ export function TaskForm({
           <input
             className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
             id="task-date"
-            onChange={(event) => setDate(event.target.value)}
+            onChange={(event) => handleDateChange(event.target.value)}
             type="date"
             value={date}
           />
         </div>
       </div>
+
+      <label
+        className="mt-4 block text-sm font-medium text-ink"
+        htmlFor="task-time-block"
+      >
+        Time block
+      </label>
+      <select
+        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        id="task-time-block"
+        onChange={(event) => handleBlockChange(event.target.value)}
+        value={timeBlockId}
+      >
+        <option value="">No time block</option>
+        {availableBlocks.map((block) => (
+          <option key={block.id} value={block.id}>
+            {block.title} · {formatTimeLabel(block.start)}–
+            {formatTimeLabel(block.end)}
+          </option>
+        ))}
+      </select>
 
       <div className="mt-4 flex justify-end gap-2">
         {onCancel ? (

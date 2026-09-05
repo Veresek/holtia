@@ -62,6 +62,20 @@ def test_production_accepts_explicit_security_configuration() -> None:
     assert settings.environment == "production"
 
 
+def test_enabled_ai_requires_an_encryption_key() -> None:
+    with pytest.raises(ValidationError, match="AI_ENCRYPTION_KEY"):
+        Settings(ai_enabled=True, ai_encryption_key="")
+
+
+def test_enabled_ai_accepts_a_32_byte_encryption_key() -> None:
+    settings = Settings(
+        ai_enabled=True,
+        ai_encryption_key="ab" * 32,
+    )
+
+    assert settings.ai_enabled is True
+
+
 def test_unknown_timezone_is_rejected() -> None:
     with pytest.raises(ValidationError, match="Unknown timezone"):
         Settings(timezone="Not/AZone")

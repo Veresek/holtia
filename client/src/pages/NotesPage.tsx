@@ -2,8 +2,10 @@ import { useState } from "react";
 
 import { Dialog } from "../components/Dialog";
 import { EmptyCta } from "../components/EmptyCta";
+import { Masonry } from "../components/Masonry";
 import { NoteCard } from "../components/NoteCard";
 import { NoteForm } from "../components/NoteForm";
+import { useData } from "../data/DataProvider";
 import { useNotes } from "../hooks/useNotes";
 
 export function NotesPage() {
@@ -16,12 +18,13 @@ export function NotesPage() {
     updateNote,
     deleteNote,
   } = useNotes();
+  const { blocks, tasks } = useData();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = notes.find((note) => note.id === editingId);
 
   return (
-    <section className="mx-auto w-full max-w-5xl px-4 py-8 md:px-8 md:py-12">
+    <section className="mx-auto w-full min-w-0 max-w-5xl px-4 py-8 md:px-8 md:py-12">
       <div className="flex items-end justify-between gap-4">
         <header>
           <p className="text-sm text-ink-soft">Think in one place</p>
@@ -63,12 +66,14 @@ export function NotesPage() {
       {creating ? (
         <Dialog onClose={() => setCreating(false)} title="Add note">
           <NoteForm
+            blocks={blocks}
             onCancel={() => setCreating(false)}
             onSubmit={async (payload) => {
               await createNote(payload);
               setCreating(false);
             }}
             submitLabel="Create note"
+            tasks={tasks}
           />
         </Dialog>
       ) : null}
@@ -76,6 +81,7 @@ export function NotesPage() {
       {editing ? (
         <Dialog onClose={() => setEditingId(null)} title="Edit note">
           <NoteForm
+            blocks={blocks}
             initial={editing}
             onCancel={() => setEditingId(null)}
             onSubmit={async (payload) => {
@@ -83,6 +89,7 @@ export function NotesPage() {
               setEditingId(null);
             }}
             submitLabel="Save changes"
+            tasks={tasks}
           />
         </Dialog>
       ) : null}
@@ -104,9 +111,14 @@ export function NotesPage() {
           <p className="mb-3 text-xs text-ink-faint">
             {notes.length} {notes.length === 1 ? "note" : "notes"}
           </p>
-          <div className="grid items-start gap-4 md:grid-cols-2">
+          <Masonry>
             {notes.map((note) => (
               <NoteCard
+                block={
+                  note.timeBlockId
+                    ? blocks.find((item) => item.id === note.timeBlockId)
+                    : undefined
+                }
                 key={note.id}
                 note={note}
                 onDelete={() => deleteNote(note.id)}
@@ -114,9 +126,14 @@ export function NotesPage() {
                   setCreating(false);
                   setEditingId(note.id);
                 }}
+                task={
+                  note.taskId
+                    ? tasks.find((item) => item.id === note.taskId)
+                    : undefined
+                }
               />
             ))}
-          </div>
+          </Masonry>
         </div>
       )}
     </section>

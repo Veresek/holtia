@@ -1,134 +1,159 @@
 # Execution
 
-As of 29 August 2026. MVP: **end of September 2026**, after hours, solo, budget 0 PLN, OVH VPS.
+As of 5 September 2026. MVP deadline: **end of September 2026**, after hours, solo, budget 0 PLN, OVH VPS.
 
-**4 weeks.** Order: auth + panel shell → tasks → blocks (grid, then repeat with the same id) → notes (dateless collection). Google, Expo, AI, SMTP — not in MVP.
+The four-week build is done in code. What remains is using the app, a private deploy if you want it on the VPS, and v2 work that must not ship as if it were ready.
 
-## MVP — must work
+## Status
 
-| # | Capability | Why |
-|---|------------|-----|
-| 1 | Register and log in with email + password; open registration; one account = one user | independence; others on your VPS |
-| 2 | Verify and reset password with an **instance code** (env), zero SMTP | lockout and spam without mail |
-| 3 | Shell: 5 panels + AI bar disabled | the app’s shape is visible immediately |
-| 4 | Tasks: title, done, description, optional day; CRUD | first pillar |
-| 5 | Home: **today’s** tasks + empty state (dashed + plus) | morning review |
-| 6 | Tasks panel: all of them, including undated | inbox without cluttering Home |
-| 7 | Blocks: one row = one id; event (title, description, start–end); times typed in; 24 h grid | second pillar |
-| 8 | Home: nearby-block preview around now (~1 h back, 3 h forward) | not the full grid on Home |
-| 9 | Repeat: the same block shows on many days; edit/delete changes it everywhere | no materialized occurrences |
-| 10 | Notes: markdown cards **with no date**; panel = collection; Home = recent | third pillar, Keep-style |
-| 11 | Delete account (Account panel) | privacy |
-| 12 | Responsive web; Docker + HTTPS on the VPS | N03, N07 |
+| #   | Capability                                                                                           | State                                       |
+| --- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| 1   | Register and log in with email + password; one account = one user                                    | Done                                        |
+| 2   | Verify and reset with a shared **instance code** (env), zero SMTP                                    | Done — private instance only                |
+| 3   | Shell: 5 panels + AI bar (off until `AI_ENABLED`)                                                    | Done                                        |
+| 4   | Tasks: title, done, description, optional day; CRUD                                                  | Done                                        |
+| 5   | Home: **today’s open** tasks (at most 4) + chevron to expand the rest + empty state                  | Done                                        |
+| 6   | Tasks panel: all of them, including undated                                                          | Done                                        |
+| 7   | Blocks: one row = one id; 24 h week on desktop; one day + week strip on a phone; overnight spans     | Done                                        |
+| 8   | Home: nearby-block preview around now (1 h back, ≥3 h forward; desktop matches today’s tasks height) | Done                                        |
+| 9   | Repeat: the same block shows on many days; edit/delete everywhere                                    | Done                                        |
+| 10  | Notes: markdown cards **with no date**; panel = collection; Home = 4 recent                          | Done                                        |
+| 11  | Delete account (Account panel)                                                                       | Done                                        |
+| 12  | Responsive web; Docker + HTTPS compose                                                               | Done in repo; VPS not yet a public instance |
+| 13  | Assignments: pin a task to a block occurrence; pin a note to a block series                          | Done in API and UI                          |
 
-Pin a task to a block — **later in MVP**, not in the task week. An MVP block does not contain a task list inside. A note on a task — only if there is time; it does not block “done”.
+Pin a task to a block: `date` + `timeBlockId`; the date is a day the block occurs (autofilled from today when omitted). A note pins to the series (`timeBlockId`) with no date, and may also pin to a task (`taskId`) from the note form. A block tile may **show** pinned items and open them; it does not contain a task list inside.
 
-**Ready to put on the VPS** when you can: create an account, verify / reset the password with the instance code, walk through Home in the morning (today’s tasks + block preview + recent notes), lay out the week in Calendar, open all tasks and the notes collection.
+**Ready for a private VPS** when `.env` is filled, DNS points at the box, and you can: create an account, verify / reset with the instance code you keep secret, walk through Home in the morning, lay out the week in Calendar, open all tasks and the notes collection.
 
-Product success (separate from deploy): ≥ 20 days of September with a plan in Trium.
+**Not ready for a public instance** until verify and reset use per-user email tokens. Product success (separate from deploy): ≥ 20 days of September with a plan in Trium.
+
+## Auth: current vs v2
+
+**Now:** one `INSTANCE_CODE` in env. Empty in development = skip verify (accounts work immediately). Non-empty = the same secret activates an account _and_ resets any password. Cookies: HttpOnly `access_token` (~30 min) and `refresh_token` (rotated, client max-age 10 years). Password reset increments `session_version` and revokes refresh tokens.
+
+**Do not publish the instance code.** Anyone with the code and an email can reset that account.
+
+**v2 (blocker for public open registration):** SMTP plus a stored token per user and purpose (`verify` or `reset`):
+
+- cryptographically random value, hash only in the database;
+- short TTL, single use, consumed atomically;
+- request/confirm endpoints that do not reveal whether the email exists;
+- rate limits per IP and per normalized email, plus a resend cooldown;
+- no codes in logs;
+- password reset still invalidates every session.
+
+Until that ships, treat production as a trusted instance you operate for yourself (and people you hand the code to on purpose).
+
+Refresh reuse within a short grace window no longer signs out a second tab as a replay. A real server-side refresh-token expiry is still later.
 
 ## Later (v2)
 
-| Idea | Condition |
-|------|-----------|
-| SMTP: real verify and reset by email | after the instance code |
-| Draw / queue of activities in a block (habits) | optional; stable blocks |
-| AI assistant — live bar | day data |
-| Suggest times from title/description | same |
-| Google login | after own email/password |
-| Expo / native app | after web |
-| Notifications | maybe never |
-| Data export | unsure; does not block MVP |
-| Tasks from GitHub | does not block the day |
-| Task inside a block / note on a task, if they miss MVP | after events and the collection |
-| Edit a single occurrence in a series | deliberately not this model |
+| Idea                                           | Condition                                                   |
+| ---------------------------------------------- | ----------------------------------------------------------- |
+| SMTP + per-user verify/reset tokens            | replaces `INSTANCE_CODE`; **required before public signup** |
+| Draw / queue of activities in a block (habits) | optional; stable blocks                                     |
+| AI assistant — live bar                        | `AI_ENABLED`; BYOK on Account; preview then REST create     |
+| Suggest times from title/description           | do not guess; ask instead                                   |
+| Google login                                   | after own email/password                                    |
+| Expo / native app                              | after web                                                   |
+| Notifications                                  | maybe never                                                 |
+| Data export                                    | unsure; does not block MVP                                  |
+| Tasks from GitHub                              | does not block the day                                      |
+| Edit a single occurrence in a series           | deliberately not this model                                 |
 
 ## Out of MVP scope
 
 - Project planner
 - Polish UI
-- Google OAuth, Expo, AI (bar stays dead), SMTP
+- Google OAuth, Expo, SMTP
 - Draw inside a block
 - Notifications, analytics
 - Admin vs user roles
 - Drag-and-drop hours onto the grid
 - Separate occurrences of a repeating block (calendar exceptions)
 - Note pinned to a day
+- Change email (`PATCH /api/users/me` is `501`)
 
 ## Assumptions
 
 - Instance timezone: **Europe/Warsaw** (until there is a setting on Account).
 - Block times are typed in by hand.
 - Repeating block: `date` is the anchor (first day / weekday for “weekly”). No series end in MVP (it runs forward).
-- `INSTANCE_CODE` in env: the same secret for account verify and password reset. On a public instance the user must know the code (e.g. README) — otherwise strangers cannot verify; that is also a spam brake. Empty in env = skip verify (convenient for a local “just me” setup).
-- After register the account is **inactive** until you enter the instance code; then it works. Reset (logged out): email + instance code + new password.
 - Empty: task / note CTA; empty hour window — no dummy data.
 - Network / bad data: a message + retry.
-- Sync = account + database.
-- Home notes: a few latest by `updated_at` (e.g. 4).
+- Sync = account + database. The SPA loads full collections and revalidates via `GET /api/state` about every 60 s.
+- Home notes: latest by `updated_at`, four cards. Home tasks: open, today, four items, with a chevron to expand the rest.
 
 ## Stack
 
-| Layer | Choice |
-|-------|--------|
-| Frontend | React, responsive web (phone in the browser) |
-| Backend | FastAPI |
-| Database | PostgreSQL |
-| Auth | email + password (hash) + `INSTANCE_CODE`; Google and SMTP not in MVP |
-| Hosting | VPS, `docker compose up` everywhere |
-| AI | OpenRouter, not in MVP |
+| Layer    | Choice                                                                           |
+| -------- | -------------------------------------------------------------------------------- |
+| Frontend | React 19, Vite, TypeScript, Tailwind v4 (phone in the browser)                   |
+| Backend  | FastAPI, Python 3.13                                                             |
+| Database | PostgreSQL 18, Alembic (head `20260906_0008`)                                    |
+| Auth     | email + password (bcrypt) + `INSTANCE_CODE`; cookies; Google and SMTP not in MVP |
+| Hosting  | VPS, `docker compose` / `docker-compose.prod.yml`                                |
+| CI       | GitHub Actions: ruff + pytest; client lint / test / build                        |
+| AI       | User BYOK: OpenAI, xAI, Gemini; encrypted at rest; off by default            |
 
-## Data (sketch)
+## Data (as implemented)
 
 ```
-User        id, email, password_hash, verified_at?, created_at
-Task        id, user_id, title, description, done,
-            date?          — null = Tasks panel only
-            time_block_id? — later in MVP; null = not pinned
-            order, created_at
-TimeBlock   id, user_id, title, description,
-            date           — one-off day OR series anchor
-            start, end     — times of day; end < start continues into the next day
-            recurrence     — none | daily | weekly | weekdays
-Note        id, user_id, title, markdown, updated_at
-            (no date)
-            task_id?       — optional, not required for MVP
+User          id, email, password_hash, verified_at?, session_version, created_at
+UserAiSettings id, user_id, provider, model, key_ciphertext, key_nonce, key_hint,
+               is_active, timestamps
+               — many keys per user; one is_active at a time
+RefreshToken  id, user_id, token_hash, session_version, created_at, revoked_at?, replaced_by_id?
+Task          id, user_id, title, description, done,
+              date?          — null = Tasks panel only; required when pinned
+              time_block_id? — pin to a block occurrence; null = not pinned
+              order, created_at, updated_at
+TimeBlock     id, user_id, title, description,
+              date           — one-off day OR series anchor
+              start, end     — times of day; end < start continues into the next day
+              recurrence     — none | daily | weekly | weekdays
+              recurrence_days, updated_at
+Note          id, user_id, title, markdown, updated_at
+              (no date)
+              task_id?       — optional; independent of the block pin; note form
+              time_block_id? — pin to the series; shown on every occurrence
 ```
 
-Calendar for day D: blocks with `recurrence = none` and `date = D`, plus blocks whose rule hits D (the same `id` rendered on many days).
+Calendar for day D: blocks with `recurrence = none` and `date = D`, plus blocks whose rule hits D (the same `id` rendered on many days). Overnight spill is visible on the next morning.
 
-Home: `Task` with `date = today`; `TimeBlock` in the window around now (including expanded recurrence); `Note` ORDER BY `updated_at` DESC LIMIT ~4.
+Home: `Task` with `date = today` and `done = false`, first 4; `TimeBlock` in the window around now (including expanded recurrence); `Note` ORDER BY `updated_at` DESC LIMIT 4.
 
 ## Non-functional
 
-| ID | Topic | Requirement | Priority |
-|----|-------|-------------|----------|
-| N01 | Performance | list < 500 ms | P0 |
-| N02 | Security | hashed passwords, HTTPS, instance code not in the repo | P0 |
-| N03 | Phone | responsive web | P0 |
-| N04 | Privacy | no tracking; content only the owner’s; delete account | P0 |
-| N05 | Sync | across devices (with login: yes) | de facto P0 |
-| N06 | Language | EN | P0 |
-| N07 | Cost | own OVH VPS | P0 |
+| ID  | Topic       | Requirement                                            | Priority    |
+| --- | ----------- | ------------------------------------------------------ | ----------- |
+| N01 | Performance | list < 500 ms                                          | P0          |
+| N02 | Security    | hashed passwords, HTTPS, instance code not in the repo | P0          |
+| N03 | Phone       | responsive web                                         | P0          |
+| N04 | Privacy     | no tracking; content only the owner’s; delete account  | P0          |
+| N05 | Sync        | across devices (with login: yes)                       | de facto P0 |
+| N06 | Language    | EN                                                     | P0          |
+| N07 | Cost        | own OVH VPS                                            | P0          |
 
-Open registration: rate-limit `/register` at deploy. No captcha until it hurts.
+Open registration: rate-limit `/register` (in-process today). No captcha until it hurts. The current limiter is per worker and uses `request.client.host`, so it is not enough for a public box.
 
 ## Integrations
 
-| Service | What for | MVP |
-|---------|----------|-----|
-| Google | convenient account | no |
-| OpenRouter | AI | no |
-| GitHub | tasks from issues | no |
-| SMTP | reset / verify by email | no (v2) |
+| Service    | What for                | MVP                              |
+| ---------- | ----------------------- | -------------------------------- |
+| Google     | convenient account      | no                               |
+| OpenRouter | optional later provider | no; users bring OpenAI, xAI, or Gemini keys |
+| GitHub     | tasks from issues       | no                               |
+| SMTP       | reset / verify by email | no (v2; public-instance blocker) |
 
-## 4 weeks (after hours)
+## Four weeks (done)
 
-| Week | Goal |
-|------|------|
-| 1 | Docker: React + FastAPI + Postgres; email+password; `INSTANCE_CODE`; 5 panels; empty Home + AI disabled |
-| 2 | Tasks: Home (today) + Tasks panel (all); title, done, description, day |
-| 3 | 24 h Calendar + preview on Home; event title+description; repeat with the same id; notes as a collection + recent on Home |
-| 4 | HTTPS, deploy, delete account, empty states, cut |
+| Week | Goal                                                                                | Outcome         |
+| ---- | ----------------------------------------------------------------------------------- | --------------- |
+| 1    | Docker; email+password; `INSTANCE_CODE`; 5 panels; empty Home + AI disabled         | Shipped         |
+| 2    | Tasks: Home (today) + Tasks panel (all)                                             | Shipped         |
+| 3    | 24 h Calendar + preview; repeat with the same id; notes collection + recent on Home | Shipped         |
+| 4    | HTTPS compose, delete account, empty states, assignments                            | Shipped in repo |
 
-If week 2 does not end with today’s task list, September is spent on pipes, not the product. Cuts from week 3: recurrence first (leave one-off blocks), keep notes as a flat collection (no `task_id`).
+The cut “drop `task_id` on notes” was **not** applied: the column exists from the baseline schema. The cut that still matters is “do not open the instance to strangers on the shared code”.

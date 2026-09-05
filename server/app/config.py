@@ -5,6 +5,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.services.ai.crypto import parse_encryption_key
+
 DEFAULT_SECRET_KEY = "change-me-before-deploying"
 KNOWN_WEAK_SECRET_KEYS = {
     DEFAULT_SECRET_KEY,
@@ -25,6 +27,14 @@ class Settings(BaseSettings):
     auth_rate_limit_enabled: bool | None = None
     auth_rate_limit_requests: int = Field(default=10, gt=0)
     auth_rate_limit_window_seconds: int = Field(default=60, gt=0)
+    ai_enabled: bool = False
+    ai_encryption_key: str = ""
+    ai_request_timeout_seconds: float = Field(default=30, gt=0)
+    ai_prompt_max_length: int = Field(default=2_000, gt=0)
+    ai_max_output_tokens: int = Field(default=2_048, gt=0)
+    ai_max_proposals: int = Field(default=12, gt=0)
+    ai_rate_limit_requests: int = Field(default=20, gt=0)
+    ai_rate_limit_window_seconds: int = Field(default=3_600, gt=0)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -58,6 +68,16 @@ class Settings(BaseSettings):
             )
         if not self.client_origin.startswith("https://"):
             raise ValueError("CLIENT_ORIGIN must use HTTPS in production.")
+        return self
+
+    @model_validator(mode="after")
+    def validate_ai_encryption_key(self) -> "Settings":
+        if not self.ai_enabled:
+            return self
+        try:
+            parse_encryption_key(self.ai_encryption_key)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
         return self
 
     @property

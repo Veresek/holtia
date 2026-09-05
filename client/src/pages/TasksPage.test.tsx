@@ -2,8 +2,9 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { jsonResponse, stubSignedIn } from "../test/api";
+import { stubPreviewOverflow } from "../test/preview";
 import { renderPage } from "../test/render";
-import type { Task } from "../types";
+import type { Task, TimeBlock } from "../types";
 import { TasksPage } from "./TasksPage";
 
 const task: Task = {
@@ -224,5 +225,156 @@ describe("TasksPage", () => {
     expect(await screen.findByText("opening")).toBeInTheDocument();
     expect(screen.getByText("opening").tagName).toBe("STRONG");
     expect(screen.queryByText("Draft the **opening**.")).not.toBeInTheDocument();
+  });
+
+  it("clips a tall description until the chevron expands it", async () => {
+    const spy = stubPreviewOverflow();
+    stubSignedIn({
+      "GET /tasks": () =>
+        jsonResponse([
+          {
+            ...task,
+            description: `${"Draft the opening. ".repeat(20)}Then rewrite the close.`,
+          },
+        ]),
+    });
+    renderPage(<TasksPage />);
+
+    expect(await screen.findByText("Write report")).toBeInTheDocument();
+    const toggle = screen.getByRole("button", {
+      name: "Show more of Write report",
+    });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAccessibleName("Show less of Write report");
+    spy.mockRestore();
+  });
+
+  it("opens the edit dialog when the task card is clicked", async () => {
+    stubSignedIn({
+      "GET /tasks": () => jsonResponse([task]),
+    });
+    renderPage(<TasksPage />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit Write report" }),
+    );
+    expect(screen.getByRole("dialog", { name: "Edit task" })).toBeInTheDocument();
+  });
+
+  it("toggles a task from the checkbox without opening the editor", async () => {
+    const patchBodies: Record<string, unknown>[] = [];
+    stubSignedIn({
+      "GET /tasks": () => jsonResponse([task]),
+      [`PATCH /tasks/${task.id}`]: (init) => {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        patchBodies.push(body);
+        return jsonResponse({ ...task, ...body });
+      },
+    });
+    renderPage(<TasksPage />);
+
+    fireEvent.click(
+      await screen.findByRole("checkbox", {
+        name: "Mark Write report as done",
+      }),
+    );
+
+    await waitFor(() => expect(patchBodies[0]).toEqual({ done: true }));
+    expect(
+      screen.queryByRole("dialog", { name: "Edit task" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("pins a task to a time block and shows the assignment", async () => {
+    const morning: TimeBlock = {
+      id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      title: "Morning block",
+      description: "",
+      date: "2026-09-01",
+      start: "09:00:00",
+      end: "11:00:00",
+      recurrence: "none",
+      recurrenceDays: [],
+    };
+    let submitted: Record<string, unknown> | undefined;
+    stubSignedIn({
+      "GET /tasks": () => jsonResponse([]),
+      "GET /blocks": () => jsonResponse([morning]),
+      "POST /tasks": (init) => {
+        submitted = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return jsonResponse(
+          {
+            ...task,
+            title: submitted.title,
+            date: submitted.date,
+            timeBlockId: submitted.timeBlockId,
+          },
+          201,
+        );
+      },
+    });
+    renderPage(<TasksPage />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Add your first task/ }),
+    );
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Write the intro" },
+    });
+    fireEvent.change(screen.getByLabelText("Time block"), {
+      target: { value: morning.id },
+    });
+    expect(screen.getByLabelText("Date")).toHaveValue("2026-09-01");
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+
+    expect(await screen.findByText("Write the intro")).toBeInTheDocument();
+    expect(submitted).toMatchObject({
+      title: "Write the intro",
+      date: "2026-09-01",
+      timeBlockId: morning.id,
+    });
+    expect(screen.getByText("Morning block · 09:00–11:00")).toBeInTheDocument();
+  });
+
+  it("narrows time blocks to those that occur on the chosen date", async () => {
+    const monday: TimeBlock = {
+      id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      title: "Monday deep work",
+      description: "",
+      date: "2026-08-31",
+      start: "09:00:00",
+      end: "11:00:00",
+      recurrence: "none",
+      recurrenceDays: [],
+    };
+    const tuesday: TimeBlock = {
+      id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      title: "Tuesday review",
+      description: "",
+      date: "2026-09-01",
+      start: "14:00:00",
+      end: "15:00:00",
+      recurrence: "none",
+      recurrenceDays: [],
+    };
+    stubSignedIn({
+      "GET /tasks": () => jsonResponse([]),
+      "GET /blocks": () => jsonResponse([monday, tuesday]),
+    });
+    renderPage(<TasksPage />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Add your first task/ }),
+    );
+    const select = screen.getByLabelText("Time block");
+    expect(select).toHaveTextContent("Monday deep work");
+    expect(select).toHaveTextContent("Tuesday review");
+
+    fireEvent.change(screen.getByLabelText("Date"), {
+      target: { value: "2026-09-01" },
+    });
+    expect(select).not.toHaveTextContent("Monday deep work");
+    expect(select).toHaveTextContent("Tuesday review");
   });
 });

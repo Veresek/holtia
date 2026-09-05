@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
-from app.routers import auth, blocks, notes, state, tasks, users
+from app.routers import ai, auth, blocks, notes, state, tasks, users
 
 settings = get_settings()
 
@@ -33,6 +33,7 @@ def health(db: Session = Depends(get_db)) -> dict[str, str]:
 
 api.include_router(auth.router)
 api.include_router(users.router)
+api.include_router(ai.router)
 api.include_router(tasks.router)
 api.include_router(blocks.router)
 api.include_router(notes.router)

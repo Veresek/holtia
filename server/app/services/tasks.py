@@ -1,13 +1,15 @@
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.models.task import Task
 from app.models.time_block import TimeBlock
 from app.schemas.task import TaskCreate, TaskUpdate
+from app.services.blocks import next_occurrence_on_or_after, occurs_on
 
 
 TASK_NOT_FOUND = "Task not found."
@@ -32,11 +34,11 @@ def _ensure_owned_time_block(
     db: Session,
     time_block_id: uuid.UUID | None,
     user_id: uuid.UUID,
-) -> None:
+) -> TimeBlock | None:
     if time_block_id is None:
-        return
+        return None
     block = db.scalar(
-        select(TimeBlock.id).where(
+        select(TimeBlock).where(
             TimeBlock.id == time_block_id,
             TimeBlock.user_id == user_id,
         )
@@ -46,6 +48,25 @@ def _ensure_owned_time_block(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=TIME_BLOCK_NOT_FOUND,
         )
+    return block
+
+
+def _today() -> date:
+    return datetime.now(get_settings().zoneinfo).date()
+
+
+def _pin_date_for(block: TimeBlock, requested: date | None) -> date:
+    pinned_date = (
+        next_occurrence_on_or_after(block, _today())
+        if requested is None
+        else requested
+    )
+    if not occurs_on(block, pinned_date):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"The time block does not occur on {pinned_date.isoformat()}.",
+        )
+    return pinned_date
 
 
 def list_owned_tasks(
@@ -69,9 +90,11 @@ def create_owned_task(
     user_id: uuid.UUID,
     payload: TaskCreate,
 ) -> Task:
-    _ensure_owned_time_block(db, payload.time_block_id, user_id)
     values = payload.model_dump(by_alias=False)
     values["sort_order"] = values.pop("order")
+    block = _ensure_owned_time_block(db, values["time_block_id"], user_id)
+    if block is not None:
+        values["date"] = _pin_date_for(block, values["date"])
     task = Task(user_id=user_id, **values)
     db.add(task)
     db.commit()
@@ -87,8 +110,31 @@ def update_owned_task(
 ) -> Task:
     task = get_owned_task(db, task_id, user_id)
     changes = payload.model_dump(exclude_unset=True, by_alias=False)
-    if "time_block_id" in changes:
-        _ensure_owned_time_block(db, changes["time_block_id"], user_id)
+    date_specified = "date" in changes
+    block_specified = "time_block_id" in changes
+    next_date = changes["date"] if date_specified else task.date
+    next_block_id = (
+        changes["time_block_id"] if block_specified else task.time_block_id
+    )
+    setting_block = block_specified and next_block_id is not None
+    date_cleared = date_specified and next_date is None
+
+    if setting_block:
+        block = _ensure_owned_time_block(db, next_block_id, user_id)
+        assert block is not None
+        requested = None if (not date_specified or next_date is None) else next_date
+        changes["time_block_id"] = next_block_id
+        changes["date"] = _pin_date_for(block, requested)
+    elif date_cleared:
+        changes["date"] = None
+        changes["time_block_id"] = None
+    elif next_block_id is not None and date_specified:
+        block = _ensure_owned_time_block(db, next_block_id, user_id)
+        assert block is not None
+        changes["date"] = _pin_date_for(block, next_date)
+    elif block_specified:
+        changes["time_block_id"] = None
+
     for field, value in changes.items():
         attribute = "sort_order" if field == "order" else field
         setattr(task, attribute, value)

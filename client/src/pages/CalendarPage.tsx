@@ -1,9 +1,14 @@
 import { useMemo, useState } from "react";
 
 import { BlockForm } from "../components/BlockForm";
+import { DayGrid } from "../components/DayGrid";
 import { Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icon";
+import { NoteForm } from "../components/NoteForm";
+import { TaskForm } from "../components/TaskForm";
 import { WeekGrid } from "../components/WeekGrid";
+import { notePinsByBlock, taskPinsByBlockOnDate } from "../assignments";
+import { useData } from "../data/DataProvider";
 import { useBlocks } from "../hooks/useBlocks";
 import { useNow } from "../hooks/useNow";
 import {
@@ -23,6 +28,7 @@ export function CalendarPage() {
   const now = useNow();
   const today = warsawDateValue(now);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today));
+  const [selectedDate, setSelectedDate] = useState(today);
   const dates = useMemo(() => weekDates(weekStart), [weekStart]);
   const {
     blocks,
@@ -33,20 +39,66 @@ export function CalendarPage() {
     updateBlock,
     deleteBlock,
   } = useBlocks(dates);
+  const {
+    tasks,
+    notes,
+    updateTask,
+    updateNote,
+  } = useData();
+  const notesByBlock = notePinsByBlock(notes);
   const [creatingDate, setCreatingDate] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const editing = blocks.find((block) => block.id === editingId);
+  const editingTask = tasks.find((task) => task.id === editingTaskId);
+  const editingNote = notes.find((note) => note.id === editingNoteId);
   const nowParts = warsawTimeParts(now);
   const nowMinutes = nowParts.hour * 60 + nowParts.minute;
-  const defaultCreateDate = dates.includes(today) ? today : weekStart;
+  const defaultCreateDate = dates.includes(selectedDate)
+    ? selectedDate
+    : dates.includes(today)
+      ? today
+      : weekStart;
 
   const closeEditors = () => {
     setCreatingDate(null);
     setEditingId(null);
+    setEditingTaskId(null);
+    setEditingNoteId(null);
   };
 
+  function moveWeek(nextStart: string) {
+    closeEditors();
+    setWeekStart(nextStart);
+    const nextDates = weekDates(nextStart);
+    setSelectedDate(nextDates.includes(today) ? today : nextStart);
+  }
+
+  const weekDays = dates.map((date) => ({
+    date,
+    weekday: formatWeekdayShort(date),
+    day: String(Number(date.slice(8))),
+    label: formatDayHeading(date),
+    isToday: date === today,
+    blocks: blocks.flatMap((block) =>
+      blockSegmentsOnDay(block, date).map((segment) => ({
+        id: block.id,
+        title: block.title,
+        description: block.description,
+        startLabel: formatTimeLabel(block.start),
+        endLabel: formatTimeLabel(block.end),
+        startMinutes: segment.startMinutes,
+        endMinutes: segment.endMinutes,
+      })),
+    ),
+    tasksByBlock: taskPinsByBlockOnDate(tasks, date),
+    notesByBlock,
+  }));
+  const selectedDay = weekDays.find((day) => day.date === selectedDate) ?? weekDays[0];
+
   return (
-    <section className="mx-auto w-full max-w-[90rem] px-4 py-8 md:px-8 md:py-12">
+    <section className="mx-auto w-full min-w-0 max-w-[90rem] px-4 py-8 md:px-8 md:py-12">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <header>
           <p className="text-sm text-ink-soft">Plan your time</p>
@@ -60,7 +112,7 @@ export function CalendarPage() {
         <button
           className="shrink-0 rounded-md bg-moss px-4 py-2 text-sm font-medium text-paper-raised hover:bg-moss-hover"
           onClick={() => {
-            setEditingId(null);
+            closeEditors();
             setCreatingDate(defaultCreateDate);
           }}
           type="button"
@@ -73,10 +125,7 @@ export function CalendarPage() {
         <button
           aria-label="Previous week"
           className="rounded-md border border-line p-2 text-ink-soft hover:bg-paper-raised"
-          onClick={() => {
-            closeEditors();
-            setWeekStart((current) => addCalendarDays(current, -7));
-          }}
+          onClick={() => moveWeek(addCalendarDays(weekStart, -7))}
           type="button"
         >
           <Icon name="chevronLeft" className="size-5" />
@@ -87,10 +136,7 @@ export function CalendarPage() {
         <button
           aria-label="Next week"
           className="rounded-md border border-line p-2 text-ink-soft hover:bg-paper-raised"
-          onClick={() => {
-            closeEditors();
-            setWeekStart((current) => addCalendarDays(current, 7));
-          }}
+          onClick={() => moveWeek(addCalendarDays(weekStart, 7))}
           type="button"
         >
           <Icon name="chevronRight" className="size-5" />
@@ -101,6 +147,7 @@ export function CalendarPage() {
             onClick={() => {
               closeEditors();
               setWeekStart(startOfWeek(today));
+              setSelectedDate(today);
             }}
             type="button"
           >
@@ -157,42 +204,122 @@ export function CalendarPage() {
         </Dialog>
       ) : null}
 
+      {editingTask ? (
+        <Dialog onClose={() => setEditingTaskId(null)} title="Edit task">
+          <TaskForm
+            blocks={blocks}
+            initial={editingTask}
+            onCancel={() => setEditingTaskId(null)}
+            onSubmit={async (payload) => {
+              await updateTask(editingTask.id, payload);
+              setEditingTaskId(null);
+            }}
+            submitLabel="Save changes"
+          />
+        </Dialog>
+      ) : null}
+
+      {editingNote ? (
+        <Dialog onClose={() => setEditingNoteId(null)} title="Edit note">
+          <NoteForm
+            blocks={blocks}
+            initial={editingNote}
+            onCancel={() => setEditingNoteId(null)}
+            onSubmit={async (payload) => {
+              await updateNote(editingNote.id, payload);
+              setEditingNoteId(null);
+            }}
+            submitLabel="Save changes"
+            tasks={tasks}
+          />
+        </Dialog>
+      ) : null}
+
       {loading ? (
         <p className="mt-8 text-sm text-ink-soft" role="status">
           Loading the week…
         </p>
       ) : (
         <div className="mt-8">
-          <WeekGrid
-            days={dates.map((date) => ({
-              date,
-              weekday: formatWeekdayShort(date),
-              day: String(Number(date.slice(8))),
-              label: formatDayHeading(date),
-              isToday: date === today,
-              blocks: blocks.flatMap((block) =>
-                blockSegmentsOnDay(block, date).map((segment) => ({
-                  id: block.id,
-                  title: block.title,
-                  description: block.description,
-                  startLabel: formatTimeLabel(block.start),
-                  endLabel: formatTimeLabel(block.end),
-                  startMinutes: segment.startMinutes,
-                  endMinutes: segment.endMinutes,
-                })),
-              ),
-            }))}
-            label={`Week of ${formatWeekHeading(weekStart)}`}
-            nowMinutes={nowMinutes}
-            onSelect={(id) => {
-              setCreatingDate(null);
-              setEditingId(id);
-            }}
-            onSelectDay={(date) => {
-              setEditingId(null);
-              setCreatingDate(date);
-            }}
-          />
+          <div className="hidden md:block">
+            <WeekGrid
+              days={weekDays}
+              label={`Week of ${formatWeekHeading(weekStart)}`}
+              nowMinutes={nowMinutes}
+              onSelect={(id) => {
+                closeEditors();
+                setEditingId(id);
+              }}
+              onSelectDay={(date) => {
+                closeEditors();
+                setCreatingDate(date);
+              }}
+              onSelectNote={(id) => {
+                closeEditors();
+                setEditingNoteId(id);
+              }}
+              onSelectTask={(id) => {
+                closeEditors();
+                setEditingTaskId(id);
+              }}
+            />
+          </div>
+          <div className="min-w-0 md:hidden">
+            <div
+              aria-label="Choose a day"
+              className="grid grid-cols-7 rounded-lg border border-line bg-paper-raised"
+              role="group"
+            >
+              {weekDays.map((day) => (
+                <button
+                  aria-current={day.date === selectedDate ? "date" : undefined}
+                  aria-label={`Show ${day.label}`}
+                  className={[
+                    "flex flex-col items-center gap-0.5 py-2",
+                    day.date === selectedDate ? "bg-paper-deep" : "",
+                    day.isToday ? "text-moss" : "text-ink",
+                  ].join(" ")}
+                  key={day.date}
+                  onClick={() => {
+                    closeEditors();
+                    setSelectedDate(day.date);
+                  }}
+                  type="button"
+                >
+                  <span className="text-[0.7rem] font-medium tracking-wide text-ink-faint">
+                    {day.weekday}
+                  </span>
+                  <span className="text-sm">{day.day}</span>
+                </button>
+              ))}
+            </div>
+            {selectedDay ? (
+              <div className="mt-4 min-w-0">
+                <DayGrid
+                  blocks={selectedDay.blocks}
+                  label={selectedDay.label}
+                  notesByBlock={selectedDay.notesByBlock}
+                  nowMinutes={selectedDay.isToday ? nowMinutes : undefined}
+                  onSelect={(id) => {
+                    closeEditors();
+                    setEditingId(id);
+                  }}
+                  onSelectNote={(id) => {
+                    closeEditors();
+                    setEditingNoteId(id);
+                  }}
+                  onSelectTask={(id) => {
+                    closeEditors();
+                    setEditingTaskId(id);
+                  }}
+                  pixelsPerHour={40}
+                  rangeEndMinutes={1440}
+                  rangeStartMinutes={0}
+                  tasksByBlock={selectedDay.tasksByBlock}
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
     </section>

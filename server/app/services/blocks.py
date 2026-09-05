@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import Select, and_, or_, select
 from sqlalchemy.orm import Session
 
+from app.models.task import Task
 from app.models.time_block import Recurrence, TimeBlock
 from app.schemas.time_block import (
     TimeBlockCreate,
@@ -29,6 +30,15 @@ def occurs_on(block: TimeBlock, day: date) -> bool:
     if block.recurrence == Recurrence.WEEKDAYS:
         return day.weekday() in frozenset(block.recurrence_days)
     return False
+
+
+def next_occurrence_on_or_after(block: TimeBlock, day: date) -> date:
+    start = max(day, block.date)
+    for offset in range(7):
+        candidate = start + timedelta(days=offset)
+        if occurs_on(block, candidate):
+            return candidate
+    return block.date
 
 
 def is_overnight(block: TimeBlock) -> bool:
@@ -147,6 +157,13 @@ def _merged_recurrence_days(
         ) from error
 
 
+def _clear_stale_task_pins(db: Session, block: TimeBlock) -> None:
+    pinned = db.scalars(select(Task).where(Task.time_block_id == block.id)).all()
+    for task in pinned:
+        if task.date is None or not occurs_on(block, task.date):
+            task.time_block_id = None
+
+
 def update_owned_block(
     db: Session,
     block_id: uuid.UUID,
@@ -161,8 +178,13 @@ def update_owned_block(
         _merged_time_range(block, changes)
     if "recurrence" in changes or "recurrence_days" in changes:
         changes["recurrence_days"] = _merged_recurrence_days(block, changes)
+    schedule_changed = any(
+        field in changes for field in ("date", "recurrence", "recurrence_days")
+    )
     for field, value in changes.items():
         setattr(block, field, value)
+    if schedule_changed:
+        _clear_stale_task_pins(db, block)
     db.commit()
     db.refresh(block)
     return block

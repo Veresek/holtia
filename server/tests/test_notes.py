@@ -41,7 +41,15 @@ def test_note_crud_trims_title_and_preserves_markdown(
     assert note["title"] == "Meeting notes"
     assert note["markdown"] == "# Decisions\n\n- Keep the scope small\n"
     assert note["taskId"] == task["id"]
-    assert set(note) == {"id", "title", "markdown", "taskId", "updatedAt"}
+    assert note["timeBlockId"] is None
+    assert set(note) == {
+        "id",
+        "title",
+        "markdown",
+        "taskId",
+        "timeBlockId",
+        "updatedAt",
+    }
 
     fetched = client.get(f"/api/notes/{note['id']}")
     assert fetched.status_code == 200
@@ -147,3 +155,75 @@ def test_notes_are_isolated_between_users(client: TestClient) -> None:
         adas_note["id"]
     ]
     assert client.get(f"/api/notes/{uuid.uuid4()}").status_code == 404
+
+
+def test_note_can_pin_to_a_time_block(client: TestClient) -> None:
+    register_verified(client)
+    block = client.post(
+        "/api/blocks",
+        json={
+            "title": "Deep work",
+            "date": "2026-08-31",
+            "start": "09:00:00",
+            "end": "11:00:00",
+        },
+    ).json()
+
+    created = client.post(
+        "/api/notes",
+        json={"title": "Session notes", "timeBlockId": block["id"]},
+    )
+    assert created.status_code == 201
+    note = created.json()
+    assert note["timeBlockId"] == block["id"]
+    assert note["taskId"] is None
+
+    updated = client.patch(
+        f"/api/notes/{note['id']}",
+        json={"timeBlockId": None},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["timeBlockId"] is None
+
+
+def test_note_time_block_must_belong_to_current_user(client: TestClient) -> None:
+    register_verified(client, "ada@example.com")
+    block = client.post(
+        "/api/blocks",
+        json={
+            "title": "Ada’s block",
+            "date": "2026-08-31",
+            "start": "09:00:00",
+            "end": "10:00:00",
+        },
+    ).json()
+
+    register_verified(client, "grace@example.com")
+    response = client.post(
+        "/api/notes",
+        json={"title": "Not allowed", "timeBlockId": block["id"]},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Time block not found."
+
+
+def test_deleting_a_block_clears_note_pin(client: TestClient) -> None:
+    register_verified(client)
+    block = client.post(
+        "/api/blocks",
+        json={
+            "title": "Deep work",
+            "date": "2026-08-31",
+            "start": "09:00:00",
+            "end": "11:00:00",
+        },
+    ).json()
+    note = client.post(
+        "/api/notes",
+        json={"title": "Pinned note", "timeBlockId": block["id"]},
+    ).json()
+    assert note["timeBlockId"] == block["id"]
+
+    assert client.delete(f"/api/blocks/{block['id']}").status_code == 204
+    assert client.get(f"/api/notes/{note['id']}").json()["timeBlockId"] is None

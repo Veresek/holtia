@@ -1,9 +1,13 @@
 import { useState } from "react";
 
-import type { Task } from "../types";
+import { formatTimeLabel } from "../time";
+import type { Task, TimeBlock } from "../types";
 import { ConfirmDelete } from "./ConfirmDelete";
+import {
+  ExpandableMarkdown,
+  TASK_PREVIEW_MAX_HEIGHT_REM,
+} from "./ExpandableMarkdown";
 import { ItemMenu } from "./ItemMenu";
-import { MarkdownBody } from "./MarkdownBody";
 
 interface TaskItemProps {
   task: Task;
@@ -11,6 +15,7 @@ interface TaskItemProps {
   onEdit?: () => void;
   onDelete?: () => Promise<unknown>;
   showDate?: boolean;
+  block?: TimeBlock;
 }
 
 function displayDate(value: string) {
@@ -27,9 +32,11 @@ export function TaskItem({
   onEdit,
   onDelete,
   showDate = true,
+  block,
 }: TaskItemProps) {
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
+  const hasBody = Boolean(task.description) || showDate || Boolean(block);
 
   async function handleToggle() {
     setPending(true);
@@ -55,12 +62,20 @@ export function TaskItem({
   }
 
   return (
-    <article className="rounded-lg border border-line bg-paper-raised p-4">
-      <div className="flex items-center gap-3">
+    <article className="min-w-0 rounded-lg border border-line bg-paper-raised p-4 hover:border-lichen">
+      <div
+        className={[
+          "flex gap-3",
+          hasBody ? "items-start" : "items-center",
+        ].join(" ")}
+      >
         <input
           aria-label={`Mark ${task.title} as ${task.done ? "not done" : "done"}`}
           checked={task.done}
-          className="size-4 shrink-0 accent-moss"
+          className={[
+            "size-4 shrink-0 accent-moss",
+            hasBody ? "mt-1" : "",
+          ].join(" ")}
           disabled={pending}
           onChange={() => void handleToggle()}
           type="checkbox"
@@ -68,26 +83,45 @@ export function TaskItem({
         <div className="min-w-0 flex-1">
           <h3
             className={[
-              "font-medium text-ink",
+              "wrap-break-word font-medium text-ink",
               task.done ? "line-through opacity-60" : "",
             ].join(" ")}
           >
-            {task.title}
+            {onEdit ? (
+              <button
+                aria-label={`Edit ${task.title}`}
+                className="max-w-full text-left wrap-break-word"
+                onClick={onEdit}
+                type="button"
+              >
+                {task.title}
+              </button>
+            ) : (
+              task.title
+            )}
           </h3>
           {task.description ? (
-            <MarkdownBody
+            <ExpandableMarkdown
               className={
                 showDate
                   ? "mt-1 wrap-break-word text-sm leading-6 text-ink-soft"
                   : "mt-0.5 wrap-break-word text-xs text-ink-faint"
               }
               compact={!showDate}
+              label={task.title}
+              maxHeightRem={TASK_PREVIEW_MAX_HEIGHT_REM}
               markdown={task.description}
             />
           ) : null}
           {showDate ? (
-            <p className="mt-2 text-xs text-ink-faint">
+            <p className="mt-2 wrap-break-word text-xs text-ink-faint">
               {task.date ? displayDate(task.date) : "No date"}
+            </p>
+          ) : null}
+          {block ? (
+            <p className="mt-1 wrap-break-word text-xs text-ink-faint">
+              {block.title} · {formatTimeLabel(block.start)}–
+              {formatTimeLabel(block.end)}
             </p>
           ) : null}
         </div>

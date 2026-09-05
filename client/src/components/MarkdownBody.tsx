@@ -79,7 +79,7 @@ function markdownComponents(options: {
       const external = /^(https?:)?\/\//i.test(safe);
       return (
         <a
-          className="text-moss underline hover:text-moss-hover"
+          className="relative wrap-break-word text-moss underline hover:text-moss-hover"
           href={safe}
           rel={external ? "noopener noreferrer" : undefined}
           target={external ? "_blank" : undefined}
@@ -93,12 +93,12 @@ function markdownComponents(options: {
     ),
     em: ({ children }) => <em>{children}</em>,
     code: ({ children }) => (
-      <code className="rounded-sm bg-paper px-1 py-0.5 font-mono text-[0.85em] text-ink">
+      <code className="wrap-break-word rounded-sm bg-paper px-1 py-0.5 font-mono text-[0.85em] text-ink">
         {children}
       </code>
     ),
     pre: ({ children }) => (
-      <pre className="mt-1 overflow-x-auto rounded-md border border-line bg-paper p-2 font-mono text-[0.85em] text-ink first:mt-0">
+      <pre className="mt-1 max-w-full overflow-x-auto rounded-md border border-line bg-paper p-2 font-mono text-[0.85em] text-ink first:mt-0">
         {children}
       </pre>
     ),
@@ -124,7 +124,7 @@ export function MarkdownBody({
       className={
         className ??
         [
-          "mt-3 wrap-break-word text-sm leading-6 text-ink-soft",
+          "mt-3 min-w-0 wrap-break-word text-sm leading-6 text-ink-soft",
           compact ? "line-clamp-6" : "",
         ].join(" ")
       }

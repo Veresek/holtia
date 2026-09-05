@@ -9,6 +9,7 @@ from app.models.time_block import Recurrence
 from app.schemas.note import NoteRead
 from app.schemas.task import TaskRead
 from app.schemas.time_block import TimeBlockRead
+from app.schemas.ai import AiPlanResponse, AiSettingsRead
 from app.schemas.user import UserRead
 from tests.conftest import register, register_verified
 
@@ -55,8 +56,37 @@ def test_read_schemas_serialize_with_camel_case() -> None:
                 title="Ideas",
                 markdown="A note",
                 task_id=related_id,
+                time_block_id=related_id,
                 updated_at=now,
             )
+        ).model_dump(mode="json"),
+        AiSettingsRead(
+            enabled=True,
+            configured=True,
+            provider="openai",
+            model="gpt-4o-mini",
+            key_hint="abcd",
+            active_key_id=related_id,
+            keys=[
+                {
+                    "id": related_id,
+                    "provider": "openai",
+                    "model": "gpt-4o-mini",
+                    "key_hint": "abcd",
+                }
+            ],
+            models={"openai": [{"id": "gpt-4o-mini", "label": "GPT-4o mini"}]},
+        ).model_dump(mode="json"),
+        AiPlanResponse(
+            reply="I can add this.",
+            items=[
+                {
+                    "kind": "task",
+                    "title": "Buy milk",
+                    "description": "",
+                    "date": date(2026, 9, 5),
+                }
+            ],
         ).model_dump(mode="json"),
     ]
 
@@ -86,8 +116,20 @@ def test_read_schemas_serialize_with_camel_case() -> None:
         "title",
         "markdown",
         "taskId",
+        "timeBlockId",
         "updatedAt",
     }
+    assert set(responses[4]) == {
+        "enabled",
+        "configured",
+        "provider",
+        "model",
+        "keyHint",
+        "activeKeyId",
+        "keys",
+        "models",
+    }
+    assert set(responses[5]) == {"reply", "items"}
     assert all("_" not in key for response in responses for key in response)
 
 

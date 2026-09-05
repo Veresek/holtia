@@ -5,6 +5,8 @@ from time import monotonic
 from fastapi import Depends, HTTPException, Request, status
 
 from app.config import Settings, get_settings
+from app.deps import get_current_user
+from app.models.user import User
 
 RATE_LIMITED = "Too many requests. Try again later."
 
@@ -41,6 +43,7 @@ class InMemoryRateLimiter:
 
 
 auth_rate_limiter = InMemoryRateLimiter()
+ai_rate_limiter = InMemoryRateLimiter()
 
 
 def client_key(request: Request) -> str:
@@ -60,6 +63,27 @@ def enforce_auth_rate_limit(
         client_key(request),
         settings.auth_rate_limit_requests,
         settings.auth_rate_limit_window_seconds,
+    )
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=RATE_LIMITED,
+            headers={"Retry-After": str(retry_after)},
+        )
+
+
+def enforce_ai_rate_limit(
+    request: Request,
+    user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    if not settings.rate_limiting_enabled:
+        return
+    retry_after = ai_rate_limiter.retry_after(
+        request.url.path,
+        str(user.id),
+        settings.ai_rate_limit_requests,
+        settings.ai_rate_limit_window_seconds,
     )
     if retry_after is not None:
         raise HTTPException(

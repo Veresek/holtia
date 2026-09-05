@@ -15,7 +15,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 def not_implemented() -> None:
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="User sessions are not implemented yet.",
+        detail="Changing email is not available yet.",
     )
 
 

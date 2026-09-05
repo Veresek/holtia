@@ -6,6 +6,8 @@ primary user, open source (GPL-3.0), self-hostable.
 
 Read [`docs/product.md`](docs/product.md) and [`docs/execution.md`](docs/execution.md)
 before changing product behaviour. Decisions there are locked, not suggestions.
+Deploy and secrets: [`docs/operations.md`](docs/operations.md). Current risks:
+[`docs/review.md`](docs/review.md).
 
 ## Repository layout
 
@@ -14,7 +16,11 @@ client/                 Vite + React 19 + TypeScript SPA
   src/
     api/                fetch wrapper (client.ts) + endpoint groups
     assets/icons/       every SVG in the project lives here, nowhere else
-    components/         shared UI (Brand, Icon, Nav, AiBar, AuthCard, EmptyCta)
+    assignments.ts      pins of tasks/notes onto block tiles
+    auth/               AuthProvider + route guards
+    components/         shared UI (forms, grids, Dialog, EmptyCta, …)
+    data/DataProvider   signed-in collections + /state revalidation
+    hooks/              useTasks / useNotes / useBlocks / around-now
     layouts/AppShell    sidebar + AI bar + routed outlet
     pages/              one file per route
     styles/globals.css  Tailwind v4 theme tokens
@@ -27,10 +33,14 @@ server/                 FastAPI + SQLAlchemy + PostgreSQL
     models/             SQLAlchemy tables
     schemas/            Pydantic request/response models
     routers/            one router per resource, mounted under /api
-    services/           domain logic (recurrence expansion lands here)
+    services/           domain logic (auth, recurrence, pins, AI BYOK)
+  migrations/           Alembic versions; head is 20260906_0008
+  scripts/              migrate.py, purge_revoked_tokens.py
   tests/                pytest + FastAPI TestClient
-docs/                   product plan; product.md is the source of truth
-docker-compose.yml      db + server + client
+docs/                   product.md is the source of truth
+docker-compose.yml      Postgres 18 + API :8000 + Vite :5173
+docker-compose.prod.yml private API + Caddy HTTPS
+.github/workflows/ci.yml  ruff + pytest; client lint / test / build
 ```
 
 ## Commands
@@ -41,22 +51,24 @@ The shell is **PowerShell on Windows**: `&&` is not a valid separator. Chain wit
 ```powershell
 docker compose up --build          # whole stack: app :5173, API :8000
 
-cd client; npm run dev             # Vite dev server
-cd client; npm run lint            # ESLint
+cd client; npm run lint            # ESLint (includes jsx-a11y)
 cd client; npm test                # Vitest (single run)
 cd client; npm run build           # tsc --noEmit + production build
 
+cd server; .\.venv\Scripts\python.exe -m ruff check .
 cd server; .\.venv\Scripts\python.exe -m pytest
 ```
 
 Server dependencies live in a local venv at `server/.venv`. Install with
 `pip install -r requirements-dev.txt` (it pulls in `requirements.txt`).
+Runtime: Python 3.13, Node 24, PostgreSQL 18. CI runs those same checks on
+every push and pull request.
 
 ## Before you finish
 
 Run the checks for whatever you touched: `npm run lint`, `npm test`, and
-`npm run build` for the client; `pytest` for the server. Do not report work as
-done on an unverified change.
+`npm run build` for the client; `ruff check .` and `pytest` for the server. Do
+not report work as done on an unverified change.
 
 ## Design language
 
@@ -80,6 +92,7 @@ Tailwind palettes like `stone-*` or `lime-*`.
 | `line` | borders and separators |
 | `moss`, `moss-hover` | accent, primary buttons, active nav |
 | `lichen` | quiet accent, hover borders |
+| `rust` | destructive actions and errors |
 
 ## Icons and logo
 
@@ -108,12 +121,14 @@ markup into components and do not add icon dependencies.
 
 - SQLAlchemy 2 style: `Mapped[...]` with `mapped_column`, UUID primary keys.
 - Pydantic v2 schemas in `schemas/`, split into `…Create` / `…Update` / `…Read`;
-  `Read` models set `model_config = ConfigDict(from_attributes=True)`.
+  `Read` models set `model_config = ConfigDict(from_attributes=True)`. Wire
+  names are camelCase via `schemas/base.py`.
 - One router per resource, `APIRouter(prefix="/…", tags=["…"])`, mounted on the
   `/api` router in `main.py`.
-- Unimplemented slices are explicit scaffolding: collection reads return `[]`,
-  mutations and auth raise `501` via the local `not_implemented()` helper. Keep
-  that shape until you implement the real slice.
+- Auth, tasks, blocks, notes, state, account deletion, and the AI assistant
+  (BYOK settings + plan) are implemented. Do not reintroduce empty-collection
+  scaffolding. The remaining stub is `PATCH /api/users/me` (change email),
+  which still raises `501`.
 - Configuration comes from `Settings` in `config.py` only; never read `os.environ`
   directly in feature code.
 
@@ -128,9 +143,12 @@ markup into components and do not add icon dependencies.
 
 ## Scope and safety
 
-- MVP is web-only and ends September 2026. Google login, Expo, SMTP, and a live
-  AI assistant are v2 — the AI bar stays visibly disabled.
-- Verification and password reset use `INSTANCE_CODE` from env, not email.
+- MVP is web-only and ends September 2026. Google login, Expo, and SMTP are v2.
+  The AI bar stays off until `AI_ENABLED`; users then bring their own provider
+  key. See [docs/ai-tools.md](docs/ai-tools.md).
+- Verification and password reset currently use one `INSTANCE_CODE` from env.
+  That is a private-instance stand-in. Do not publish the code. v2 replaces it
+  with per-user, single-use email tokens. See `docs/execution.md`.
 - Never commit `.env`, secrets, or the instance code; `.env.example` documents
   the variables.
 - No analytics or tracking, ever.

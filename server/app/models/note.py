@@ -21,6 +21,11 @@ class Note(Base):
         ForeignKey("tasks.id", ondelete="SET NULL"),
         index=True,
     )
+    time_block_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("time_blocks.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

@@ -28,7 +28,7 @@ def test_list_blocks_is_empty(client: TestClient) -> None:
     assert response.json() == []
 
 
-@pytest.mark.parametrize("path", ["/api/tasks", "/api/blocks", "/api/notes"])
+@pytest.mark.parametrize("path", ["/api/tasks", "/api/blocks", "/api/notes", "/api/ai/settings"])
 def test_resources_require_authentication(
     client: TestClient,
     path: str,

@@ -6,11 +6,13 @@ from sqlalchemy.orm import Session
 
 from app.models.note import Note
 from app.models.task import Task
+from app.models.time_block import TimeBlock
 from app.schemas.note import NoteCreate, NoteUpdate
 
 
 NOTE_NOT_FOUND = "Note not found."
 TASK_NOT_FOUND = "Task not found."
+TIME_BLOCK_NOT_FOUND = "Time block not found."
 
 
 def _owned_note_statement(note_id: uuid.UUID, user_id: uuid.UUID) -> Select:
@@ -44,6 +46,26 @@ def _ensure_owned_task(
         )
 
 
+def _ensure_owned_time_block(
+    db: Session,
+    time_block_id: uuid.UUID | None,
+    user_id: uuid.UUID,
+) -> None:
+    if time_block_id is None:
+        return
+    block = db.scalar(
+        select(TimeBlock.id).where(
+            TimeBlock.id == time_block_id,
+            TimeBlock.user_id == user_id,
+        )
+    )
+    if block is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=TIME_BLOCK_NOT_FOUND,
+        )
+
+
 def list_owned_notes(db: Session, user_id: uuid.UUID) -> list[Note]:
     statement = (
         select(Note)
@@ -59,6 +81,7 @@ def create_owned_note(
     payload: NoteCreate,
 ) -> Note:
     _ensure_owned_task(db, payload.task_id, user_id)
+    _ensure_owned_time_block(db, payload.time_block_id, user_id)
     note = Note(
         user_id=user_id,
         **payload.model_dump(by_alias=False),
@@ -79,6 +102,8 @@ def update_owned_note(
     changes = payload.model_dump(exclude_unset=True, by_alias=False)
     if "task_id" in changes:
         _ensure_owned_task(db, changes["task_id"], user_id)
+    if "time_block_id" in changes:
+        _ensure_owned_time_block(db, changes["time_block_id"], user_id)
     for field, value in changes.items():
         setattr(note, field, value)
     db.commit()

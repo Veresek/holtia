@@ -6,13 +6,14 @@ import { jsonResponse, stubApi } from "../test/api";
 import { renderWithRouter } from "../test/render";
 
 describe("RegisterPage", () => {
-  it("shows an error when the email is already registered", async () => {
+  it("sends a duplicate signup to verify without saying the email exists", async () => {
     stubApi({
       "POST /auth/register": () =>
-        jsonResponse(
-          { detail: "An account with this email already exists." },
-          409,
-        ),
+        jsonResponse({
+          id: "22222222-2222-2222-2222-222222222222",
+          email: "ada@example.com",
+          verifiedAt: null,
+        }),
     });
     renderWithRouter(<App />, { route: "/register" });
     await screen.findByRole("heading", { name: "Create your account" });
@@ -26,8 +27,11 @@ describe("RegisterPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     expect(
-      await screen.findByRole("alert"),
-    ).toHaveTextContent("An account with this email already exists.");
+      await screen.findByRole("heading", { name: "Verify your account" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("An account with this email already exists."),
+    ).not.toBeInTheDocument();
   });
 
   it("sends an unverified account to verify", async () => {

@@ -1,3 +1,4 @@
+import type { BlockPin } from "../assignments";
 import { formatHourLabel, hourTicks } from "../time";
 import { DayGrid, type DayGridBlock } from "./DayGrid";
 
@@ -8,6 +9,8 @@ export interface WeekGridDay {
   label: string;
   isToday: boolean;
   blocks: DayGridBlock[];
+  tasksByBlock?: Record<string, BlockPin[]>;
+  notesByBlock?: Record<string, BlockPin[]>;
 }
 
 interface WeekGridProps {
@@ -17,6 +20,8 @@ interface WeekGridProps {
   pixelsPerHour?: number;
   onSelect?: (id: string) => void;
   onSelectDay?: (date: string) => void;
+  onSelectNote?: (id: string) => void;
+  onSelectTask?: (id: string) => void;
 }
 
 export function WeekGrid({
@@ -26,6 +31,8 @@ export function WeekGrid({
   pixelsPerHour = 40,
   onSelect,
   onSelectDay,
+  onSelectNote,
+  onSelectTask,
 }: WeekGridProps) {
   const rangeStartMinutes = 0;
   const rangeEndMinutes = 1440;
@@ -117,12 +124,16 @@ export function WeekGrid({
             framed={false}
             key={day.date}
             label={day.label}
+            notesByBlock={day.notesByBlock}
             nowMinutes={day.isToday ? nowMinutes : undefined}
             onSelect={onSelect}
+            onSelectNote={onSelectNote}
+            onSelectTask={onSelectTask}
             pixelsPerHour={pixelsPerHour}
             rangeEndMinutes={rangeEndMinutes}
             rangeStartMinutes={rangeStartMinutes}
             showAxis={false}
+            tasksByBlock={day.tasksByBlock}
           />
         ))}
       </div>

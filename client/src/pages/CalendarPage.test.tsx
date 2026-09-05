@@ -42,6 +42,11 @@ function stubBlocks(blocks: TimeBlock[] = []) {
   };
 }
 
+async function weekBlockButton(name: string) {
+  const grid = await screen.findByRole("group", { name: /Week of/ });
+  return within(grid).getByRole("button", { name });
+}
+
 describe("CalendarPage", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -147,9 +152,7 @@ describe("CalendarPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Create block" }));
 
-    expect(
-      await screen.findByRole("button", { name: "Writing, 09:00–11:00" }),
-    ).toBeInTheDocument();
+    expect(await weekBlockButton("Writing, 09:00–11:00")).toBeInTheDocument();
     expect(submitted).toMatchObject({
       title: "Writing",
       date: monday,
@@ -180,9 +183,7 @@ describe("CalendarPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Create block" }));
 
-    expect(
-      await screen.findByRole("button", { name: "Writing, 09:00–11:00" }),
-    ).toBeInTheDocument();
+    expect(await weekBlockButton("Writing, 09:00–11:00")).toBeInTheDocument();
     expect(submitted).toMatchObject({
       title: "Writing",
       date: todayValue(),
@@ -244,19 +245,16 @@ describe("CalendarPage", () => {
       },
     });
     renderPage(<CalendarPage />);
-    fireEvent.click(
-      await screen.findByRole("button", {
-        name: "Weekly review, 09:00–11:00",
-      }),
-    );
+    fireEvent.click(await weekBlockButton("Weekly review, 09:00–11:00"));
     expect(screen.getByRole("dialog", { name: "Edit block" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Monday review" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
+    const grid = await screen.findByRole("group", { name: /Week of/ });
     expect(
-      await screen.findByRole("button", {
+      within(grid).getByRole("button", {
         name: "Monday review, 09:00–11:00",
       }),
     ).toBeInTheDocument();
@@ -282,8 +280,9 @@ describe("CalendarPage", () => {
       },
     });
     renderPage(<CalendarPage />);
+    const grid = await screen.findByRole("group", { name: /Week of/ });
     fireEvent.click(
-      await screen.findByRole("button", { name: "Deep work, 09:00–11:00" }),
+      within(grid).getByRole("button", { name: "Deep work, 09:00–11:00" }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(
@@ -378,8 +377,9 @@ describe("CalendarPage", () => {
     stubSignedIn(stubBlocks([daily]));
     renderPage(<CalendarPage />);
 
+    const grid = await screen.findByRole("group", { name: /Week of/ });
     expect(
-      await screen.findAllByRole("button", { name: "Deep work, 09:00–11:00" }),
+      within(grid).getAllByRole("button", { name: "Deep work, 09:00–11:00" }),
     ).toHaveLength(7);
   });
 
@@ -399,5 +399,60 @@ describe("CalendarPage", () => {
     expect(
       within(grid).queryByText("Protect the **morning**."),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows pinned tasks and notes inside a block", async () => {
+    const block = sampleBlock();
+    stubSignedIn({
+      "GET /blocks": () => jsonResponse([block]),
+      "GET /tasks": () =>
+        jsonResponse([
+          {
+            id: "22222222-2222-2222-2222-222222222222",
+            title: "Write the intro",
+            description: "",
+            done: false,
+            date: todayValue(),
+            timeBlockId: block.id,
+            order: 0,
+            createdAt: "2026-09-01T08:00:00Z",
+          },
+        ]),
+      "GET /notes": () =>
+        jsonResponse([
+          {
+            id: "33333333-3333-3333-3333-333333333333",
+            title: "Session notes",
+            markdown: "",
+            taskId: null,
+            timeBlockId: block.id,
+            updatedAt: "2026-09-01T10:00:00Z",
+          },
+        ]),
+    });
+    renderPage(<CalendarPage />);
+
+    const grid = await screen.findByRole("group", { name: /Week of/ });
+    expect(within(grid).getByText("Write the intro")).toBeInTheDocument();
+    expect(within(grid).getByText("Session notes")).toBeInTheDocument();
+
+    fireEvent.click(
+      within(grid).getByRole("button", { name: "Write the intro" }),
+    );
+    expect(screen.getByRole("dialog", { name: "Edit task" })).toBeInTheDocument();
+  });
+
+  it("lets a phone-sized layout pick one day from the week strip", async () => {
+    stubSignedIn(stubBlocks());
+    renderPage(<CalendarPage />);
+
+    expect(
+      await screen.findByRole("group", { name: "Choose a day" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: `Show ${formatDayHeading(todayValue())}`,
+      }),
+    ).toHaveAttribute("aria-current", "date");
   });
 });

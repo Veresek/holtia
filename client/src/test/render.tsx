@@ -26,9 +26,11 @@ export function renderPage(
 ) {
   function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <AuthProvider>
-        <DataProvider>{children}</DataProvider>
-      </AuthProvider>
+      <MemoryRouter>
+        <AuthProvider>
+          <DataProvider>{children}</DataProvider>
+        </AuthProvider>
+      </MemoryRouter>
     );
   }
 

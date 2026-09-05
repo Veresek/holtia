@@ -4,6 +4,7 @@ import { Dialog } from "../components/Dialog";
 import { EmptyCta } from "../components/EmptyCta";
 import { TaskForm } from "../components/TaskForm";
 import { TaskItem } from "../components/TaskItem";
+import { useData } from "../data/DataProvider";
 import { useTasks } from "../hooks/useTasks";
 
 export function TasksPage() {
@@ -16,12 +17,13 @@ export function TasksPage() {
     updateTask,
     deleteTask,
   } = useTasks();
+  const { blocks } = useData();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = tasks.find((task) => task.id === editingId);
 
   return (
-    <section className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8 md:py-12">
+    <section className="mx-auto w-full min-w-0 max-w-4xl px-4 py-8 md:px-8 md:py-12">
       <div className="flex items-end justify-between gap-4">
         <header>
           <p className="text-sm text-ink-soft">Capture and finish</p>
@@ -61,6 +63,7 @@ export function TasksPage() {
       {creating ? (
         <Dialog onClose={() => setCreating(false)} title="Add task">
           <TaskForm
+            blocks={blocks}
             onCancel={() => setCreating(false)}
             onSubmit={async (payload) => {
               await createTask(payload);
@@ -74,6 +77,7 @@ export function TasksPage() {
       {editing ? (
         <Dialog onClose={() => setEditingId(null)} title="Edit task">
           <TaskForm
+            blocks={blocks}
             initial={editing}
             onCancel={() => setEditingId(null)}
             onSubmit={async (payload) => {
@@ -104,6 +108,11 @@ export function TasksPage() {
           </p>
           {tasks.map((task) => (
             <TaskItem
+              block={
+                task.timeBlockId
+                  ? blocks.find((item) => item.id === task.timeBlockId)
+                  : undefined
+              }
               key={task.id}
               onDelete={() => deleteTask(task.id)}
               onEdit={() => {

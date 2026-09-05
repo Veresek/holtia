@@ -26,6 +26,8 @@ services:
       SECRET_KEY: ${SECRET_KEY:-local-development-only}
       TIMEZONE: ${TIMEZONE:-Europe/Warsaw}
       CLIENT_ORIGIN: http://localhost:5173
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_ENCRYPTION_KEY: ${AI_ENCRYPTION_KEY:-}
     ports:
       - "8000:8000"
     volumes:

@@ -1,12 +1,53 @@
 import { vi } from "vitest";
 
-import type { User } from "../types";
+import type { AiSettings, User } from "../types";
 
 export const ada: User = {
   id: "11111111-1111-1111-1111-111111111111",
   email: "ada@example.com",
   verifiedAt: "2026-08-31T00:00:00.000Z",
   createdAt: "2026-08-30T00:00:00.000Z",
+};
+
+export const openaiKeyId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+const models: AiSettings["models"] = {
+  openai: [{ id: "gpt-4o-mini", label: "GPT-4o mini" }],
+  xai: [{ id: "grok-3-mini", label: "Grok 3 mini" }],
+  gemini: [{ id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" }],
+};
+
+export const disabledAiSettings: AiSettings = {
+  enabled: false,
+  configured: false,
+  provider: null,
+  model: null,
+  keyHint: null,
+  activeKeyId: null,
+  keys: [],
+  models,
+};
+
+export const enabledAiSettings: AiSettings = {
+  ...disabledAiSettings,
+  enabled: true,
+};
+
+export const configuredAiSettings: AiSettings = {
+  ...enabledAiSettings,
+  configured: true,
+  provider: "openai",
+  model: "gpt-4o-mini",
+  keyHint: "alue",
+  activeKeyId: openaiKeyId,
+  keys: [
+    {
+      id: openaiKeyId,
+      provider: "openai",
+      model: "gpt-4o-mini",
+      keyHint: "alue",
+    },
+  ],
 };
 
 export function jsonResponse(body: unknown, status = 200): Response {
@@ -74,6 +115,10 @@ export function stubApi(
 
       if (path === "/state" && method === "GET") {
         return jsonResponse(emptyAppState);
+      }
+
+      if (path === "/ai/settings" && method === "GET") {
+        return jsonResponse(disabledAiSettings);
       }
 
       throw new Error(`Unhandled fetch: ${key}`);
