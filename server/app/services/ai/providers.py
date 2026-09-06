@@ -21,11 +21,13 @@ from app.schemas.task import TaskCreate
 from app.schemas.time_block import TimeBlockCreate
 from app.services.ai.catalog import (
     GEMINI_GENERATE_URL,
+    GEMINI_TOOL_CONFIG,
     GEMINI_TOOLS,
     OPENAI_CHAT_URL,
     OPENAI_TOOLS,
     PROPOSE_DAY_CHANGES,
     XAI_CHAT_URL,
+    resolve_gemini_model,
 )
 
 PROVIDER_REJECTED = "The API key was rejected. Check it on Account."
@@ -66,8 +68,34 @@ def request_provider(
         ) from exc
 
 
-def raise_for_provider_status(response: httpx.Response) -> None:
+def provider_error_text(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except json.JSONDecodeError:
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    error = payload.get("error")
+    if isinstance(error, str):
+        return error
+    if isinstance(error, dict):
+        message = error.get("message")
+        if isinstance(message, str):
+            return message
+    return ""
+
+
+def is_rejected_api_key(response: httpx.Response) -> bool:
     if response.status_code in {401, 403}:
+        return True
+    if response.status_code != 400:
+        return False
+    text = provider_error_text(response).lower()
+    return "api key" in text or "api_key" in text
+
+
+def raise_for_provider_status(response: httpx.Response) -> None:
+    if is_rejected_api_key(response):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=PROVIDER_REJECTED,
@@ -284,6 +312,8 @@ def gemini_plan(
     for part in parts:
         if not isinstance(part, dict):
             continue
+        if part.get("thought") is True:
+            continue
         text = part.get("text")
         if isinstance(text, str) and text.strip():
             texts.append(text.strip())
@@ -358,6 +388,22 @@ def complete_openai_compatible(
     )
 
 
+def gemini_generation_config(model: str, settings: Settings) -> dict[str, Any]:
+    config: dict[str, Any] = {
+        "maxOutputTokens": settings.ai_max_output_tokens,
+    }
+    name = model.lower()
+    if "pro" in name:
+        # Pro cannot use MINIMAL thinking; leave room for thoughts plus the tool call.
+        config["maxOutputTokens"] = max(settings.ai_max_output_tokens, 16_384)
+        config["thinkingConfig"] = {"thinkingLevel": "LOW"}
+    else:
+        # Flash thinks by default; those tokens eat maxOutputTokens and the
+        # response comes back with no parts, which we surface as 502.
+        config["thinkingConfig"] = {"thinkingLevel": "MINIMAL"}
+    return config
+
+
 def complete_gemini(
     *,
     api_key: str,
@@ -377,9 +423,8 @@ def complete_gemini(
             "systemInstruction": {"parts": [{"text": system_prompt}]},
             "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
             "tools": GEMINI_TOOLS,
-            "generationConfig": {
-                "maxOutputTokens": settings.ai_max_output_tokens,
-            },
+            "toolConfig": GEMINI_TOOL_CONFIG,
+            "generationConfig": gemini_generation_config(model, settings),
         },
         timeout=settings.ai_request_timeout_seconds,
     )
@@ -415,7 +460,7 @@ def complete_plan(
     if provider is AiProvider.GEMINI:
         return complete_gemini(
             api_key=api_key,
-            model=model,
+            model=resolve_gemini_model(model),
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             settings=settings,

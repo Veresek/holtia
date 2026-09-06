@@ -14,7 +14,7 @@ export const openaiKeyId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const models: AiSettings["models"] = {
   openai: [{ id: "gpt-4o-mini", label: "GPT-4o mini" }],
   xai: [{ id: "grok-3-mini", label: "Grok 3 mini" }],
-  gemini: [{ id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" }],
+  gemini: [{ id: "gemini-3.6-flash", label: "Gemini 3.6 Flash" }],
 };
 
 export const disabledAiSettings: AiSettings = {

@@ -156,7 +156,10 @@ def test_xai_uses_the_xai_host(restore_transport) -> None:
 
 
 def test_gemini_function_call(restore_transport) -> None:
+    captured: dict[str, object] = {}
+
     def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
         assert request.url.host == "generativelanguage.googleapis.com"
         assert "key=" not in str(request.url)
         assert request.headers["x-goog-api-key"] == "AIza-test-key"
@@ -187,14 +190,203 @@ def test_gemini_function_call(restore_transport) -> None:
     result = complete_plan(
         provider=AiProvider.GEMINI,
         api_key="AIza-test-key",
+        model="gemini-3.6-flash",
+        system_prompt="system",
+        user_prompt="user",
+        settings=plan_settings(),
+    )
+
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "MINIMAL"}
+    assert body["toolConfig"]["functionCallingConfig"]["mode"] == "ANY"
+    assert result.reply == "A note for later."
+    assert result.items[0].kind == "note"
+
+
+def test_gemini_retired_flash_id_is_rewritten(restore_transport) -> None:
+    captured: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["thinking"] = json.loads(request.content)["generationConfig"][
+            "thinkingConfig"
+        ]["thinkingLevel"]
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "functionCall": {
+                                        "name": "propose_day_changes",
+                                        "args": {"reply": "Noted."},
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+        )
+
+    providers._transport = httpx.MockTransport(handler)
+    complete_plan(
+        provider=AiProvider.GEMINI,
+        api_key="AIza-test-key",
         model="gemini-2.5-flash",
         system_prompt="system",
         user_prompt="user",
         settings=plan_settings(),
     )
 
-    assert result.reply == "A note for later."
-    assert result.items[0].kind == "note"
+    assert "models/gemini-3.6-flash:generateContent" in captured["url"]
+    assert captured["thinking"] == "MINIMAL"
+
+
+def test_gemini_pro_leaves_room_for_thinking(restore_transport) -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "functionCall": {
+                                        "name": "propose_day_changes",
+                                        "args": {"reply": "Noted."},
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+        )
+
+    providers._transport = httpx.MockTransport(handler)
+    complete_plan(
+        provider=AiProvider.GEMINI,
+        api_key="AIza-test-key",
+        model="gemini-3.1-pro-preview",
+        system_prompt="system",
+        user_prompt="user",
+        settings=plan_settings(),
+    )
+
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["generationConfig"]["maxOutputTokens"] == 16_384
+    assert body["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "LOW"}
+
+
+def test_gemini_ignores_thought_parts(restore_transport) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {"thought": True, "text": "internal scratchpad"},
+                                {
+                                    "functionCall": {
+                                        "name": "propose_day_changes",
+                                        "args": {
+                                            "reply": "I can add a task.",
+                                            "tasks": [{"title": "Call the bank"}],
+                                        },
+                                    }
+                                },
+                            ]
+                        }
+                    }
+                ]
+            },
+        )
+
+    providers._transport = httpx.MockTransport(handler)
+    result = complete_plan(
+        provider=AiProvider.GEMINI,
+        api_key="AIza-test-key",
+        model="gemini-2.5-flash",
+        system_prompt="system",
+        user_prompt="user",
+        settings=plan_settings(),
+    )
+
+    assert result.reply == "I can add a task."
+    assert "scratchpad" not in result.reply
+    assert result.items[0].title == "Call the bank"
+
+
+def test_gemini_empty_parts_is_unusable(restore_transport) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [
+                    {
+                        "content": {"role": "model"},
+                        "finishReason": "MAX_TOKENS",
+                    }
+                ]
+            },
+        )
+
+    providers._transport = httpx.MockTransport(handler)
+    with pytest.raises(HTTPException) as raised:
+        complete_plan(
+            provider=AiProvider.GEMINI,
+            api_key="AIza-test-key",
+            model="gemini-2.5-flash",
+            system_prompt="system",
+            user_prompt="user",
+            settings=plan_settings(),
+        )
+
+    assert raised.value.status_code == 502
+    assert raised.value.detail == UNUSABLE_PLAN
+
+
+def test_gemini_invalid_key_is_mapped(restore_transport) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(
+            400,
+            json={
+                "error": {
+                    "code": 400,
+                    "message": "API key not valid. Please pass a valid API key.",
+                    "status": "INVALID_ARGUMENT",
+                }
+            },
+        )
+
+    providers._transport = httpx.MockTransport(handler)
+    with pytest.raises(HTTPException) as raised:
+        complete_plan(
+            provider=AiProvider.GEMINI,
+            api_key="AIza-bad-key",
+            model="gemini-2.5-flash",
+            system_prompt="system",
+            user_prompt="user",
+            settings=plan_settings(),
+        )
+
+    assert raised.value.status_code == 400
+    assert raised.value.detail == PROVIDER_REJECTED
+    assert "API key not valid" not in str(raised.value.detail)
 
 
 def test_invalid_tool_json_is_unusable(restore_transport) -> None:

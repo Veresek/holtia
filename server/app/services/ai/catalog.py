@@ -14,10 +14,16 @@ PROVIDER_MODELS: dict[AiProvider, list[AiModelOption]] = {
         AiModelOption(id="grok-3", label="Grok 3"),
     ],
     AiProvider.GEMINI: [
-        AiModelOption(id="gemini-2.5-flash", label="Gemini 2.5 Flash"),
-        AiModelOption(id="gemini-2.5-pro", label="Gemini 2.5 Pro"),
-        AiModelOption(id="gemini-2.0-flash", label="Gemini 2.0 Flash"),
+        AiModelOption(id="gemini-3.6-flash", label="Gemini 3.6 Flash"),
+        AiModelOption(id="gemini-3.5-flash", label="Gemini 3.5 Flash"),
+        AiModelOption(id="gemini-3.1-pro-preview", label="Gemini 3.1 Pro"),
     ],
+}
+
+GEMINI_MODEL_ALIASES = {
+    "gemini-2.5-flash": "gemini-3.6-flash",
+    "gemini-2.0-flash": "gemini-3.6-flash",
+    "gemini-2.5-pro": "gemini-3.1-pro-preview",
 }
 
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
@@ -113,6 +119,13 @@ GEMINI_TOOLS = [
     }
 ]
 
+GEMINI_TOOL_CONFIG = {
+    "functionCallingConfig": {
+        "mode": "ANY",
+        "allowedFunctionNames": [PROPOSE_DAY_CHANGES],
+    }
+}
+
 
 def models_catalog() -> dict[AiProvider, list[AiModelOption]]:
     return {
@@ -121,5 +134,13 @@ def models_catalog() -> dict[AiProvider, list[AiModelOption]]:
     }
 
 
+def resolve_gemini_model(model: str) -> str:
+    return GEMINI_MODEL_ALIASES.get(model, model)
+
+
 def is_supported_model(provider: AiProvider, model: str) -> bool:
-    return any(option.id == model for option in PROVIDER_MODELS[provider])
+    if any(option.id == model for option in PROVIDER_MODELS[provider]):
+        return True
+    if provider is AiProvider.GEMINI:
+        return model in GEMINI_MODEL_ALIASES
+    return False
