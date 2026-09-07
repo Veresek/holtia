@@ -3,31 +3,59 @@ from app.schemas.ai import AiModelOption
 
 PROVIDER_MODELS: dict[AiProvider, list[AiModelOption]] = {
     AiProvider.OPENAI: [
-        AiModelOption(id="gpt-4o-mini", label="GPT-4o mini"),
-        AiModelOption(id="gpt-4o", label="GPT-4o"),
-        AiModelOption(id="gpt-4.1-mini", label="GPT-4.1 mini"),
+        AiModelOption(id="gpt-5.6-luna", label="GPT-5.6 Luna"),
+        AiModelOption(id="gpt-5.6-terra", label="GPT-5.6 Terra"),
+        AiModelOption(id="gpt-5.6-sol", label="GPT-5.6 Sol"),
         AiModelOption(id="gpt-4.1", label="GPT-4.1"),
     ],
-    AiProvider.XAI: [
-        AiModelOption(id="grok-4", label="Grok 4"),
-        AiModelOption(id="grok-3-mini", label="Grok 3 mini"),
-        AiModelOption(id="grok-3", label="Grok 3"),
+    AiProvider.ANTHROPIC: [
+        AiModelOption(id="claude-haiku-4-5", label="Claude Haiku 4.5"),
+        AiModelOption(id="claude-sonnet-5", label="Claude Sonnet 5"),
+        AiModelOption(id="claude-opus-5", label="Claude Opus 5"),
     ],
     AiProvider.GEMINI: [
-        AiModelOption(id="gemini-3.6-flash", label="Gemini 3.6 Flash"),
+        AiModelOption(id="gemini-3.8-flash", label="Gemini 3.8 Flash"),
+        AiModelOption(id="gemini-3.5-flash-lite", label="Gemini 3.5 Flash-Lite"),
+        AiModelOption(id="gemma-4-31b-it", label="Gemma 4 31B"),
+        AiModelOption(id="gemini-3.7-flash", label="Gemini 3.7 Flash"),
         AiModelOption(id="gemini-3.5-flash", label="Gemini 3.5 Flash"),
         AiModelOption(id="gemini-3.1-pro-preview", label="Gemini 3.1 Pro"),
     ],
+    AiProvider.DEEPSEEK: [
+        AiModelOption(id="deepseek-v4-flash", label="DeepSeek V4 Flash"),
+        AiModelOption(id="deepseek-v4-pro", label="DeepSeek V4 Pro"),
+    ],
+    AiProvider.XAI: [
+        AiModelOption(id="grok-4.3", label="Grok 4.3"),
+        AiModelOption(id="grok-4.5", label="Grok 4.5"),
+        AiModelOption(id="grok-4.6", label="Grok 4.6"),
+    ],
 }
 
-GEMINI_MODEL_ALIASES = {
-    "gemini-2.5-flash": "gemini-3.6-flash",
-    "gemini-2.0-flash": "gemini-3.6-flash",
-    "gemini-2.5-pro": "gemini-3.1-pro-preview",
+MODEL_ALIASES: dict[AiProvider, dict[str, str]] = {
+    AiProvider.OPENAI: {
+        "gpt-4o-mini": "gpt-5.6-luna",
+        "gpt-4o": "gpt-5.6-terra",
+        "gpt-4.1-mini": "gpt-5.6-luna",
+    },
+    AiProvider.XAI: {
+        "grok-4": "grok-4.6",
+        "grok-3-mini": "grok-4.3",
+        "grok-3": "grok-4.3",
+    },
+    AiProvider.GEMINI: {
+        "gemini-3.6-flash": "gemini-3.8-flash",
+        "gemini-2.5-flash": "gemini-3.8-flash",
+        "gemini-2.0-flash": "gemini-3.8-flash",
+        "gemini-2.5-pro": "gemini-3.1-pro-preview",
+    },
 }
 
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
 XAI_CHAT_URL = "https://api.x.ai/v1/chat/completions"
+DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions"
+ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_VERSION = "2023-06-01"
 GEMINI_GENERATE_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 )
@@ -104,6 +132,17 @@ OPENAI_TOOLS = [
     }
 ]
 
+ANTHROPIC_TOOLS = [
+    {
+        "name": PROPOSE_DAY_CHANGES,
+        "description": (
+            "Propose tasks, notes, and one-off time blocks. "
+            "Use empty lists when asking a clarifying question."
+        ),
+        "input_schema": PROPOSE_DAY_CHANGES_PARAMETERS,
+    }
+]
+
 GEMINI_TOOLS = [
     {
         "functionDeclarations": [
@@ -134,13 +173,11 @@ def models_catalog() -> dict[AiProvider, list[AiModelOption]]:
     }
 
 
-def resolve_gemini_model(model: str) -> str:
-    return GEMINI_MODEL_ALIASES.get(model, model)
+def resolve_model(provider: AiProvider, model: str) -> str:
+    return MODEL_ALIASES.get(provider, {}).get(model, model)
 
 
 def is_supported_model(provider: AiProvider, model: str) -> bool:
     if any(option.id == model for option in PROVIDER_MODELS[provider]):
         return True
-    if provider is AiProvider.GEMINI:
-        return model in GEMINI_MODEL_ALIASES
-    return False
+    return model in MODEL_ALIASES.get(provider, {})

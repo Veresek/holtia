@@ -12,9 +12,11 @@ export const ada: User = {
 export const openaiKeyId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
 const models: AiSettings["models"] = {
-  openai: [{ id: "gpt-4o-mini", label: "GPT-4o mini" }],
-  xai: [{ id: "grok-3-mini", label: "Grok 3 mini" }],
-  gemini: [{ id: "gemini-3.6-flash", label: "Gemini 3.6 Flash" }],
+  openai: [{ id: "gpt-5.6-luna", label: "GPT-5.6 Luna" }],
+  anthropic: [{ id: "claude-haiku-4-5", label: "Claude Haiku 4.5" }],
+  gemini: [{ id: "gemini-3.8-flash", label: "Gemini 3.8 Flash" }],
+  deepseek: [{ id: "deepseek-v4-flash", label: "DeepSeek V4 Flash" }],
+  xai: [{ id: "grok-4.3", label: "Grok 4.3" }],
 };
 
 export const disabledAiSettings: AiSettings = {
@@ -37,14 +39,14 @@ export const configuredAiSettings: AiSettings = {
   ...enabledAiSettings,
   configured: true,
   provider: "openai",
-  model: "gpt-4o-mini",
+  model: "gpt-5.6-luna",
   keyHint: "alue",
   activeKeyId: openaiKeyId,
   keys: [
     {
       id: openaiKeyId,
       provider: "openai",
-      model: "gpt-4o-mini",
+      model: "gpt-5.6-luna",
       keyHint: "alue",
     },
   ],

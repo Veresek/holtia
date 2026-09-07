@@ -64,18 +64,18 @@ def test_read_schemas_serialize_with_camel_case() -> None:
             enabled=True,
             configured=True,
             provider="openai",
-            model="gpt-4o-mini",
+            model="gpt-5.6-luna",
             key_hint="abcd",
             active_key_id=related_id,
             keys=[
                 {
                     "id": related_id,
                     "provider": "openai",
-                    "model": "gpt-4o-mini",
+                    "model": "gpt-5.6-luna",
                     "key_hint": "abcd",
                 }
             ],
-            models={"openai": [{"id": "gpt-4o-mini", "label": "GPT-4o mini"}]},
+            models={"openai": [{"id": "gpt-5.6-luna", "label": "GPT-5.6 Luna"}]},
         ).model_dump(mode="json"),
         AiPlanResponse(
             reply="I can add this.",

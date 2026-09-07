@@ -64,7 +64,7 @@ Store it in `.env` next to `SECRET_KEY`. Keep a copy in whatever password
 manager you use for the VPS. Production (and any environment with `AI_ENABLED`)
 refuses to start without a valid key.
 
-This secret is **not** the user’s OpenAI/xAI/Gemini key. It only wraps those
+This secret is **not** the user’s provider key. It only wraps those
 keys at rest. Do not log it, commit it, or reuse `SECRET_KEY` for it.
 
 ### Rotation
@@ -82,7 +82,8 @@ If you change the key while rows still exist, `POST /api/ai/plan` returns
 ## Assistant behaviour
 
 - Default is off. The bar shows “Coming later”.
-- When enabled, users pick OpenAI, xAI, or Google Gemini and paste a key.
+- When enabled, users pick OpenAI, Anthropic, Google Gemini, DeepSeek, or xAI
+  and paste a key.
 - Prompts go to that provider from the API container (outbound HTTPS). The
   browser never sees the key and never calls the provider.
 - Rate limit: `AI_RATE_LIMIT_REQUESTS` per user per

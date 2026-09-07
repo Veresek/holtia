@@ -1,10 +1,10 @@
 # AI tools
 
 The assistant is **off by default** (`AI_ENABLED=false`). When an operator
-enables it, each user can save one or more OpenAI, xAI, or Google Gemini keys
-on Account and choose which one is in use. The bar at the top of every
-signed-in screen opens a panel; the model returns a plan; **nothing is written
-until the user confirms**.
+enables it, each user can save one or more OpenAI, Anthropic, Google Gemini,
+DeepSeek, or xAI keys on Account and choose which one is in use. The bar at the
+top of every signed-in screen opens a panel; the model returns a plan; **nothing
+is written until the user confirms**.
 
 Confirmed creates use the same REST API the SPA already uses, as the signed-in
 user. OpenAPI at `/docs` is the live schema. Field names on the wire are
@@ -79,5 +79,5 @@ no date; a proposed block is one-off.
 - A batch endpoint or a natural-language write endpoint
 - Conversation history in the database
 - Streaming
-- OpenRouter as a fourth provider
+- OpenRouter as another provider
 - `GET /api/day` — existing list endpoints already return the collections

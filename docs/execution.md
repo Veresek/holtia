@@ -95,7 +95,7 @@ Refresh reuse within a short grace window no longer signs out a second tab as a 
 | Auth     | email + password (bcrypt) + `INSTANCE_CODE`; cookies; Google and SMTP not in MVP |
 | Hosting  | VPS, `docker compose` / `docker-compose.prod.yml`                                |
 | CI       | GitHub Actions: ruff + pytest; client lint / test / build                        |
-| AI       | User BYOK: OpenAI, xAI, Gemini; encrypted at rest; off by default            |
+| AI       | User BYOK: OpenAI, Anthropic, Gemini, DeepSeek, xAI; encrypted at rest; off by default |
 
 ## Data (as implemented)
 
@@ -143,7 +143,7 @@ Open registration: rate-limit `/register` (in-process today). No captcha until i
 | Service    | What for                | MVP                              |
 | ---------- | ----------------------- | -------------------------------- |
 | Google     | convenient account      | no                               |
-| OpenRouter | optional later provider | no; users bring OpenAI, xAI, or Gemini keys |
+| OpenRouter | optional later provider | no; users bring OpenAI, Anthropic, Gemini, DeepSeek, or xAI keys |
 | GitHub     | tasks from issues       | no                               |
 | SMTP       | reset / verify by email | no (v2; public-instance blocker) |
 
