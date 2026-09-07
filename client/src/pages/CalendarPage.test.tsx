@@ -313,10 +313,11 @@ describe("CalendarPage", () => {
     );
     renderPage(<CalendarPage />);
 
-    const mondayColumn = await screen.findByRole("group", {
+    const grid = await screen.findByRole("group", { name: /Week of/ });
+    const mondayColumn = within(grid).getByRole("group", {
       name: formatDayHeading(monday),
     });
-    const tuesdayColumn = screen.getByRole("group", {
+    const tuesdayColumn = within(grid).getByRole("group", {
       name: formatDayHeading(tuesday),
     });
     expect(
