@@ -1,9 +1,11 @@
 import account from "../assets/icons/account.svg?raw";
+import anthropic from "../assets/icons/anthropic.svg?raw";
 import calendar from "../assets/icons/calendar.svg?raw";
 import chevronDown from "../assets/icons/chevron-down.svg?raw";
 import chevronLeft from "../assets/icons/chevron-left.svg?raw";
 import chevronRight from "../assets/icons/chevron-right.svg?raw";
 import close from "../assets/icons/close.svg?raw";
+import deepseek from "../assets/icons/deepseek.svg?raw";
 import gemini from "../assets/icons/gemini.svg?raw";
 import home from "../assets/icons/home.svg?raw";
 import leaf from "../assets/icons/leaf.svg?raw";
@@ -17,11 +19,13 @@ import xai from "../assets/icons/xai.svg?raw";
 
 const icons = {
   account,
+  anthropic,
   calendar,
   chevronDown,
   chevronLeft,
   chevronRight,
   close,
+  deepseek,
   gemini,
   home,
   leaf,

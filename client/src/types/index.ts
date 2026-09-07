@@ -81,7 +81,12 @@ export interface AppState {
   blocks: CollectionFingerprint;
 }
 
-export type AiProvider = "openai" | "xai" | "gemini";
+export type AiProvider =
+  | "openai"
+  | "anthropic"
+  | "gemini"
+  | "deepseek"
+  | "xai";
 
 export interface AiModelOption {
   id: string;

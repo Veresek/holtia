@@ -19,7 +19,7 @@ The September MVP is feature-complete in code:
   notes.
 - Responsive web shell (sidebar on desktop, bottom tabs on the phone) with an
   AI bar. The assistant stays off until `AI_ENABLED`; users then bring their
-  own OpenAI, xAI, or Gemini key.
+  own OpenAI, Anthropic, Gemini, DeepSeek, or xAI key.
 - Docker Compose for development and for HTTPS production behind Caddy.
 
 This instance is still a **private / trusted deployment**. The shared

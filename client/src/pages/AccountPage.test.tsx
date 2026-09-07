@@ -159,7 +159,7 @@ describe("AccountPage", () => {
           };
           expect(body).toEqual({
             provider: "openai",
-            model: "gpt-4o-mini",
+            model: "gpt-5.6-luna",
             apiKey: "sk-test-openai-secret-key-value",
           });
           return jsonResponse(configuredAiSettings, 201);

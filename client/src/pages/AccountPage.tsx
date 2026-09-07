@@ -231,8 +231,9 @@ export function AccountPage() {
           {settings?.enabled ? (
             <>
               <p className="mt-2 text-sm leading-6 text-ink-soft">
-                Bring your own OpenAI, xAI, or Google Gemini keys. Trium stores
-                them encrypted on this instance and never shows them again.
+                Bring your own OpenAI, Anthropic, Google Gemini, DeepSeek, or
+                xAI keys. Trium stores them encrypted on this instance and
+                never shows them again.
               </p>
               <h3 className="mt-6 text-sm font-medium text-ink">In use</h3>
               {activeKey ? (

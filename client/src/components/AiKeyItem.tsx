@@ -5,14 +5,18 @@ import { ItemMenu } from "./ItemMenu";
 
 const PROVIDER_LABELS: Record<AiProvider, string> = {
   openai: "OpenAI",
-  xai: "xAI",
+  anthropic: "Anthropic",
   gemini: "Google Gemini",
+  deepseek: "DeepSeek",
+  xai: "xAI",
 };
 
 const PROVIDER_ICONS: Record<AiProvider, IconName> = {
   openai: "openai",
-  xai: "xai",
+  anthropic: "anthropic",
   gemini: "gemini",
+  deepseek: "deepseek",
+  xai: "xai",
 };
 
 interface AiKeyItemProps {

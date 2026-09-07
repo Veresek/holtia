@@ -95,7 +95,7 @@ def test_openai_tool_call_builds_validated_items(restore_transport) -> None:
     result = complete_plan(
         provider=AiProvider.OPENAI,
         api_key="sk-test-openai-secret-key-value",
-        model="gpt-4o-mini",
+        model="gpt-5.6-luna",
         system_prompt="system",
         user_prompt="user",
         settings=plan_settings(),
@@ -103,6 +103,12 @@ def test_openai_tool_call_builds_validated_items(restore_transport) -> None:
 
     assert captured["url"] == "https://api.openai.com/v1/chat/completions"
     assert captured["authorization"] == "Bearer sk-test-openai-secret-key-value"
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["model"] == "gpt-5.6-luna"
+    assert body["max_completion_tokens"] == 256
+    assert body["reasoning_effort"] == "low"
+    assert "max_tokens" not in body
     assert result.reply == "I can add these."
     assert [item.kind for item in result.items] == ["task", "note"]
     assert result.items[0].title == "Write tests"
@@ -121,7 +127,7 @@ def test_openai_text_only_is_a_clarifying_question(restore_transport) -> None:
     result = complete_plan(
         provider=AiProvider.OPENAI,
         api_key="sk-test",
-        model="gpt-4o-mini",
+        model="gpt-5.6-luna",
         system_prompt="system",
         user_prompt="user",
         settings=plan_settings(),
@@ -132,10 +138,11 @@ def test_openai_text_only_is_a_clarifying_question(restore_transport) -> None:
 
 
 def test_xai_uses_the_xai_host(restore_transport) -> None:
-    captured: dict[str, str] = {}
+    captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["host"] = request.url.host
+        captured["body"] = json.loads(request.content)
         return httpx.Response(
             200,
             json=openai_body({"reply": "Noted.", "tasks": [{"title": "Call bank"}]}),
@@ -152,6 +159,40 @@ def test_xai_uses_the_xai_host(restore_transport) -> None:
     )
 
     assert captured["host"] == "api.x.ai"
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["model"] == "grok-4.3"
+    assert body["max_tokens"] == 256
+    assert "reasoning_effort" not in body
+    assert result.items[0].kind == "task"
+
+
+def test_deepseek_uses_the_deepseek_host(restore_transport) -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["host"] = request.url.host
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json=openai_body({"reply": "Noted.", "tasks": [{"title": "Draft notes"}]}),
+        )
+
+    providers._transport = httpx.MockTransport(handler)
+    result = complete_plan(
+        provider=AiProvider.DEEPSEEK,
+        api_key="sk-deepseek-test-key",
+        model="deepseek-v4-flash",
+        system_prompt="system",
+        user_prompt="user",
+        settings=plan_settings(),
+    )
+
+    assert captured["host"] == "api.deepseek.com"
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["model"] == "deepseek-v4-flash"
+    assert body["thinking"] == {"type": "disabled"}
     assert result.items[0].kind == "task"
 
 
@@ -190,7 +231,7 @@ def test_gemini_function_call(restore_transport) -> None:
     result = complete_plan(
         provider=AiProvider.GEMINI,
         api_key="AIza-test-key",
-        model="gemini-3.6-flash",
+        model="gemini-3.8-flash",
         system_prompt="system",
         user_prompt="user",
         settings=plan_settings(),
@@ -242,8 +283,153 @@ def test_gemini_retired_flash_id_is_rewritten(restore_transport) -> None:
         settings=plan_settings(),
     )
 
-    assert "models/gemini-3.6-flash:generateContent" in captured["url"]
+    assert "models/gemini-3.8-flash:generateContent" in captured["url"]
     assert captured["thinking"] == "MINIMAL"
+
+
+def test_gemini_flash_lite_and_gemma_use_minimal_thinking(restore_transport) -> None:
+    captured: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["thinking"] = json.loads(request.content)["generationConfig"][
+            "thinkingConfig"
+        ]["thinkingLevel"]
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "functionCall": {
+                                        "name": "propose_day_changes",
+                                        "args": {"reply": "Noted."},
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+        )
+
+    providers._transport = httpx.MockTransport(handler)
+    complete_plan(
+        provider=AiProvider.GEMINI,
+        api_key="AIza-test-key",
+        model="gemma-4-31b-it",
+        system_prompt="system",
+        user_prompt="user",
+        settings=plan_settings(),
+    )
+
+    assert "models/gemma-4-31b-it:generateContent" in captured["url"]
+    assert captured["thinking"] == "MINIMAL"
+
+
+def test_anthropic_tool_use_builds_validated_items(restore_transport) -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["api_key"] = request.headers["x-api-key"]
+        captured["version"] = request.headers["anthropic-version"]
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={
+                "content": [
+                    {"type": "thinking", "thinking": "internal scratchpad"},
+                    {
+                        "type": "tool_use",
+                        "name": "propose_day_changes",
+                        "input": {
+                            "reply": "I can add these.",
+                            "tasks": [{"title": "Write tests", "date": "2026-09-05"}],
+                            "notes": [{"title": "Stand-up", "markdown": "- agenda"}],
+                        },
+                    },
+                ]
+            },
+        )
+
+    providers._transport = httpx.MockTransport(handler)
+    result = complete_plan(
+        provider=AiProvider.ANTHROPIC,
+        api_key="sk-ant-test-secret-key-value",
+        model="claude-sonnet-5",
+        system_prompt="system",
+        user_prompt="user",
+        settings=plan_settings(),
+    )
+
+    assert captured["url"] == "https://api.anthropic.com/v1/messages"
+    assert captured["api_key"] == "sk-ant-test-secret-key-value"
+    assert captured["version"] == "2023-06-01"
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["model"] == "claude-sonnet-5"
+    assert body["max_tokens"] == 8_192
+    assert body["system"] == "system"
+    assert body["tool_choice"] == {"type": "auto"}
+    assert result.reply == "I can add these."
+    assert [item.kind for item in result.items] == ["task", "note"]
+    assert "scratchpad" not in result.reply
+
+
+def test_anthropic_text_only_is_a_clarifying_question(restore_transport) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(
+            200,
+            json={
+                "content": [
+                    {"type": "text", "text": "What time should this start?"},
+                ]
+            },
+        )
+
+    providers._transport = httpx.MockTransport(handler)
+    result = complete_plan(
+        provider=AiProvider.ANTHROPIC,
+        api_key="sk-ant-test",
+        model="claude-haiku-4-5",
+        system_prompt="system",
+        user_prompt="user",
+        settings=plan_settings(),
+    )
+
+    assert result.reply == "What time should this start?"
+    assert result.items == []
+
+
+def test_openai_gpt_4_1_skips_reasoning_effort(restore_transport) -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "What time should this start?"}}]},
+        )
+
+    providers._transport = httpx.MockTransport(handler)
+    complete_plan(
+        provider=AiProvider.OPENAI,
+        api_key="sk-test",
+        model="gpt-4.1",
+        system_prompt="system",
+        user_prompt="user",
+        settings=plan_settings(),
+    )
+
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["max_completion_tokens"] == 256
+    assert "reasoning_effort" not in body
+    assert "max_tokens" not in body
 
 
 def test_gemini_pro_leaves_room_for_thinking(restore_transport) -> None:
@@ -399,7 +585,7 @@ def test_invalid_tool_json_is_unusable(restore_transport) -> None:
         complete_plan(
             provider=AiProvider.OPENAI,
             api_key="sk-test",
-            model="gpt-4o-mini",
+            model="gpt-5.6-luna",
             system_prompt="system",
             user_prompt="user",
             settings=plan_settings(),
@@ -419,7 +605,7 @@ def test_provider_401_is_mapped(restore_transport) -> None:
         complete_plan(
             provider=AiProvider.OPENAI,
             api_key="sk-bad",
-            model="gpt-4o-mini",
+            model="gpt-5.6-luna",
             system_prompt="system",
             user_prompt="user",
             settings=plan_settings(),
@@ -440,7 +626,7 @@ def test_timeout_is_mapped(restore_transport) -> None:
         complete_plan(
             provider=AiProvider.OPENAI,
             api_key="sk-test",
-            model="gpt-4o-mini",
+            model="gpt-5.6-luna",
             system_prompt="system",
             user_prompt="user",
             settings=plan_settings(),

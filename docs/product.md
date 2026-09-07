@@ -47,9 +47,9 @@ Verify and password reset are **guest pages** (`/verify`, `/reset`), reached fro
 
 An AI bar sits at the top of every screen. Off by default (`AI_ENABLED`). When
 the instance turns it on, Account holds one or more of the user’s own provider
-keys (OpenAI, xAI, or Google Gemini), each with a model. One key is in use at a
-time. The assistant proposes tasks, notes, and one-off blocks; nothing is
-written until the user confirms.
+keys (OpenAI, Anthropic, Google Gemini, DeepSeek, or xAI), each with a model.
+One key is in use at a time. The assistant proposes tasks, notes, and one-off
+blocks; nothing is written until the user confirms.
 
 ## Home (morning review)
 

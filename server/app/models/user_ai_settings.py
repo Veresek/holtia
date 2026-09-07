@@ -12,8 +12,10 @@ from app.db import Base
 
 class AiProvider(str, enum.Enum):
     OPENAI = "openai"
-    XAI = "xai"
+    ANTHROPIC = "anthropic"
     GEMINI = "gemini"
+    DEEPSEEK = "deepseek"
+    XAI = "xai"
 
 
 class UserAiSettings(Base):

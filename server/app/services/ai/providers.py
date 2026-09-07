@@ -20,6 +20,10 @@ from app.schemas.note import NoteCreate
 from app.schemas.task import TaskCreate
 from app.schemas.time_block import TimeBlockCreate
 from app.services.ai.catalog import (
+    ANTHROPIC_MESSAGES_URL,
+    ANTHROPIC_TOOLS,
+    ANTHROPIC_VERSION,
+    DEEPSEEK_CHAT_URL,
     GEMINI_GENERATE_URL,
     GEMINI_TOOL_CONFIG,
     GEMINI_TOOLS,
@@ -27,7 +31,7 @@ from app.services.ai.catalog import (
     OPENAI_TOOLS,
     PROPOSE_DAY_CHANGES,
     XAI_CHAT_URL,
-    resolve_gemini_model,
+    resolve_model,
 )
 
 PROVIDER_REJECTED = "The API key was rejected. Check it on Account."
@@ -42,7 +46,14 @@ _transport: httpx.BaseTransport | None = None
 def openai_compatible_url(provider: AiProvider) -> str:
     if provider is AiProvider.XAI:
         return XAI_CHAT_URL
+    if provider is AiProvider.DEEPSEEK:
+        return DEEPSEEK_CHAT_URL
     return OPENAI_CHAT_URL
+
+
+def is_openai_reasoning_model(model: str) -> bool:
+    name = model.lower()
+    return name.startswith(("gpt-5", "gpt-6", "o1", "o3", "o4"))
 
 
 def request_provider(
@@ -340,6 +351,34 @@ def gemini_plan(
     )
 
 
+def openai_compatible_payload(
+    *,
+    provider: AiProvider,
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    settings: Settings,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "tools": OPENAI_TOOLS,
+        "tool_choice": "auto",
+    }
+    if provider is AiProvider.OPENAI:
+        payload["max_completion_tokens"] = settings.ai_max_output_tokens
+        if is_openai_reasoning_model(model):
+            payload["reasoning_effort"] = "low"
+    else:
+        payload["max_tokens"] = settings.ai_max_output_tokens
+    if provider is AiProvider.DEEPSEEK:
+        payload["thinking"] = {"type": "disabled"}
+    return payload
+
+
 def complete_openai_compatible(
     *,
     provider: AiProvider,
@@ -356,16 +395,13 @@ def complete_openai_compatible(
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         },
-        payload={
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "tools": OPENAI_TOOLS,
-            "tool_choice": "auto",
-            "max_tokens": settings.ai_max_output_tokens,
-        },
+        payload=openai_compatible_payload(
+            provider=provider,
+            model=model,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            settings=settings,
+        ),
         timeout=settings.ai_request_timeout_seconds,
     )
     raise_for_provider_status(response)
@@ -448,6 +484,104 @@ def complete_gemini(
     )
 
 
+def anthropic_max_tokens(model: str, settings: Settings) -> int:
+    if "haiku" in model.lower():
+        return settings.ai_max_output_tokens
+    return max(settings.ai_max_output_tokens, 8_192)
+
+
+def anthropic_plan(
+    payload: dict[str, Any],
+    *,
+    fallback_reply: str,
+    max_proposals: int,
+) -> AiPlanResponse:
+    content = payload.get("content")
+    if not isinstance(content, list):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=UNUSABLE_PLAN,
+        )
+    texts: list[str] = []
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        block_type = block.get("type")
+        if block_type in {"thinking", "redacted_thinking"}:
+            continue
+        if block_type == "text":
+            text = block.get("text")
+            if isinstance(text, str) and text.strip():
+                texts.append(text.strip())
+            continue
+        if block_type != "tool_use":
+            continue
+        if block.get("name") != PROPOSE_DAY_CHANGES:
+            continue
+        arguments = block.get("input")
+        if isinstance(arguments, str):
+            arguments = parse_json_object(arguments)
+        if not isinstance(arguments, dict):
+            continue
+        return plan_from_arguments(
+            arguments,
+            fallback_reply=" ".join(texts) or fallback_reply,
+            max_proposals=max_proposals,
+        )
+    if texts:
+        return AiPlanResponse(reply=" ".join(texts), items=[])
+    raise HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail=UNUSABLE_PLAN,
+    )
+
+
+def complete_anthropic(
+    *,
+    api_key: str,
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    settings: Settings,
+) -> AiPlanResponse:
+    response = request_provider(
+        "POST",
+        ANTHROPIC_MESSAGES_URL,
+        headers={
+            "x-api-key": api_key,
+            "anthropic-version": ANTHROPIC_VERSION,
+            "Content-Type": "application/json",
+        },
+        payload={
+            "model": model,
+            "max_tokens": anthropic_max_tokens(model, settings),
+            "system": system_prompt,
+            "messages": [{"role": "user", "content": user_prompt}],
+            "tools": ANTHROPIC_TOOLS,
+            "tool_choice": {"type": "auto"},
+        },
+        timeout=settings.ai_request_timeout_seconds,
+    )
+    raise_for_provider_status(response)
+    try:
+        payload = response.json()
+    except json.JSONDecodeError as extra:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=UNUSABLE_PLAN,
+        ) from extra
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=UNUSABLE_PLAN,
+        )
+    return anthropic_plan(
+        payload,
+        fallback_reply="",
+        max_proposals=settings.ai_max_proposals,
+    )
+
+
 def complete_plan(
     *,
     provider: AiProvider,
@@ -457,10 +591,19 @@ def complete_plan(
     user_prompt: str,
     settings: Settings,
 ) -> AiPlanResponse:
+    resolved = resolve_model(provider, model)
     if provider is AiProvider.GEMINI:
         return complete_gemini(
             api_key=api_key,
-            model=resolve_gemini_model(model),
+            model=resolved,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            settings=settings,
+        )
+    if provider is AiProvider.ANTHROPIC:
+        return complete_anthropic(
+            api_key=api_key,
+            model=resolved,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             settings=settings,
@@ -468,7 +611,7 @@ def complete_plan(
     return complete_openai_compatible(
         provider=provider,
         api_key=api_key,
-        model=model,
+        model=resolved,
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         settings=settings,
