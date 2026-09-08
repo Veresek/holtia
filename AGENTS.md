@@ -39,8 +39,9 @@ server/                 FastAPI + SQLAlchemy + PostgreSQL
   tests/                pytest + FastAPI TestClient
 docs/                   product.md is the source of truth
 docker-compose.yml      Postgres 18 + API :8000 + Vite :5173
-docker-compose.prod.yml private API + Caddy HTTPS
-.github/workflows/ci.yml  ruff + pytest; client lint / test / build
+docker-compose.prod.yml Postgres + API on 127.0.0.1:8001; CD builds client/dist
+.github/workflows/ci.yml   ruff + pytest; client lint / test / build
+.github/workflows/cd.yml   SSH deploy to the VPS after CI on main
 ```
 
 ## Commands

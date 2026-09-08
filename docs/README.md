@@ -7,7 +7,7 @@ not suggestions.
 |------|----------------|
 | [product.md](product.md) | What Trium is, 5 panels, pillars, success (≥ 20 days of September) |
 | [execution.md](execution.md) | MVP status (5 Sep 2026), data, v2 backlog, auth current vs email tokens |
-| [operations.md](operations.md) | Deploy, backup, health, secrets — private instance until SMTP |
+| [operations.md](operations.md) | Deploy, CD, backup, health, secrets — private instance until SMTP |
 | [review.md](review.md) | Dated risk audit; public-instance blockers first |
 | [ai-tools.md](ai-tools.md) | Assistant: BYOK, preview, then existing REST creates |
 | [questions.md](questions.md) | Three rounds — answers (archive) |

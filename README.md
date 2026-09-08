@@ -20,7 +20,8 @@ The September MVP is feature-complete in code:
 - Responsive web shell (sidebar on desktop, bottom tabs on the phone) with an
   AI bar. The assistant stays off until `AI_ENABLED`; users then bring their
   own OpenAI, Anthropic, Gemini, DeepSeek, or xAI key.
-- Docker Compose for development and for HTTPS production behind Caddy.
+- Docker Compose for development and for production (API on localhost:8001,
+  SPA built to `client/dist` for the host reverse proxy).
 
 This instance is still a **private / trusted deployment**. The shared
 `INSTANCE_CODE` is a temporary stand-in for email. Do not publish it: anyone
@@ -37,6 +38,7 @@ registration waits on per-user email codes. See
 | PostgreSQL | 18 |
 | Docker Compose | v2 |
 | CI | GitHub Actions: `ruff` + `pytest` on the server, lint / test / build on the client |
+| CD | GitHub Actions: after CI on `main`, SSH to the VPS, Compose `--build`, SPA `dist/` |
 
 ## Development with Docker
 
@@ -105,28 +107,31 @@ npm run build
 ```
 
 CI on every push and pull request runs the same jobs (Python 3.13, Node 24).
+A green CI run on `main` then deploys that commit to the VPS (see
+[`docs/operations.md`](docs/operations.md)).
 Revoked refresh-token rows can be cleaned with
 `python scripts/purge_revoked_tokens.py` from `server/` — see
 [`server/README.md`](server/README.md).
 
-## Production HTTPS
+## Production
 
 Create `.env` from `.env.example` and replace every production placeholder.
 `DOMAIN`, `INSTANCE_CODE`, `SECRET_KEY`, and `POSTGRES_PASSWORD` are required.
 Production validation rejects an empty instance code or a weak secret key.
 Treat `INSTANCE_CODE` as an operator secret, not a public invite.
 
-Point DNS at the VPS and allow inbound TCP 80/443 and UDP 443.
+Point DNS at the VPS. Port 80/443 stay on the reverse proxy already running
+there. Compose publishes the API on `127.0.0.1:8001` only.
 
-```powershell
-docker compose -f docker-compose.prod.yml up --build -d
+```bash
+bash .github/scripts/deploy-prod.sh
 ```
 
-The production stack migrates before the API starts, serves the built SPA
-through Caddy, redirects to and renews HTTPS, and proxies `/api` on the same
-origin. PostgreSQL and FastAPI have no public ports. Back up the
-`postgres_data` volume before upgrades. Full runbook:
-[`docs/operations.md`](docs/operations.md).
+The script migrates before the API starts, then builds the SPA to
+`client/dist/index.html`. Proxy `/api` to `127.0.0.1:8001` and serve `dist/`
+from the host reverse proxy on the same origin. After the first boot, green CI
+on `main` deploys that commit over SSH. Back up the `postgres_data` volume
+before upgrades. Full runbook: [`docs/operations.md`](docs/operations.md).
 
 ## Docs
 
@@ -134,7 +139,7 @@ origin. PostgreSQL and FastAPI have no public ports. Back up the
 |------|------------|
 | [`docs/product.md`](docs/product.md) | Locked product decisions |
 | [`docs/execution.md`](docs/execution.md) | MVP status, data, backlog |
-| [`docs/operations.md`](docs/operations.md) | Deploy, backup, secrets |
+| [`docs/operations.md`](docs/operations.md) | Deploy, CD, backup, secrets |
 | [`docs/review.md`](docs/review.md) | Current risks, prioritized |
 | [`docs/ai-tools.md`](docs/ai-tools.md) | Assistant contract (preview, then REST creates) |
 | [`AGENTS.md`](AGENTS.md) | Conventions for people and agents |

@@ -19,7 +19,7 @@ app, not another round of product questions. Locked decisions stay in
   optionally to a task (`taskId`) from the note form.
 - Auth: email/password; verify and reset = one `INSTANCE_CODE`. Delete account
   in MVP. Verify/reset UI is on guest routes, not on Account.
-- HTTPS Compose, Alembic, CI (ruff + pytest; client lint / test / build).
+- Production Compose (API on localhost:8001) + host reverse proxy, Alembic, CI (ruff + pytest; client lint / test / build).
 
 ## Before a public VPS
 
@@ -75,7 +75,7 @@ Not blockers for a private deploy; shipped so the snapshot stays true.
 - Account: unverified status only; verify/reset stay on guest routes.
 - Calendar tiles: pinned titles are buttons; leftover count is “+N more”.
 - Cards: no full-card edit overlay; title edits, ⋮ is 44px.
-- Caddy: CSP, `Cache-Control` split (`no-cache` HTML vs immutable `/assets`).
+- Host reverse proxy: CSP, `Cache-Control` split (`no-cache` HTML vs immutable `/assets`); see `docs/operations.md`.
 - `PATCH /api/users/me` detail is “Changing email is not available yet.”
 
 ## Safety, privacy, performance
@@ -86,7 +86,7 @@ Not blockers for a private deploy; shipped so the snapshot stays true.
 | Markdown links strip `javascript:` / `data:` / `vbscript:`                                                          | Good         | `MarkdownBody.tsx`                                                       |
 | SPA loads **all** tasks, notes, and blocks, then fingerprints via `/state` every 60 s                               | Medium later | Fine for one user; N01 will fail if collections grow. `DataProvider.tsx` |
 | No pagination, no `ETag`                                                                                            | Low now      | Same                                                                     |
-| Caddy CSP + Cache-Control split for `/index.html` vs hashed assets                                                  | Good         | Keep it                                                                  |
+| Host reverse proxy CSP + Cache-Control split for `/index.html` vs hashed assets                                     | Good         | Keep it; snippet in `operations.md`                                      |
 
 ## What can wait
 

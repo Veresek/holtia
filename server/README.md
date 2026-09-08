@@ -71,5 +71,6 @@ intentionally create and drop their isolated SQLite schema in
 
 In production use `ENVIRONMENT=production`, an HTTPS `CLIENT_ORIGIN`, a
 non-empty `INSTANCE_CODE`, and a unique `SECRET_KEY` of at least 32 characters.
-The production Compose stack keeps this service private behind Caddy at `/api`.
+The production Compose stack publishes this service on `127.0.0.1:8001`. The
+host reverse proxy should expose it at `/api` on the same origin as the SPA.
 Do not publish `INSTANCE_CODE`; see [`docs/operations.md`](../docs/operations.md).

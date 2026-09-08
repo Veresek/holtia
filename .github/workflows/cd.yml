@@ -1,0 +1,92 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref or SHA to deploy
+        required: false
+        default: main
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/trium' }}
+      DEPLOY_REF: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_sha }}
+    steps:
+      - name: Check deploy configuration
+        run: |
+          missing=0
+          for name in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS; do
+            if [ -z "${!name}" ]; then
+              echo "${name} is not set on the production environment"
+              missing=1
+            fi
+          done
+          if [ -z "$DEPLOY_REF" ]; then
+            echo "DEPLOY_REF is empty"
+            missing=1
+          fi
+          exit "$missing"
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+
+      - name: Deploy over SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_deploy
+          chmod 644 ~/.ssh/known_hosts
+
+          echo "Deploying $DEPLOY_REF to $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH"
+          timeout 20m ssh \
+            -p "$DEPLOY_PORT" \
+            -i ~/.ssh/id_deploy \
+            -o IdentitiesOnly=yes \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=8 \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            bash -s -- "$DEPLOY_PATH" "$DEPLOY_REF" <<'EOF'
+          set -euo pipefail
+          DEPLOY_PATH="$1"
+          DEPLOY_REF="$2"
+          cd "$DEPLOY_PATH"
+          git fetch --prune origin
+          git fetch origin "$DEPLOY_REF"
+          git checkout --force --detach FETCH_HEAD
+          bash .github/scripts/deploy-prod.sh
+          EOF
+
+      - name: Summarize
+        run: |
+          {
+            echo "Deployed \`$DEPLOY_REF\` to \`$DEPLOY_PATH\` on \`$DEPLOY_HOST\`."
+            echo
+            echo "Health: \`https://\$DOMAIN/api/health\` through the host reverse proxy."
+            echo "SPA: \`$DEPLOY_PATH/client/dist/index.html\`; API: \`127.0.0.1:8001\`."
+          } >> "$GITHUB_STEP_SUMMARY"

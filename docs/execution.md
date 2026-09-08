@@ -19,7 +19,7 @@ The four-week build is done in code. What remains is using the app, a private de
 | 9   | Repeat: the same block shows on many days; edit/delete everywhere                                    | Done                                        |
 | 10  | Notes: markdown cards **with no date**; panel = collection; Home = 4 recent                          | Done                                        |
 | 11  | Delete account (Account panel)                                                                       | Done                                        |
-| 12  | Responsive web; Docker + HTTPS compose                                                               | Done in repo; VPS not yet a public instance |
+| 12  | Responsive web; Docker API + host reverse proxy                                                      | Done in repo; VPS not yet a public instance |
 | 13  | Assignments: pin a task to a block occurrence; pin a note to a block series                          | Done in API and UI                          |
 
 Pin a task to a block: `date` + `timeBlockId`; the date is a day the block occurs (autofilled from today when omitted). A note pins to the series (`timeBlockId`) with no date, and may also pin to a task (`taskId`) from the note form. A block tile may **show** pinned items and open them; it does not contain a task list inside.
@@ -95,6 +95,7 @@ Refresh reuse within a short grace window no longer signs out a second tab as a 
 | Auth     | email + password (bcrypt) + `INSTANCE_CODE`; cookies; Google and SMTP not in MVP |
 | Hosting  | VPS, `docker compose` / `docker-compose.prod.yml`                                |
 | CI       | GitHub Actions: ruff + pytest; client lint / test / build                        |
+| CD       | GitHub Actions: SSH to the VPS after CI on `main`; Compose up --build + `client/dist` |
 | AI       | User BYOK: OpenAI, Anthropic, Gemini, DeepSeek, xAI; encrypted at rest; off by default |
 
 ## Data (as implemented)
@@ -154,6 +155,6 @@ Open registration: rate-limit `/register` (in-process today). No captcha until i
 | 1    | Docker; email+password; `INSTANCE_CODE`; 5 panels; empty Home + AI disabled         | Shipped         |
 | 2    | Tasks: Home (today) + Tasks panel (all)                                             | Shipped         |
 | 3    | 24 h Calendar + preview; repeat with the same id; notes collection + recent on Home | Shipped         |
-| 4    | HTTPS compose, delete account, empty states, assignments                            | Shipped in repo |
+| 4    | HTTPS compose, delete account, empty states, assignments                            | Shipped in repo; prod now host reverse proxy + `client/dist` |
 
 The cut “drop `task_id` on notes” was **not** applied: the column exists from the baseline schema. The cut that still matters is “do not open the instance to strangers on the shared code”.

@@ -25,8 +25,8 @@ services:
       - -c
       - >-
         python scripts/migrate.py &&
-        exec uvicorn app.main:app --host 0.0.0.0 --port 8000
-        --proxy-headers --forwarded-allow-ips=172.28.0.0/16
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8001
+        --proxy-headers --forwarded-allow-ips=172.28.0.0/16,127.0.0.1
     environment:
       ENVIRONMENT: production
       DATABASE_URL: postgresql+psycopg://trium:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/trium
@@ -46,39 +46,15 @@ services:
         - -c
         - >-
           import urllib.request;
-          urllib.request.urlopen('http://localhost:8000/api/health', timeout=3)
+          urllib.request.urlopen('http://localhost:8001/api/health', timeout=3)
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 20s
     init: true
     restart: unless-stopped
-    networks:
-      - internal
-
-  web:
-    build:
-      context: ./client
-      dockerfile: Dockerfile.prod
-    environment:
-      DOMAIN: ${DOMAIN:?Set DOMAIN}
-    depends_on:
-      server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:2015/healthz"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    restart: unless-stopped
-    volumes:
-      - caddy_data:/data
-      - caddy_config:/config
+      - "127.0.0.1:8001:8001"
     networks:
       - internal
 
@@ -90,6 +66,4 @@ networks:
         - subnet: 172.28.0.0/16
 
 volumes:
-  caddy_config:
-  caddy_data:
   postgres_data:

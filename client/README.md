@@ -23,15 +23,11 @@ npm run build
 
 `npm test` is a single Vitest run. Use `npm run test:watch` while iterating.
 
-## Production image
+## Production build
 
-`Dockerfile.prod` builds the SPA in a Node 24 stage and copies only `dist/` into
-Caddy 2.10. `Caddyfile` serves static assets with an SPA fallback and proxies
-same-origin `/api` requests to the private API container. Caddy obtains and
-renews HTTPS certificates for the required `DOMAIN` environment variable.
+CD on the VPS runs `npm run build` (Node 24 in Docker) and writes
+`client/dist/index.html`. The host reverse proxy serves that directory and
+proxies `/api` to `127.0.0.1:8001`. See [`docs/operations.md`](../docs/operations.md).
 
-Build and run the complete production stack from the repository root:
-
-```powershell
-docker compose -f docker-compose.prod.yml up --build -d
-```
+`Dockerfile.prod` and `Caddyfile` remain as an optional all-in-one Caddy image
+if port 80 is free. Production compose does not use them.
