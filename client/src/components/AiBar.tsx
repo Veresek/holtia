@@ -202,7 +202,7 @@ export function AiBar() {
             aria-label="AI assistant (coming later)"
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ink-faint"
             disabled
-            placeholder="Ask Trium to help plan your day…"
+            placeholder="Ask Holtia to help plan your day…"
             type="text"
           />
           <span className="text-xs text-ink-faint">Coming later</span>
@@ -242,7 +242,7 @@ export function AiBar() {
             onChange={(event) => setDraft(event.target.value)}
             onFocus={() => setOpen(true)}
             onKeyDown={onInputKeyDown}
-            placeholder="Ask Trium to help plan your day…"
+            placeholder="Ask Holtia to help plan your day…"
             type="text"
             value={draft}
           />

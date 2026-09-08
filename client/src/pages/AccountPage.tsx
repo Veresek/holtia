@@ -232,7 +232,7 @@ export function AccountPage() {
             <>
               <p className="mt-2 text-sm leading-6 text-ink-soft">
                 Bring your own OpenAI, Anthropic, Google Gemini, DeepSeek, or
-                xAI keys. Trium stores them encrypted on this instance and
+                xAI keys. Holtia stores them encrypted on this instance and
                 never shows them again.
               </p>
               <h3 className="mt-6 text-sm font-medium text-ink">In use</h3>

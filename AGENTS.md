@@ -1,6 +1,6 @@
-# Trium — agent guide
+# Holtia — agent guide
 
-Trium is a **command center for the day**: tasks, time blocks, and notes in one
+Holtia is a **command center for the day**: tasks, time blocks, and notes in one
 place. It is not a project planner and not a team tool. One maintainer, one
 primary user, open source (GPL-3.0), self-hostable.
 

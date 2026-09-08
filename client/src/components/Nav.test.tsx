@@ -10,7 +10,7 @@ describe("Nav", () => {
 
     const navigation = screen.getByRole("navigation", { name: "Primary navigation" });
     const labels = [...navigation.querySelectorAll("a")]
-      .map((link) => link.textContent?.replace("Trium", "").trim())
+      .map((link) => link.textContent?.replace("Holtia", "").trim())
       .filter(Boolean);
 
     expect(labels).toEqual(["Home", "Calendar", "Tasks", "Notes", "Account"]);

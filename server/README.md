@@ -1,4 +1,4 @@
-# Trium server
+# Holtia server
 
 FastAPI application that owns authentication and all user data.
 

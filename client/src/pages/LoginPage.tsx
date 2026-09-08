@@ -47,7 +47,7 @@ export function LoginPage() {
       description="Log in to open your day."
       footer={
         <>
-          New to Trium?{" "}
+          New to Holtia?{" "}
           <Link className="text-moss hover:text-moss-hover" to="/register">
             Create an account
           </Link>

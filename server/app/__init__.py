@@ -1,1 +1,1 @@
-"""Trium API package."""
+"""Holtia API package."""

@@ -2,11 +2,11 @@ services:
   db:
     image: postgres:18-alpine
     environment:
-      POSTGRES_DB: trium
-      POSTGRES_USER: trium
-      POSTGRES_PASSWORD: trium
+      POSTGRES_DB: holtia
+      POSTGRES_USER: holtia
+      POSTGRES_PASSWORD: holtia
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trium -d trium"]
+      test: ["CMD-SHELL", "pg_isready -U holtia -d holtia"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -21,7 +21,7 @@ services:
       uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-development}
-      DATABASE_URL: postgresql+psycopg://trium:trium@db:5432/trium
+      DATABASE_URL: postgresql+psycopg://holtia:holtia@db:5432/holtia
       INSTANCE_CODE: ${INSTANCE_CODE:-}
       SECRET_KEY: ${SECRET_KEY:-local-development-only}
       TIMEZONE: ${TIMEZONE:-Europe/Warsaw}

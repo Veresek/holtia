@@ -1,8 +1,8 @@
 # Product
 
-**Trium** is a **command center for the day**: tasks, time blocks, and notes in one place. Not a project planner.
+**Holtia** is a **command center for the day**: tasks, time blocks, and notes in one place. Not a project planner.
 
-The name is indeclinable, like Notion / Todoist. UI in English. Open source (GPL-3.0).
+The name is indeclinable, like Notion / Todoist. UI in English. Public host: [holtia.xyz](https://holtia.xyz). Open source (GPL-3.0).
 
 You are the first and primary user. The app should look and feel right to you, and ship features you actually want. Other people may sign up on your VPS (open registration) or run their own instance.
 
@@ -17,7 +17,7 @@ The tools exist, but each covers only a slice:
 | Google Keep     | simple notes                | no day plan                            |
 | Google Calendar | time blocks                 | clunky and slow for daily use          |
 
-Today: several apps at once → no coherence. Trium should be **one place** for the day.
+Today: several apps at once → no coherence. Holtia should be **one place** for the day.
 
 ## Who it is for
 
@@ -29,7 +29,7 @@ Today: several apps at once → no coherence. Trium should be **one place** for 
 Primary goal: **personal development**. More hours of work = more time for what matters. The app should make it easy to lay out the day, capture tasks, and (later) habits — not maximize a packed calendar for its own sake.
 
 - **After a week:** you sort the day faster, less friction while planning.
-- **After a month:** you use Trium as the center of the day instead of bouncing between tools.
+- **After a month:** you use Holtia as the center of the day instead of bouncing between tools.
 
 ## Navigation
 
@@ -79,7 +79,7 @@ A block may **show** pinned tasks and notes on its tile. It is still not a list 
 
 ## Scenarios
 
-1. **New stage of life** — too little time; Trium should stay light to plan with. Habits and _randomness in a block_ are v2.
+1. **New stage of life** — too little time; Holtia should stay light to plan with. Habits and _randomness in a block_ are v2.
 2. **Own / small project** — notes for yourself only. This is not a shared planner with a friend.
 3. **Morning review** — you wake up, Home shows the day, you leave with the day laid out. The AI bar can draft that plan when it is enabled.
 
@@ -92,7 +92,7 @@ A block may **show** pinned tasks and notes on its tile. It is still not a list 
 
 ## Success and failure
 
-**Success for September 2026:** ≥ **20 days** of September have a plan in Trium (life has unpredictable days — not 30/30).
+**Success for September 2026:** ≥ **20 days** of September have a plan in Holtia (life has unpredictable days — not 30/30).
 
 If something must be cut: **task list → time blocks → notes**. Email/password login ships with the first pillar. Block recurrence (one id, many days) sits with blocks — if week 3 blows up, ship one-off events first, then the repeat flag.
 

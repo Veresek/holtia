@@ -1,4 +1,4 @@
-# Trium client
+# Holtia client
 
 Responsive React 19 SPA: Vite, TypeScript, React Router, Tailwind CSS v4, and
 react-markdown. Authentication, account deletion, Tasks, Calendar, Notes, and
@@ -26,8 +26,5 @@ npm run build
 ## Production build
 
 CD on the VPS runs `npm run build` (Node 24 in Docker) and writes
-`client/dist/index.html`. The host reverse proxy serves that directory and
-proxies `/api` to `127.0.0.1:8001`. See [`docs/operations.md`](../docs/operations.md).
-
-`Dockerfile.prod` and `Caddyfile` remain as an optional all-in-one Caddy image
-if port 80 is free. Production compose does not use them.
+`client/dist/index.html`. Host nginx serves that directory and proxies `/api`
+to `127.0.0.1:8001`. See [`docs/operations.md`](../docs/operations.md).

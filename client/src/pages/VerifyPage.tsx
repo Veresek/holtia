@@ -47,7 +47,7 @@ export function VerifyPage() {
   return (
     <AuthCard
       title="Verify your account"
-      description="Enter the instance code supplied by the person hosting Trium."
+      description="Enter the instance code supplied by the person hosting Holtia."
       footer={
         <Link className="text-moss hover:text-moss-hover" to="/login">
           Back to login

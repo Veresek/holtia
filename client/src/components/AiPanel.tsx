@@ -141,7 +141,7 @@ export function AiPanel({
           {messages.map((message) => (
             <article key={message.id}>
               <p className="text-xs uppercase tracking-wide text-ink-faint">
-                {message.role === "user" ? "You" : "Trium"}
+                {message.role === "user" ? "You" : "Holtia"}
               </p>
               <p className="mt-1 whitespace-pre-wrap text-sm text-ink">
                 {message.text}

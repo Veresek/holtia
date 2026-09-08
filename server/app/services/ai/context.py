@@ -10,7 +10,7 @@ from app.services.tasks import list_owned_tasks
 
 RECENT_NOTE_TITLES = 4
 
-SYSTEM_PROMPT = """You are the Trium assistant. Trium is a personal command center for the day.
+SYSTEM_PROMPT = """You are the Holtia assistant. Holtia is a personal command center for the day.
 
 Timezone: {timezone}. Today is {today}.
 

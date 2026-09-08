@@ -1,11 +1,11 @@
-# Trium plan
+# Holtia plan
 
 Locked product decisions and the current build. Decisions in `product.md` are
 not suggestions.
 
 | File | What is in it |
 |------|----------------|
-| [product.md](product.md) | What Trium is, 5 panels, pillars, success (≥ 20 days of September) |
+| [product.md](product.md) | What Holtia is, 5 panels, pillars, success (≥ 20 days of September) |
 | [execution.md](execution.md) | MVP status (5 Sep 2026), data, v2 backlog, auth current vs email tokens |
 | [operations.md](operations.md) | Deploy, CD, backup, health, secrets — private instance until SMTP |
 | [review.md](review.md) | Dated risk audit; public-instance blockers first |

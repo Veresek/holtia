@@ -26,7 +26,7 @@ Pin a task to a block: `date` + `timeBlockId`; the date is a day the block occur
 
 **Ready for a private VPS** when `.env` is filled, DNS points at the box, and you can: create an account, verify / reset with the instance code you keep secret, walk through Home in the morning, lay out the week in Calendar, open all tasks and the notes collection.
 
-**Not ready for a public instance** until verify and reset use per-user email tokens. Product success (separate from deploy): ≥ 20 days of September with a plan in Trium.
+**Not ready for a public instance** until verify and reset use per-user email tokens. Product success (separate from deploy): ≥ 20 days of September with a plan in Holtia.
 
 ## Auth: current vs v2
 

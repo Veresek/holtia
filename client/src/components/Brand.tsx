@@ -14,7 +14,7 @@ export function Brand({ to = "/" }: BrandProps) {
         className="size-9 rounded-md"
         src={logo}
       />
-      <span className="font-serif text-[1.35rem] leading-none">Trium</span>
+      <span className="font-serif text-[1.35rem] leading-none">Holtia</span>
     </Link>
   );
 }

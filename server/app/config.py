@@ -16,9 +16,9 @@ KNOWN_WEAK_SECRET_KEYS = {
 
 
 class Settings(BaseSettings):
-    app_name: str = "Trium API"
+    app_name: str = "Holtia API"
     environment: Literal["development", "test", "production"] = "development"
-    database_url: str = "postgresql+psycopg://trium:trium@localhost:5432/trium"
+    database_url: str = "postgresql+psycopg://holtia:holtia@localhost:5432/holtia"
     instance_code: str = ""
     secret_key: str = DEFAULT_SECRET_KEY
     timezone: str = "Europe/Warsaw"

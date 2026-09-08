@@ -56,7 +56,7 @@ def test_production_accepts_explicit_security_configuration() -> None:
         environment="production",
         instance_code="instance-code",
         secret_key=STRONG_SECRET,
-        client_origin="https://trium.example.com",
+        client_origin="https://holtia.xyz",
     )
 
     assert settings.environment == "production"
@@ -90,5 +90,5 @@ def test_production_rejects_an_insecure_client_origin() -> None:
             environment="production",
             instance_code="instance-code",
             secret_key=STRONG_SECRET,
-            client_origin="http://trium.example.com",
+            client_origin="http://holtia.xyz",
         )

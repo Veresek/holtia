@@ -1,4 +1,4 @@
-# Trium
+# Holtia
 
 Command center for the day: tasks, time blocks, and notes in one place.
 
@@ -120,18 +120,15 @@ Create `.env` from `.env.example` and replace every production placeholder.
 Production validation rejects an empty instance code or a weak secret key.
 Treat `INSTANCE_CODE` as an operator secret, not a public invite.
 
-Point DNS at the VPS. Port 80/443 stay on the reverse proxy already running
-there. Compose publishes the API on `127.0.0.1:8001` only.
+Point `holtia.xyz` at the VPS. Port 80/443 stay on the host nginx. Compose
+publishes the API on `127.0.0.1:8001` only.
 
-```bash
-bash .github/scripts/deploy-prod.sh
-```
-
-The script migrates before the API starts, then builds the SPA to
-`client/dist/index.html`. Proxy `/api` to `127.0.0.1:8001` and serve `dist/`
-from the host reverse proxy on the same origin. After the first boot, green CI
-on `main` deploys that commit over SSH. Back up the `postgres_data` volume
-before upgrades. Full runbook: [`docs/operations.md`](docs/operations.md).
+Fill `.env` and run GitHub Actions CD. The workflow migrates before the API
+starts, then builds the SPA to `client/dist/index.html`. Proxy `/api` to
+`127.0.0.1:8001` and serve `dist/` from nginx on the same origin. After the
+first boot, green CI on `main` deploys that commit over SSH.
+Back up the `postgres_data` volume before upgrades. Full runbook:
+[`docs/operations.md`](docs/operations.md).
 
 ## Docs
 
