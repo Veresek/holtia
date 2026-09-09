@@ -63,7 +63,7 @@ Reuse after the window is still treated as replay.
 `InMemoryRateLimiter` keys on `request.client.host`. Limits do not survive
 process restart and do not share across workers. Fine for a private box; not
 an anti-spam plan. Production Uvicorn now trusts `X-Forwarded-*` only from
-the Compose network CIDR (`172.28.0.0/16`), not `*`.
+private Docker ranges (`172.16.0.0/12`, `10.0.0.0/8`) and `127.0.0.1`, not `*`.
 
 ## Addressed after this review
 
