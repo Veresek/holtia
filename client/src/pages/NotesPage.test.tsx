@@ -127,6 +127,9 @@ describe("NotesPage", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(toggle);
     expect(toggle).toHaveAccessibleName("Show less of Launch notes");
+    expect(
+      screen.queryByRole("dialog", { name: "Edit note" }),
+    ).not.toBeInTheDocument();
     spy.mockRestore();
   });
 
@@ -192,6 +195,22 @@ describe("NotesPage", () => {
     expect(screen.getByRole("dialog", { name: "Edit note" })).toBeInTheDocument();
   });
 
+  it("opens the edit dialog when the note body or edited line is clicked", async () => {
+    stubSignedIn({
+      "GET /notes": () => jsonResponse([note]),
+    });
+    renderPage(<NotesPage />);
+
+    fireEvent.click(
+      await screen.findByText("Keep the first version small."),
+    );
+    expect(screen.getByRole("dialog", { name: "Edit note" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByText(/Edited /));
+    expect(screen.getByRole("dialog", { name: "Edit note" })).toBeInTheDocument();
+  });
+
   it("pins a note to a time block and shows the assignment", async () => {
     const block: TimeBlock = {
       id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
@@ -202,6 +221,7 @@ describe("NotesPage", () => {
       end: "11:00:00",
       recurrence: "none",
       recurrenceDays: [],
+      color: "moss",
     };
     let submitted: Record<string, unknown> | undefined;
     stubSignedIn({
@@ -251,6 +271,7 @@ describe("NotesPage", () => {
       timeBlockId: null,
       order: 0,
       createdAt: "2026-08-31T18:00:00Z",
+      completedAt: null,
     };
     let submitted: Record<string, unknown> | undefined;
     stubSignedIn({

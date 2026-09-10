@@ -79,3 +79,4 @@ class TaskRead(ApiReadModel):
     time_block_id: uuid.UUID | None
     order: int = Field(validation_alias="sort_order")
     created_at: datetime
+    completed_at: datetime | None

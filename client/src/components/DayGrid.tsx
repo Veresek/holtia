@@ -1,6 +1,14 @@
 import type { BlockPin } from "../assignments";
 import { formatHourLabel, hourTicks } from "../time";
+import type { BlockColor } from "../types";
 import { MarkdownBody } from "./MarkdownBody";
+
+export const BLOCK_TINTS: Record<BlockColor, string> = {
+  moss: "border-moss/30 border-l-4 border-l-moss/60",
+  lichen: "border-lichen/40 border-l-4 border-l-lichen/70",
+  rust: "border-rust/35 border-l-4 border-l-rust/60",
+  ink: "border-ink/25 border-l-4 border-l-ink/50",
+};
 
 export interface DayGridBlock {
   id: string;
@@ -10,6 +18,7 @@ export interface DayGridBlock {
   endLabel: string;
   startMinutes: number;
   endMinutes: number;
+  color?: BlockColor;
 }
 
 interface LaidOutBlock extends DayGridBlock {
@@ -243,7 +252,8 @@ export function DayGrid({
             const width = `calc(${100 / block.columns}% - 0.25rem)`;
             const left = `calc(${(block.column / block.columns) * 100}% + 0.125rem)`;
             const className = [
-              "absolute overflow-hidden rounded-md border border-moss/30 bg-paper px-2 py-1 text-left",
+              "absolute overflow-hidden rounded-md border bg-paper px-2 py-1 text-left",
+              BLOCK_TINTS[block.color ?? "moss"],
               readOnly ? "" : "hover:border-lichen",
             ].join(" ");
             const style = {

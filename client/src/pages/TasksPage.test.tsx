@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { jsonResponse, stubSignedIn } from "../test/api";
 import { stubPreviewOverflow } from "../test/preview";
 import { renderPage } from "../test/render";
+import { addCalendarDays, warsawDateValue } from "../time";
 import type { Task, TimeBlock } from "../types";
 import { TasksPage } from "./TasksPage";
 
@@ -16,7 +17,16 @@ const task: Task = {
   timeBlockId: null,
   order: 0,
   createdAt: "2026-08-31T18:00:00Z",
+  completedAt: null,
 };
+
+function applyTaskPatch(current: Task, body: Record<string, unknown>): Task {
+  const next = { ...current, ...body } as Task;
+  if (typeof body.done === "boolean") {
+    next.completedAt = body.done ? new Date().toISOString() : null;
+  }
+  return next;
+}
 
 describe("TasksPage", () => {
   it("shows a loading state while tasks are pending", () => {
@@ -75,6 +85,7 @@ describe("TasksPage", () => {
       await screen.findByRole("button", { name: /Add your first task/ }),
     );
     expect(screen.getByRole("dialog", { name: "Add task" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Date")).toHaveValue("");
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Read a chapter" },
     });
@@ -101,7 +112,7 @@ describe("TasksPage", () => {
       [`PATCH /tasks/${task.id}`]: (init) => {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         patchBodies.push(body);
-        return jsonResponse({ ...task, ...body });
+        return jsonResponse(applyTaskPatch(task, body));
       },
       [`DELETE /tasks/${task.id}`]: () => new Response(null, { status: 204 }),
     });
@@ -155,6 +166,7 @@ describe("TasksPage", () => {
             id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
             title: "Done first from the API",
             done: true,
+            completedAt: new Date().toISOString(),
             order: 0,
           },
           {
@@ -174,6 +186,53 @@ describe("TasksPage", () => {
     expect(titles).toEqual(["Still open", "Done first from the API"]);
   });
 
+  it("moves yesterday’s completed tasks into Archive", async () => {
+    const yesterday = addCalendarDays(warsawDateValue(new Date()), -1);
+    stubSignedIn({
+      "GET /tasks": () =>
+        jsonResponse([
+          {
+            ...task,
+            id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            title: "Still open",
+            done: false,
+            order: 0,
+          },
+          {
+            ...task,
+            id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            title: "Done today",
+            done: true,
+            completedAt: new Date().toISOString(),
+            order: 1,
+          },
+          {
+            ...task,
+            id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            title: "Done yesterday",
+            done: true,
+            completedAt: `${yesterday}T12:00:00+02:00`,
+            order: 2,
+          },
+        ]),
+    });
+    renderPage(<TasksPage />);
+
+    expect(await screen.findByText("Still open")).toBeInTheDocument();
+    expect(screen.getByText("Done today")).toBeInTheDocument();
+    expect(screen.getByText("2 tasks")).toBeInTheDocument();
+    expect(screen.getByText("Archive (1)")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Done yesterday" }).closest("details"),
+    ).not.toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Still open" }).closest("details"),
+    ).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Done today" }).closest("details"),
+    ).toBeNull();
+  });
+
   it("moves a task below open ones after it is marked done", async () => {
     const open = { ...task, title: "Write report", order: 0 };
     const later = {
@@ -186,7 +245,7 @@ describe("TasksPage", () => {
       "GET /tasks": () => jsonResponse([open, later]),
       [`PATCH /tasks/${open.id}`]: (init) => {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-        return jsonResponse({ ...open, ...body });
+        return jsonResponse(applyTaskPatch(open, body));
       },
     });
     renderPage(<TasksPage />);
@@ -247,6 +306,9 @@ describe("TasksPage", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(toggle);
     expect(toggle).toHaveAccessibleName("Show less of Write report");
+    expect(
+      screen.queryByRole("dialog", { name: "Edit task" }),
+    ).not.toBeInTheDocument();
     spy.mockRestore();
   });
 
@@ -262,6 +324,20 @@ describe("TasksPage", () => {
     expect(screen.getByRole("dialog", { name: "Edit task" })).toBeInTheDocument();
   });
 
+  it("opens the edit dialog when the description or date is clicked", async () => {
+    stubSignedIn({
+      "GET /tasks": () => jsonResponse([task]),
+    });
+    renderPage(<TasksPage />);
+
+    fireEvent.click(await screen.findByText("Draft the opening."));
+    expect(screen.getByRole("dialog", { name: "Edit task" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByText("No date"));
+    expect(screen.getByRole("dialog", { name: "Edit task" })).toBeInTheDocument();
+  });
+
   it("toggles a task from the checkbox without opening the editor", async () => {
     const patchBodies: Record<string, unknown>[] = [];
     stubSignedIn({
@@ -269,7 +345,7 @@ describe("TasksPage", () => {
       [`PATCH /tasks/${task.id}`]: (init) => {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         patchBodies.push(body);
-        return jsonResponse({ ...task, ...body });
+        return jsonResponse(applyTaskPatch(task, body));
       },
     });
     renderPage(<TasksPage />);
@@ -296,6 +372,7 @@ describe("TasksPage", () => {
       end: "11:00:00",
       recurrence: "none",
       recurrenceDays: [],
+      color: "moss",
     };
     let submitted: Record<string, unknown> | undefined;
     stubSignedIn({
@@ -337,6 +414,62 @@ describe("TasksPage", () => {
     expect(screen.getByText("Morning block · 09:00–11:00")).toBeInTheDocument();
   });
 
+  it("clears the date and pin when the date field is emptied", async () => {
+    const morning: TimeBlock = {
+      id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      title: "Morning block",
+      description: "",
+      date: "2026-09-01",
+      start: "09:00:00",
+      end: "11:00:00",
+      recurrence: "none",
+      recurrenceDays: [],
+      color: "moss",
+    };
+    let submitted: Record<string, unknown> | undefined;
+    stubSignedIn({
+      "GET /tasks": () => jsonResponse([]),
+      "GET /blocks": () => jsonResponse([morning]),
+      "POST /tasks": (init) => {
+        submitted = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return jsonResponse(
+          {
+            ...task,
+            title: submitted.title,
+            date: submitted.date,
+            timeBlockId: submitted.timeBlockId,
+          },
+          201,
+        );
+      },
+    });
+    renderPage(<TasksPage />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Add your first task/ }),
+    );
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Inbox later" },
+    });
+    fireEvent.change(screen.getByLabelText("Time block"), {
+      target: { value: morning.id },
+    });
+    expect(screen.getByLabelText("Date")).toHaveValue("2026-09-01");
+    fireEvent.change(screen.getByLabelText("Date"), {
+      target: { value: "" },
+    });
+    expect(screen.getByLabelText("Date")).toHaveValue("");
+    expect(screen.getByLabelText("Time block")).toHaveValue("");
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+
+    expect(await screen.findByText("Inbox later")).toBeInTheDocument();
+    expect(submitted).toMatchObject({
+      title: "Inbox later",
+      date: null,
+      timeBlockId: null,
+    });
+  });
+
   it("narrows time blocks to those that occur on the chosen date", async () => {
     const monday: TimeBlock = {
       id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
@@ -347,6 +480,7 @@ describe("TasksPage", () => {
       end: "11:00:00",
       recurrence: "none",
       recurrenceDays: [],
+      color: "moss",
     };
     const tuesday: TimeBlock = {
       id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
@@ -357,6 +491,7 @@ describe("TasksPage", () => {
       end: "15:00:00",
       recurrence: "none",
       recurrenceDays: [],
+      color: "moss",
     };
     stubSignedIn({
       "GET /tasks": () => jsonResponse([]),

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 
 import { formatTimeLabel } from "../time";
 import type { Note, Task, TimeBlock } from "../types";
@@ -49,8 +49,37 @@ export function NoteCard({
     }
   }
 
+  function handleCardClick(event: MouseEvent<HTMLElement>) {
+    if (!onEdit) {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+    if (
+      target.closest(
+        "a, button, input, label, select, textarea, [role='menuitem']",
+      )
+    ) {
+      return;
+    }
+    if (!window.getSelection()?.isCollapsed) {
+      return;
+    }
+    onEdit();
+  }
+
   return (
-    <article className="min-w-0 rounded-lg border border-line bg-paper-raised p-4 hover:border-lichen">
+    // Keyboard access is the title button (`aria-label="Edit …"`).
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
+    <article
+      className={[
+        "min-w-0 rounded-lg border border-line bg-paper-raised p-4 transition-colors duration-150 hover:border-lichen",
+        onEdit ? "cursor-pointer" : "",
+      ].join(" ")}
+      onClick={handleCardClick}
+    >
       <div className="flex items-start justify-between gap-3">
         <h3 className="min-w-0 flex-1 wrap-break-word font-serif text-xl text-ink">
           {onEdit ? (

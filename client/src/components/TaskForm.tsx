@@ -15,7 +15,6 @@ interface TaskFormProps {
     date: string | null;
     timeBlockId?: string | null;
   };
-  defaultDate?: string;
   blocks?: TimeBlock[];
   submitLabel: string;
   onSubmit: (payload: TaskCreate) => Promise<unknown>;
@@ -24,7 +23,6 @@ interface TaskFormProps {
 
 export function TaskForm({
   initial,
-  defaultDate,
   blocks = [],
   submitLabel,
   onSubmit,
@@ -32,7 +30,7 @@ export function TaskForm({
 }: TaskFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [date, setDate] = useState(initial?.date ?? defaultDate ?? "");
+  const [date, setDate] = useState(initial?.date ?? "");
   const [timeBlockId, setTimeBlockId] = useState(initial?.timeBlockId ?? "");
   const [saving, setSaving] = useState(false);
   const availableBlocks = useMemo(
@@ -45,7 +43,11 @@ export function TaskForm({
 
   function handleDateChange(value: string) {
     setDate(value);
-    if (!timeBlockId || !value) {
+    if (!value) {
+      setTimeBlockId("");
+      return;
+    }
+    if (!timeBlockId) {
       return;
     }
     const selected = blocks.find((block) => block.id === timeBlockId);
@@ -83,9 +85,7 @@ export function TaskForm({
         setTitle("");
         setDescription("");
         setTimeBlockId("");
-        if (!defaultDate) {
-          setDate("");
-        }
+        setDate("");
       }
     } catch {
       // The shared task state renders the API error.

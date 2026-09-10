@@ -90,6 +90,7 @@ export function CalendarPage() {
         endLabel: formatTimeLabel(block.end),
         startMinutes: segment.startMinutes,
         endMinutes: segment.endMinutes,
+        color: block.color,
       })),
     ),
     tasksByBlock: taskPinsByBlockOnDate(tasks, date),

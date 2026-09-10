@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 
 import { formatTimeLabel } from "../time";
 import type { Task, TimeBlock } from "../types";
@@ -15,6 +15,7 @@ interface TaskItemProps {
   onEdit?: () => void;
   onDelete?: () => Promise<unknown>;
   showDate?: boolean;
+  dense?: boolean;
   block?: TimeBlock;
 }
 
@@ -32,6 +33,7 @@ export function TaskItem({
   onEdit,
   onDelete,
   showDate = true,
+  dense = false,
   block,
 }: TaskItemProps) {
   const [confirming, setConfirming] = useState(false);
@@ -61,8 +63,38 @@ export function TaskItem({
     }
   }
 
+  function handleCardClick(event: MouseEvent<HTMLElement>) {
+    if (!onEdit) {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+    if (
+      target.closest(
+        "a, button, input, label, select, textarea, [role='menuitem']",
+      )
+    ) {
+      return;
+    }
+    if (!window.getSelection()?.isCollapsed) {
+      return;
+    }
+    onEdit();
+  }
+
   return (
-    <article className="min-w-0 rounded-lg border border-line bg-paper-raised p-4 hover:border-lichen">
+    // Keyboard access is the title button (`aria-label="Edit …"`).
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
+    <article
+      className={[
+        "min-w-0 rounded-lg border border-line bg-paper-raised transition-colors duration-150 hover:border-lichen",
+        dense ? "p-3" : "p-4",
+        onEdit ? "cursor-pointer" : "",
+      ].join(" ")}
+      onClick={handleCardClick}
+    >
       <div
         className={[
           "flex gap-3",

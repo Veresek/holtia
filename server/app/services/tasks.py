@@ -95,6 +95,8 @@ def create_owned_task(
     block = _ensure_owned_time_block(db, values["time_block_id"], user_id)
     if block is not None:
         values["date"] = _pin_date_for(block, values["date"])
+    if values["done"]:
+        values["completed_at"] = datetime.now(get_settings().zoneinfo)
     task = Task(user_id=user_id, **values)
     db.add(task)
     db.commit()
@@ -134,6 +136,11 @@ def update_owned_task(
         changes["date"] = _pin_date_for(block, next_date)
     elif block_specified:
         changes["time_block_id"] = None
+
+    if "done" in changes and changes["done"] != task.done:
+        changes["completed_at"] = (
+            datetime.now(get_settings().zoneinfo) if changes["done"] else None
+        )
 
     for field, value in changes.items():
         attribute = "sort_order" if field == "order" else field

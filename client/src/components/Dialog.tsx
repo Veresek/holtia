@@ -124,7 +124,7 @@ export function Dialog({ title, onClose, wide = false, children }: DialogProps) 
     >
       <button
         aria-label="Dismiss"
-        className="fixed inset-0 bg-ink/35"
+        className="fixed inset-0 animate-fade-in bg-ink/35"
         onClick={() => onCloseRef.current()}
         tabIndex={-1}
         type="button"
@@ -133,7 +133,7 @@ export function Dialog({ title, onClose, wide = false, children }: DialogProps) 
         aria-labelledby={titleId}
         aria-modal="true"
         className={[
-          "relative z-10 mb-8 w-full rounded-lg border border-line bg-paper-raised p-4 md:mb-0",
+          "relative z-10 mb-8 w-full animate-rise-in rounded-lg border border-line bg-paper-raised p-4 md:mb-0",
           wide ? "max-w-2xl" : "max-w-lg",
         ].join(" ")}
         ref={panelRef}

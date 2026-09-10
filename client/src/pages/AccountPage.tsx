@@ -8,9 +8,10 @@ import {
   buttonClassName,
   fieldClassName,
 } from "../components/AuthCard";
-import { AiKeyItem, PROVIDER_LABELS } from "../components/AiKeyItem";
+import { AiKeyItem, PROVIDER_ICONS, PROVIDER_LABELS } from "../components/AiKeyItem";
 import { ConfirmDelete } from "../components/ConfirmDelete";
 import { Dialog } from "../components/Dialog";
+import { Icon } from "../components/Icon";
 import { useAiSettings } from "../hooks/useAiSettings";
 import type { AiKey, AiProvider } from "../types";
 
@@ -304,25 +305,40 @@ export function AccountPage() {
                   title={editingExisting ? "Edit API key" : "Add API key"}
                 >
                   <form onSubmit={(event) => void handleSaveAi(event)}>
-                    <label className="block text-sm text-ink">
-                      Provider
-                      <select
-                        className={fieldClassName}
-                        disabled={pending}
-                        onChange={(event) => {
-                          const next = event.target.value as AiProvider;
-                          setProvider(next);
-                          setModel(settings.models[next]?.[0]?.id ?? "");
-                        }}
-                        value={provider}
-                      >
+                    <fieldset>
+                      <legend className="text-sm text-ink">Provider</legend>
+                      <div className="mt-2 flex flex-wrap gap-2">
                         {PROVIDERS.map((option) => (
-                          <option key={option} value={option}>
+                          <label
+                            className={[
+                              "flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm text-ink",
+                              provider === option
+                                ? "border-moss bg-paper-raised"
+                                : "border-line bg-paper",
+                            ].join(" ")}
+                            key={option}
+                          >
+                            <input
+                              checked={provider === option}
+                              className="accent-moss"
+                              disabled={pending}
+                              name="ai-provider"
+                              onChange={() => {
+                                setProvider(option);
+                                setModel(settings.models[option]?.[0]?.id ?? "");
+                              }}
+                              type="radio"
+                              value={option}
+                            />
+                            <Icon
+                              className="size-5 shrink-0 text-ink"
+                              name={PROVIDER_ICONS[option]}
+                            />
                             {PROVIDER_LABELS[option]}
-                          </option>
+                          </label>
                         ))}
-                      </select>
-                    </label>
+                      </div>
+                    </fieldset>
                     <label className="mt-4 block text-sm text-ink">
                       Model
                       <select

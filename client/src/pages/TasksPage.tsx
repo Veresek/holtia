@@ -5,7 +5,20 @@ import { EmptyCta } from "../components/EmptyCta";
 import { TaskForm } from "../components/TaskForm";
 import { TaskItem } from "../components/TaskItem";
 import { useData } from "../data/DataProvider";
+import { useNow } from "../hooks/useNow";
 import { useTasks } from "../hooks/useTasks";
+import { warsawDateValue } from "../time";
+import type { Task } from "../types";
+
+function isArchived(task: Task, today: string) {
+  if (!task.done) {
+    return false;
+  }
+  if (task.completedAt === null) {
+    return true;
+  }
+  return warsawDateValue(new Date(task.completedAt)) !== today;
+}
 
 export function TasksPage() {
   const {
@@ -18,9 +31,32 @@ export function TasksPage() {
     deleteTask,
   } = useTasks();
   const { blocks } = useData();
+  const today = warsawDateValue(useNow());
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = tasks.find((task) => task.id === editingId);
+  const activeTasks = tasks.filter((task) => !isArchived(task, today));
+  const archivedTasks = tasks.filter((task) => isArchived(task, today));
+
+  function renderTask(task: Task) {
+    return (
+      <TaskItem
+        block={
+          task.timeBlockId
+            ? blocks.find((item) => item.id === task.timeBlockId)
+            : undefined
+        }
+        key={task.id}
+        onDelete={() => deleteTask(task.id)}
+        onEdit={() => {
+          setCreating(false);
+          setEditingId(task.id);
+        }}
+        onToggle={() => updateTask(task.id, { done: !task.done })}
+        task={task}
+      />
+    );
+  }
 
   return (
     <section className="mx-auto w-full min-w-0 max-w-4xl px-4 py-8 md:px-8 md:py-12">
@@ -29,7 +65,8 @@ export function TasksPage() {
           <p className="text-sm text-ink-soft">Capture and finish</p>
           <h1 className="mt-2 font-serif text-3xl text-ink md:text-4xl">Tasks</h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-ink-soft">
-            Every task lives here, including tasks with no date.
+            Every task lives here, including tasks with no date. Completed work
+            older than today sits in Archive.
           </p>
         </header>
         <button
@@ -102,28 +139,28 @@ export function TasksPage() {
           />
         </div>
       ) : (
-        <div className="mt-8 space-y-3">
-          <p className="text-xs text-ink-faint">
-            {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
-          </p>
-          {tasks.map((task) => (
-            <TaskItem
-              block={
-                task.timeBlockId
-                  ? blocks.find((item) => item.id === task.timeBlockId)
-                  : undefined
-              }
-              key={task.id}
-              onDelete={() => deleteTask(task.id)}
-              onEdit={() => {
-                setCreating(false);
-                setEditingId(task.id);
-              }}
-              onToggle={() => updateTask(task.id, { done: !task.done })}
-              task={task}
-            />
-          ))}
-        </div>
+        <>
+          <div className="mt-8 space-y-3">
+            <p className="text-xs text-ink-faint">
+              {activeTasks.length}{" "}
+              {activeTasks.length === 1 ? "task" : "tasks"}
+            </p>
+            {activeTasks.map(renderTask)}
+          </div>
+          {archivedTasks.length > 0 ? (
+            <details className="mt-8">
+              <summary className="cursor-pointer text-sm font-medium text-ink">
+                Archive ({archivedTasks.length})
+              </summary>
+              <p className="mt-2 text-sm leading-6 text-ink-soft">
+                Completed more than a day ago.
+              </p>
+              <div className="mt-3 space-y-3">
+                {archivedTasks.map(renderTask)}
+              </div>
+            </details>
+          ) : null}
+        </>
       )}
     </section>
   );

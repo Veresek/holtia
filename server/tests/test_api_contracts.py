@@ -36,6 +36,7 @@ def test_read_schemas_serialize_with_camel_case() -> None:
                 time_block_id=related_id,
                 sort_order=2,
                 created_at=now,
+                completed_at=None,
             )
         ).model_dump(mode="json"),
         TimeBlockRead.model_validate(
@@ -48,6 +49,7 @@ def test_read_schemas_serialize_with_camel_case() -> None:
                 end=time(11),
                 recurrence=Recurrence.WEEKDAYS,
                 recurrence_days=[0, 2, 4],
+                color="moss",
             )
         ).model_dump(mode="json"),
         NoteRead.model_validate(
@@ -100,6 +102,7 @@ def test_read_schemas_serialize_with_camel_case() -> None:
         "timeBlockId",
         "order",
         "createdAt",
+        "completedAt",
     }
     assert set(responses[2]) == {
         "id",
@@ -110,6 +113,7 @@ def test_read_schemas_serialize_with_camel_case() -> None:
         "end",
         "recurrence",
         "recurrenceDays",
+        "color",
     }
     assert set(responses[3]) == {
         "id",

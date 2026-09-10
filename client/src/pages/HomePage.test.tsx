@@ -22,6 +22,7 @@ function todayTask(overrides: Partial<Task> = {}): Task {
 		timeBlockId: null,
 		order: 0,
 		createdAt: new Date().toISOString(),
+		completedAt: null,
 		...overrides,
 	};
 }
@@ -201,6 +202,9 @@ describe('HomePage tasks', () => {
 		expect(screen.queryByText('Task 1')).not.toBeInTheDocument();
 		expect(screen.queryByText('Task 6')).not.toBeInTheDocument();
 		expect(screen.getByText('5 tasks')).toBeInTheDocument();
+		expect(screen.getAllByRole('button', { name: 'Add task' })).toHaveLength(
+			1,
+		);
 
 		const toggle = screen.getByRole('button', {
 			name: 'Show more of today’s tasks',
@@ -304,8 +308,8 @@ describe('HomePage tasks', () => {
 			await screen.findByRole('button', { name: /Add your first task/ }),
 		).toBeInTheDocument();
 		expect(
-			screen.queryByRole('button', { name: 'Add task' }),
-		).not.toBeInTheDocument();
+			screen.queryAllByRole('button', { name: 'Add task' }),
+		).toHaveLength(0);
 		expect(screen.queryByText(doneToday.title)).not.toBeInTheDocument();
 		expect(screen.queryByText(otherTask.title)).not.toBeInTheDocument();
 	});
@@ -334,9 +338,15 @@ describe('HomePage tasks', () => {
 			screen.getByRole('dialog', { name: 'Add task' }),
 		).toBeInTheDocument();
 		expect(screen.getByLabelText('Description')).toBeInTheDocument();
-		expect(screen.getByLabelText('Date')).toHaveValue(todayValue());
+		expect(screen.getByLabelText('Date')).toHaveValue('');
+		expect(
+			screen.queryByRole('button', { name: 'No date' }),
+		).not.toBeInTheDocument();
 		fireEvent.change(screen.getByLabelText('Title'), {
 			target: { value: 'Choose today’s focus' },
+		});
+		fireEvent.change(screen.getByLabelText('Date'), {
+			target: { value: todayValue() },
 		});
 		fireEvent.click(screen.getByRole('button', { name: 'Create task' }));
 
@@ -353,6 +363,46 @@ describe('HomePage tasks', () => {
 		);
 		await waitFor(() => expect(toggleBody).toEqual({ done: true }));
 		expect(screen.queryByText('Choose today’s focus')).not.toBeInTheDocument();
+	});
+
+	it('creates an undated task that stays off Home', async () => {
+		let createBody: Record<string, unknown> | undefined;
+		stubSignedIn({
+			'GET /tasks': () => jsonResponse([]),
+			'POST /tasks': init => {
+				createBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+				return jsonResponse(
+					{
+						...todayTask({
+							title: String(createBody.title),
+							date: (createBody.date as string | null) ?? null,
+						}),
+					},
+					201,
+				);
+			},
+		});
+		renderPage(<HomePage />);
+
+		fireEvent.click(
+			await screen.findByRole('button', { name: /Add your first task/ }),
+		);
+		expect(screen.getByLabelText('Date')).toHaveValue('');
+		fireEvent.change(screen.getByLabelText('Title'), {
+			target: { value: 'Inbox later' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Create task' }));
+
+		await waitFor(() =>
+			expect(createBody).toMatchObject({
+				title: 'Inbox later',
+				date: null,
+			}),
+		);
+		expect(screen.queryByText('Inbox later')).not.toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: /Add your first task/ }),
+		).toBeInTheDocument();
 	});
 
 	it('edits and deletes a task from the actions menu', async () => {
@@ -408,6 +458,7 @@ function sampleHomeBlock(overrides: Partial<TimeBlock> = {}): TimeBlock {
 		end: '11:00:00',
 		recurrence: 'none',
 		recurrenceDays: [],
+		color: 'moss',
 		...overrides,
 	};
 }
