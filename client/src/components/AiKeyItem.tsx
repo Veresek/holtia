@@ -108,4 +108,4 @@ export function AiKeyItem({
   );
 }
 
-export { PROVIDER_LABELS };
+export { PROVIDER_ICONS, PROVIDER_LABELS };

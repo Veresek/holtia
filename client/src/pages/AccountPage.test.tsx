@@ -190,6 +190,44 @@ describe("AccountPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("saves a different provider and switches its models", async () => {
+    stubApi(
+      {
+        "GET /ai/settings": () => jsonResponse(enabledAiSettings),
+        "POST /ai/keys": (init) => {
+          const body = JSON.parse(String(init?.body)) as {
+            provider: string;
+            model: string;
+            apiKey: string;
+          };
+          expect(body).toEqual({
+            provider: "anthropic",
+            model: "claude-haiku-4-5",
+            apiKey: "sk-ant-test-secret-key-value",
+          });
+          return jsonResponse(configuredAiSettings, 201);
+        },
+      },
+      { user: ada },
+    );
+    renderWithRouter(<App />, { route: "/account" });
+
+    await openKeyForm();
+    expect(screen.getByRole("radio", { name: "OpenAI" })).toBeChecked();
+    expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.6-luna");
+    fireEvent.click(screen.getByRole("radio", { name: "Anthropic" }));
+    expect(screen.getByRole("radio", { name: "Anthropic" })).toBeChecked();
+    expect(screen.getByLabelText("Model")).toHaveValue("claude-haiku-4-5");
+    fireEvent.change(screen.getByLabelText("API key"), {
+      target: { value: "sk-ant-test-secret-key-value" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save key" }));
+
+    expect(
+      await screen.findAllByText("Key ending in alue"),
+    ).toHaveLength(2);
+  });
+
   it("replaces and removes a saved key", async () => {
     let current = configuredAiSettings;
     stubApi(
