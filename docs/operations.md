@@ -82,9 +82,9 @@ server {
 ## Continuous deployment
 
 `.github/workflows/cd.yml` deploys on push to `main` (and from Actions →
-Deploy → Run workflow). It SSHs to the VPS, `git pull`s `main`, dumps
-Postgres, runs `docker compose -f docker-compose.prod.yml up -d --build`,
-then builds the SPA into `client/dist` with Node 24 via nvm on the box.
+Deploy → Run workflow). It SSHs to the VPS, `git pull`s `main`, builds the SPA into `client/dist`
+with Node 24 via nvm, dumps Postgres, then runs
+`docker compose -f docker-compose.prod.yml up -d --build`.
 All of that lives in the workflow file; there is no separate deploy script.
 
 Secrets stay on the box in `.env`. The workflow never receives
