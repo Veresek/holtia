@@ -247,6 +247,9 @@ describe("TasksPage", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(toggle);
     expect(toggle).toHaveAccessibleName("Show less of Write report");
+    expect(
+      screen.queryByRole("dialog", { name: "Edit task" }),
+    ).not.toBeInTheDocument();
     spy.mockRestore();
   });
 
@@ -259,6 +262,20 @@ describe("TasksPage", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Edit Write report" }),
     );
+    expect(screen.getByRole("dialog", { name: "Edit task" })).toBeInTheDocument();
+  });
+
+  it("opens the edit dialog when the description or date is clicked", async () => {
+    stubSignedIn({
+      "GET /tasks": () => jsonResponse([task]),
+    });
+    renderPage(<TasksPage />);
+
+    fireEvent.click(await screen.findByText("Draft the opening."));
+    expect(screen.getByRole("dialog", { name: "Edit task" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByText("No date"));
     expect(screen.getByRole("dialog", { name: "Edit task" })).toBeInTheDocument();
   });
 

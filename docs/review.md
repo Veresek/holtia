@@ -74,7 +74,7 @@ Not blockers for a private deploy; shipped so the snapshot stays true.
 - Note form: pin to a task (`taskId`), shown on the card.
 - Account: unverified status only; verify/reset stay on guest routes.
 - Calendar tiles: pinned titles are buttons; leftover count is “+N more”.
-- Cards: no full-card edit overlay; title edits, ⋮ is 44px.
+- Cards: the body (padding, description, date, pin line) opens edit; checkbox, markdown chevron, links, and ⋮ stay their own actions. Title remains the keyboard path; ⋮ is 44px.
 - Host reverse proxy: CSP, `Cache-Control` split (`no-cache` HTML vs immutable `/assets`); see `docs/operations.md`.
 - `PATCH /api/users/me` detail is “Changing email is not available yet.”
 
