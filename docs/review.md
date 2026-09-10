@@ -77,6 +77,7 @@ Not blockers for a private deploy; shipped so the snapshot stays true.
 - Cards: the body (padding, description, date, pin line) opens edit; checkbox, markdown chevron, links, and ⋮ stay their own actions. Title remains the keyboard path; ⋮ is 44px.
 - Tasks: completed items older than today (Warsaw) live in Archive on the Tasks panel; `completed_at` is set when `done` becomes true.
 - Time blocks: optional colour token (`moss`, `lichen`, `rust`, `ink`) tints the tile border; one colour per series.
+- Motion: short fade/rise on dialogs, chevron rotation, and card border colour; `prefers-reduced-motion` still zeroes durations.
 - Host reverse proxy: CSP, `Cache-Control` split (`no-cache` HTML vs immutable `/assets`); see `docs/operations.md`.
 - `PATCH /api/users/me` detail is “Changing email is not available yet.”
 

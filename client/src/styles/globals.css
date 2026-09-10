@@ -15,6 +15,29 @@
   --color-moss-hover: #324230;
   --color-lichen: #6a7d5c;
   --color-rust: #8c4a3e;
+
+  --animate-fade-in: fade-in 140ms ease-out;
+  --animate-rise-in: rise-in 160ms ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 :root {

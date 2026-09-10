@@ -89,7 +89,7 @@ export function TaskItem({
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <article
       className={[
-        "min-w-0 rounded-lg border border-line bg-paper-raised hover:border-lichen",
+        "min-w-0 rounded-lg border border-line bg-paper-raised transition-colors duration-150 hover:border-lichen",
         dense ? "p-3" : "p-4",
         onEdit ? "cursor-pointer" : "",
       ].join(" ")}

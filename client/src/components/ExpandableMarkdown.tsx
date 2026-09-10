@@ -77,7 +77,7 @@ export function ExpandableMarkdown({
           type="button"
         >
           <Icon
-            className={["size-5", expanded ? "rotate-180" : ""].join(" ")}
+            className={["size-5 transition-transform duration-150", expanded ? "rotate-180" : ""].join(" ")}
             name="chevronDown"
           />
         </button>

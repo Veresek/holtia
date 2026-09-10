@@ -348,7 +348,7 @@ export function HomePage() {
 								type='button'>
 								<Icon
 									className={[
-										'size-5',
+										'size-5 transition-transform duration-150',
 										expandedTasks ? 'rotate-180' : '',
 									].join(' ')}
 									name='chevronDown'
