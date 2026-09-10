@@ -273,7 +273,6 @@ export function HomePage() {
 						<Dialog onClose={() => setCreating(false)} title='Add task'>
 							<TaskForm
 								blocks={blocks}
-								defaultDate={dateValue}
 								onCancel={() => setCreating(false)}
 								onSubmit={async payload => {
 									await createTask(payload);

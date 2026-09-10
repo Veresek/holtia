@@ -338,9 +338,15 @@ describe('HomePage tasks', () => {
 			screen.getByRole('dialog', { name: 'Add task' }),
 		).toBeInTheDocument();
 		expect(screen.getByLabelText('Description')).toBeInTheDocument();
-		expect(screen.getByLabelText('Date')).toHaveValue(todayValue());
+		expect(screen.getByLabelText('Date')).toHaveValue('');
+		expect(
+			screen.queryByRole('button', { name: 'No date' }),
+		).not.toBeInTheDocument();
 		fireEvent.change(screen.getByLabelText('Title'), {
 			target: { value: 'Choose today’s focus' },
+		});
+		fireEvent.change(screen.getByLabelText('Date'), {
+			target: { value: todayValue() },
 		});
 		fireEvent.click(screen.getByRole('button', { name: 'Create task' }));
 
@@ -359,7 +365,7 @@ describe('HomePage tasks', () => {
 		expect(screen.queryByText('Choose today’s focus')).not.toBeInTheDocument();
 	});
 
-	it('clears today’s default date so the task lives in Tasks', async () => {
+	it('creates an undated task that stays off Home', async () => {
 		let createBody: Record<string, unknown> | undefined;
 		stubSignedIn({
 			'GET /tasks': () => jsonResponse([]),
@@ -381,13 +387,7 @@ describe('HomePage tasks', () => {
 		fireEvent.click(
 			await screen.findByRole('button', { name: /Add your first task/ }),
 		);
-		expect(screen.getByLabelText('Date')).toHaveValue(todayValue());
-		fireEvent.click(screen.getByRole('button', { name: 'No date' }));
 		expect(screen.getByLabelText('Date')).toHaveValue('');
-		expect(
-			screen.getByText('Tasks with no date live in Tasks, not on Home.'),
-		).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: 'No date' })).toBeDisabled();
 		fireEvent.change(screen.getByLabelText('Title'), {
 			target: { value: 'Inbox later' },
 		});

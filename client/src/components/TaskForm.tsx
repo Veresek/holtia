@@ -15,7 +15,6 @@ interface TaskFormProps {
     date: string | null;
     timeBlockId?: string | null;
   };
-  defaultDate?: string;
   blocks?: TimeBlock[];
   submitLabel: string;
   onSubmit: (payload: TaskCreate) => Promise<unknown>;
@@ -24,7 +23,6 @@ interface TaskFormProps {
 
 export function TaskForm({
   initial,
-  defaultDate,
   blocks = [],
   submitLabel,
   onSubmit,
@@ -32,7 +30,7 @@ export function TaskForm({
 }: TaskFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [date, setDate] = useState(initial?.date ?? defaultDate ?? "");
+  const [date, setDate] = useState(initial?.date ?? "");
   const [timeBlockId, setTimeBlockId] = useState(initial?.timeBlockId ?? "");
   const [saving, setSaving] = useState(false);
   const availableBlocks = useMemo(
@@ -56,11 +54,6 @@ export function TaskForm({
     if (selected && !blockOccursOn(selected, value)) {
       setTimeBlockId("");
     }
-  }
-
-  function clearDate() {
-    setDate("");
-    setTimeBlockId("");
   }
 
   function handleBlockChange(value: string) {
@@ -92,9 +85,7 @@ export function TaskForm({
         setTitle("");
         setDescription("");
         setTimeBlockId("");
-        if (!defaultDate) {
-          setDate("");
-        }
+        setDate("");
       }
     } catch {
       // The shared task state renders the API error.
@@ -149,19 +140,6 @@ export function TaskForm({
             type="date"
             value={date}
           />
-          <button
-            className="mt-2 rounded-md border border-line px-3 py-1.5 text-sm text-ink-soft hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!date}
-            onClick={clearDate}
-            type="button"
-          >
-            No date
-          </button>
-          {!date ? (
-            <p className="mt-2 text-xs leading-5 text-ink-faint">
-              Tasks with no date live in Tasks, not on Home.
-            </p>
-          ) : null}
         </div>
       </div>
 
