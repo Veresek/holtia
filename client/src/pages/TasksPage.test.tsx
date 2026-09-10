@@ -354,6 +354,62 @@ describe("TasksPage", () => {
     expect(screen.getByText("Morning block · 09:00–11:00")).toBeInTheDocument();
   });
 
+  it("clears the date and pin with No date", async () => {
+    const morning: TimeBlock = {
+      id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      title: "Morning block",
+      description: "",
+      date: "2026-09-01",
+      start: "09:00:00",
+      end: "11:00:00",
+      recurrence: "none",
+      recurrenceDays: [],
+    };
+    let submitted: Record<string, unknown> | undefined;
+    stubSignedIn({
+      "GET /tasks": () => jsonResponse([]),
+      "GET /blocks": () => jsonResponse([morning]),
+      "POST /tasks": (init) => {
+        submitted = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return jsonResponse(
+          {
+            ...task,
+            title: submitted.title,
+            date: submitted.date,
+            timeBlockId: submitted.timeBlockId,
+          },
+          201,
+        );
+      },
+    });
+    renderPage(<TasksPage />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Add your first task/ }),
+    );
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Inbox later" },
+    });
+    fireEvent.change(screen.getByLabelText("Time block"), {
+      target: { value: morning.id },
+    });
+    expect(screen.getByLabelText("Date")).toHaveValue("2026-09-01");
+    fireEvent.click(screen.getByRole("button", { name: "No date" }));
+    expect(screen.getByLabelText("Date")).toHaveValue("");
+    expect(screen.getByLabelText("Time block")).toHaveValue("");
+    expect(
+      screen.getByText("Tasks with no date live in Tasks, not on Home."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+
+    expect(await screen.findByText("Inbox later")).toBeInTheDocument();
+    expect(submitted).toMatchObject({
+      title: "Inbox later",
+      date: null,
+      timeBlockId: null,
+    });
+  });
+
   it("narrows time blocks to those that occur on the chosen date", async () => {
     const monday: TimeBlock = {
       id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",

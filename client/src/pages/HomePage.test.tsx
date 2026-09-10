@@ -355,6 +355,52 @@ describe('HomePage tasks', () => {
 		expect(screen.queryByText('Choose today’s focus')).not.toBeInTheDocument();
 	});
 
+	it('clears today’s default date so the task lives in Tasks', async () => {
+		let createBody: Record<string, unknown> | undefined;
+		stubSignedIn({
+			'GET /tasks': () => jsonResponse([]),
+			'POST /tasks': init => {
+				createBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+				return jsonResponse(
+					{
+						...todayTask({
+							title: String(createBody.title),
+							date: (createBody.date as string | null) ?? null,
+						}),
+					},
+					201,
+				);
+			},
+		});
+		renderPage(<HomePage />);
+
+		fireEvent.click(
+			await screen.findByRole('button', { name: /Add your first task/ }),
+		);
+		expect(screen.getByLabelText('Date')).toHaveValue(todayValue());
+		fireEvent.click(screen.getByRole('button', { name: 'No date' }));
+		expect(screen.getByLabelText('Date')).toHaveValue('');
+		expect(
+			screen.getByText('Tasks with no date live in Tasks, not on Home.'),
+		).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'No date' })).toBeDisabled();
+		fireEvent.change(screen.getByLabelText('Title'), {
+			target: { value: 'Inbox later' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Create task' }));
+
+		await waitFor(() =>
+			expect(createBody).toMatchObject({
+				title: 'Inbox later',
+				date: null,
+			}),
+		);
+		expect(screen.queryByText('Inbox later')).not.toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: /Add your first task/ }),
+		).toBeInTheDocument();
+	});
+
 	it('edits and deletes a task from the actions menu', async () => {
 		const task = todayTask();
 		const patchBodies: Record<string, unknown>[] = [];

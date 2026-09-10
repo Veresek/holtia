@@ -45,13 +45,22 @@ export function TaskForm({
 
   function handleDateChange(value: string) {
     setDate(value);
-    if (!timeBlockId || !value) {
+    if (!value) {
+      setTimeBlockId("");
+      return;
+    }
+    if (!timeBlockId) {
       return;
     }
     const selected = blocks.find((block) => block.id === timeBlockId);
     if (selected && !blockOccursOn(selected, value)) {
       setTimeBlockId("");
     }
+  }
+
+  function clearDate() {
+    setDate("");
+    setTimeBlockId("");
   }
 
   function handleBlockChange(value: string) {
@@ -140,6 +149,19 @@ export function TaskForm({
             type="date"
             value={date}
           />
+          <button
+            className="mt-2 rounded-md border border-line px-3 py-1.5 text-sm text-ink-soft hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!date}
+            onClick={clearDate}
+            type="button"
+          >
+            No date
+          </button>
+          {!date ? (
+            <p className="mt-2 text-xs leading-5 text-ink-faint">
+              Tasks with no date live in Tasks, not on Home.
+            </p>
+          ) : null}
         </div>
       </div>
 
