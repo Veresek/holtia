@@ -153,7 +153,7 @@ export function HomePage() {
 					aria-busy={blocksLoading}
 					aria-labelledby='around-now-heading'
 					className='min-w-0 lg:col-start-2 lg:row-start-1'>
-					<div className='mb-3 flex min-h-8 flex-wrap items-center justify-between gap-2'>
+					<div className='mb-3 flex min-h-9 flex-wrap items-center justify-between gap-2'>
 						<h2 className='font-medium' id='around-now-heading'>
 							Around now
 						</h2>
@@ -234,7 +234,7 @@ export function HomePage() {
 					aria-busy={loading}
 					aria-labelledby='todays-tasks-heading'
 					className='min-w-0 lg:col-start-1 lg:row-start-1'>
-					<div className='mb-3 flex min-h-8 flex-wrap items-center justify-between gap-2'>
+					<div className='mb-3 flex min-h-9 flex-wrap items-center justify-between gap-2'>
 						<h2 className='font-medium' id='todays-tasks-heading'>
 							Today’s tasks
 						</h2>
@@ -252,15 +252,7 @@ export function HomePage() {
 									type='button'>
 									Add task
 								</button>
-							) : (
-								<button
-									aria-hidden
-									className='invisible shrink-0 rounded-md bg-moss px-3 py-1.5 text-sm font-medium text-paper-raised'
-									tabIndex={-1}
-									type='button'>
-									Add task
-								</button>
-							)}
+							) : null}
 						</div>
 					</div>
 					{error ? (
@@ -317,7 +309,7 @@ export function HomePage() {
 									title='Add your first task'
 								/>
 							) : (
-								<div className='space-y-3'>
+								<div className='space-y-2'>
 									{visibleTasks.map(task => (
 										<TaskItem
 											block={
@@ -325,6 +317,7 @@ export function HomePage() {
 													? blocks.find(item => item.id === task.timeBlockId)
 													: undefined
 											}
+											dense
 											key={task.id}
 											onDelete={() => deleteTask(task.id)}
 											onEdit={() => {

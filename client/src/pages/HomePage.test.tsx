@@ -201,6 +201,9 @@ describe('HomePage tasks', () => {
 		expect(screen.queryByText('Task 1')).not.toBeInTheDocument();
 		expect(screen.queryByText('Task 6')).not.toBeInTheDocument();
 		expect(screen.getByText('5 tasks')).toBeInTheDocument();
+		expect(screen.getAllByRole('button', { name: 'Add task' })).toHaveLength(
+			1,
+		);
 
 		const toggle = screen.getByRole('button', {
 			name: 'Show more of today’s tasks',
@@ -304,8 +307,8 @@ describe('HomePage tasks', () => {
 			await screen.findByRole('button', { name: /Add your first task/ }),
 		).toBeInTheDocument();
 		expect(
-			screen.queryByRole('button', { name: 'Add task' }),
-		).not.toBeInTheDocument();
+			screen.queryAllByRole('button', { name: 'Add task' }),
+		).toHaveLength(0);
 		expect(screen.queryByText(doneToday.title)).not.toBeInTheDocument();
 		expect(screen.queryByText(otherTask.title)).not.toBeInTheDocument();
 	});

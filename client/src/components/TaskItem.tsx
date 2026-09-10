@@ -15,6 +15,7 @@ interface TaskItemProps {
   onEdit?: () => void;
   onDelete?: () => Promise<unknown>;
   showDate?: boolean;
+  dense?: boolean;
   block?: TimeBlock;
 }
 
@@ -32,6 +33,7 @@ export function TaskItem({
   onEdit,
   onDelete,
   showDate = true,
+  dense = false,
   block,
 }: TaskItemProps) {
   const [confirming, setConfirming] = useState(false);
@@ -87,7 +89,8 @@ export function TaskItem({
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <article
       className={[
-        "min-w-0 rounded-lg border border-line bg-paper-raised p-4 hover:border-lichen",
+        "min-w-0 rounded-lg border border-line bg-paper-raised hover:border-lichen",
+        dense ? "p-3" : "p-4",
         onEdit ? "cursor-pointer" : "",
       ].join(" ")}
       onClick={handleCardClick}
