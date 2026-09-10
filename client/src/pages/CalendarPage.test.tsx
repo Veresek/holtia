@@ -32,6 +32,7 @@ function sampleBlock(overrides: Partial<TimeBlock> = {}): TimeBlock {
     end: "11:00:00",
     recurrence: "none",
     recurrenceDays: [],
+    color: "moss",
     ...overrides,
   };
 }
@@ -192,6 +193,42 @@ describe("CalendarPage", () => {
       recurrence: "none",
       recurrenceDays: [],
     });
+  });
+
+  it("creates a block with a colour token", async () => {
+    const created = sampleBlock({ title: "Reading", color: "lichen" });
+    let stored: TimeBlock[] = [];
+    let submitted: Record<string, unknown> | undefined;
+    stubSignedIn({
+      ...stubBlocks(),
+      "POST /blocks": (init) => {
+        submitted = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        stored = [
+          {
+            ...created,
+            title: String(submitted.title),
+            color: submitted.color as TimeBlock["color"],
+          },
+        ];
+        return jsonResponse(stored[0], 201);
+      },
+    });
+    renderPage(<CalendarPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add block" }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Reading" },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "Lichen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create block" }));
+
+    expect(submitted).toMatchObject({
+      title: "Reading",
+      color: "lichen",
+    });
+    const tile = (await weekBlockButton("Reading, 09:00–11:00")).closest(
+      "article",
+    );
+    expect(tile).toHaveClass("border-l-lichen/70");
   });
 
   it("submits selected weekdays from the form", async () => {

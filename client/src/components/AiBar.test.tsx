@@ -165,6 +165,7 @@ describe("AiBar", () => {
           end: "19:00:00",
           recurrence: "none",
           recurrenceDays: [],
+          color: "moss",
         }, 201),
     });
     renderWithRouter(<App />);
@@ -217,6 +218,7 @@ describe("AiBar", () => {
           end: "19:00:00",
           recurrence: "none",
           recurrenceDays: [],
+          color: "moss",
         }, 201),
     });
     renderWithRouter(<App />);

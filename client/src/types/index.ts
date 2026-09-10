@@ -1,4 +1,6 @@
 export type Recurrence = "none" | "daily" | "weekly" | "weekdays";
+export const BLOCK_COLORS = ["moss", "lichen", "rust", "ink"] as const;
+export type BlockColor = (typeof BLOCK_COLORS)[number];
 
 export interface User {
   id: string;
@@ -39,6 +41,7 @@ export interface TimeBlock {
   end: string;
   recurrence: Recurrence;
   recurrenceDays: number[];
+  color: BlockColor;
 }
 
 export interface TimeBlockCreate {
@@ -49,6 +52,7 @@ export interface TimeBlockCreate {
   end: string;
   recurrence?: Recurrence;
   recurrenceDays?: number[];
+  color?: BlockColor;
 }
 
 export type TimeBlockUpdate = Partial<TimeBlockCreate>;

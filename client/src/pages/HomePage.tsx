@@ -208,6 +208,7 @@ export function HomePage() {
 									endLabel: formatTimeLabel(occurrence.block.end),
 									startMinutes: occurrence.startMinutes,
 									endMinutes: occurrence.endMinutes,
+									color: occurrence.block.color,
 								}))}
 								label='Around now'
 								notesByBlock={aroundNowNotesByBlock}

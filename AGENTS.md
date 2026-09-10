@@ -34,7 +34,7 @@ server/                 FastAPI + SQLAlchemy + PostgreSQL
     schemas/            Pydantic request/response models
     routers/            one router per resource, mounted under /api
     services/           domain logic (auth, recurrence, pins, AI BYOK)
-  migrations/           Alembic versions; head is 20260909_0009
+  migrations/           Alembic versions; head is 20260909_0010
   scripts/              migrate.py, purge_revoked_tokens.py
   tests/                pytest + FastAPI TestClient
 docs/                   product.md is the source of truth

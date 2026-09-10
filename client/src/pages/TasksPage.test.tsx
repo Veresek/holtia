@@ -371,6 +371,7 @@ describe("TasksPage", () => {
       end: "11:00:00",
       recurrence: "none",
       recurrenceDays: [],
+      color: "moss",
     };
     let submitted: Record<string, unknown> | undefined;
     stubSignedIn({
@@ -422,6 +423,7 @@ describe("TasksPage", () => {
       end: "11:00:00",
       recurrence: "none",
       recurrenceDays: [],
+      color: "moss",
     };
     let submitted: Record<string, unknown> | undefined;
     stubSignedIn({
@@ -478,6 +480,7 @@ describe("TasksPage", () => {
       end: "11:00:00",
       recurrence: "none",
       recurrenceDays: [],
+      color: "moss",
     };
     const tuesday: TimeBlock = {
       id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
@@ -488,6 +491,7 @@ describe("TasksPage", () => {
       end: "15:00:00",
       recurrence: "none",
       recurrenceDays: [],
+      color: "moss",
     };
     stubSignedIn({
       "GET /tasks": () => jsonResponse([]),

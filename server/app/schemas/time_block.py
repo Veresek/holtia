@@ -4,7 +4,7 @@ from datetime import time as TimeType
 
 from pydantic import Field, field_validator, model_validator
 
-from app.models.time_block import Recurrence
+from app.models.time_block import BlockColor, Recurrence
 from app.schemas.base import (
     DESCRIPTION_MAX_LENGTH,
     TITLE_MAX_LENGTH,
@@ -46,6 +46,7 @@ class TimeBlockCreate(ApiModel):
     end: TimeType
     recurrence: Recurrence = Recurrence.NONE
     recurrence_days: list[int] = Field(default_factory=list)
+    color: BlockColor = BlockColor.MOSS
 
     @field_validator("title")
     @classmethod
@@ -76,6 +77,7 @@ class TimeBlockUpdate(ApiModel):
     end: TimeType | None = None
     recurrence: Recurrence | None = None
     recurrence_days: list[int] | None = None
+    color: BlockColor | None = None
 
     @field_validator("title")
     @classmethod
@@ -122,6 +124,13 @@ class TimeBlockUpdate(ApiModel):
             raise ValueError("Recurrence days cannot be null.")
         return normalize_recurrence_days(value)
 
+    @field_validator("color")
+    @classmethod
+    def validate_color(cls, value: BlockColor | None) -> BlockColor:
+        if value is None:
+            raise ValueError("Colour cannot be null.")
+        return value
+
 
 class TimeBlockRead(ApiReadModel):
     id: uuid.UUID
@@ -132,3 +141,4 @@ class TimeBlockRead(ApiReadModel):
     end: TimeType
     recurrence: Recurrence
     recurrence_days: list[int]
+    color: BlockColor

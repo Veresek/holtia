@@ -458,6 +458,7 @@ function sampleHomeBlock(overrides: Partial<TimeBlock> = {}): TimeBlock {
 		end: '11:00:00',
 		recurrence: 'none',
 		recurrenceDays: [],
+		color: 'moss',
 		...overrides,
 	};
 }

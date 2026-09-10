@@ -91,7 +91,7 @@ Refresh reuse within a short grace window no longer signs out a second tab as a 
 | -------- | -------------------------------------------------------------------------------- |
 | Frontend | React 19, Vite, TypeScript, Tailwind v4 (phone in the browser)                   |
 | Backend  | FastAPI, Python 3.13                                                             |
-| Database | PostgreSQL 18, Alembic (head `20260909_0009`)                                    |
+| Database | PostgreSQL 18, Alembic (head `20260909_0010`)                                    |
 | Auth     | email + password (bcrypt) + `INSTANCE_CODE`; cookies; Google and SMTP not in MVP |
 | Hosting  | VPS, `docker compose` / `docker-compose.prod.yml`                                |
 | CI       | GitHub Actions: ruff + pytest; client lint / test / build                        |
@@ -114,7 +114,7 @@ TimeBlock     id, user_id, title, description,
               date           — one-off day OR series anchor
               start, end     — times of day; end < start continues into the next day
               recurrence     — none | daily | weekly | weekdays
-              recurrence_days, updated_at
+              recurrence_days, color (moss | lichen | rust | ink), updated_at
 Note          id, user_id, title, markdown, updated_at
               (no date)
               task_id?       — optional; independent of the block pin; note form

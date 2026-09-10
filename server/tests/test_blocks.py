@@ -70,6 +70,7 @@ def test_block_crud_trims_content_and_normalizes_days(
         "end",
         "recurrence",
         "recurrenceDays",
+        "color",
     }
 
     fetched = client.get(f"/api/blocks/{block['id']}")
@@ -178,6 +179,7 @@ def test_create_validates_block_fields(
         {"end": None},
         {"recurrence": None},
         {"recurrenceDays": None},
+        {"color": None},
         {"title": "   "},
         {"title": "x" * 256},
     ],
@@ -553,3 +555,24 @@ def test_visible_on_includes_overnight_continuation(
     )
 
     assert visible_on(block, day) is expected
+
+
+def test_block_color_defaults_to_moss_and_rejects_unknown(
+    client: TestClient,
+) -> None:
+    register_verified(client)
+    created = create_block(client)
+    assert created["color"] == "moss"
+
+    updated = client.patch(
+        f"/api/blocks/{created['id']}",
+        json={"color": "lichen"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["color"] == "lichen"
+
+    rejected = client.patch(
+        f"/api/blocks/{created['id']}",
+        json={"color": "neon"},
+    )
+    assert rejected.status_code == 422

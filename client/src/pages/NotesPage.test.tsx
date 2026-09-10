@@ -221,6 +221,7 @@ describe("NotesPage", () => {
       end: "11:00:00",
       recurrence: "none",
       recurrenceDays: [],
+      color: "moss",
     };
     let submitted: Record<string, unknown> | undefined;
     stubSignedIn({

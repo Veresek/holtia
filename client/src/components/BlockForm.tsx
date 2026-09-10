@@ -1,8 +1,9 @@
 import { useId, useState, type FormEvent } from "react";
 
-import type { Recurrence, TimeBlockCreate } from "../types";
+import { BLOCK_COLORS, type BlockColor, type Recurrence, type TimeBlockCreate } from "../types";
 import { timeInputValue, toTimePayload } from "../time";
 import { ConfirmDelete } from "./ConfirmDelete";
+import { BLOCK_TINTS } from "./DayGrid";
 
 const WEEKDAYS = [
   { day: 0, label: "Monday" },
@@ -23,6 +24,7 @@ interface BlockFormProps {
     end: string;
     recurrence: Recurrence;
     recurrenceDays: number[];
+    color: BlockColor;
   };
   defaultDate?: string;
   submitLabel: string;
@@ -55,6 +57,7 @@ export function BlockForm({
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>(
     initial?.recurrenceDays ?? [],
   );
+  const [color, setColor] = useState<BlockColor>(initial?.color ?? "moss");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -94,6 +97,7 @@ export function BlockForm({
         end: toTimePayload(end),
         recurrence,
         recurrenceDays: recurrence === "weekdays" ? recurrenceDays : [],
+        color,
       });
     } catch {
       // The shared calendar state renders the API error.
@@ -247,6 +251,39 @@ export function BlockForm({
           </div>
         </fieldset>
       ) : null}
+
+      <fieldset className="mt-4">
+        <legend className="text-sm font-medium text-ink">Colour</legend>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {BLOCK_COLORS.map((option) => (
+            <label
+              className={[
+                "flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm text-ink",
+                color === option
+                  ? "border-moss bg-paper-raised"
+                  : "border-line bg-paper",
+              ].join(" ")}
+              key={option}
+            >
+              <input
+                checked={color === option}
+                className="accent-moss"
+                name={`${formId}-color`}
+                onChange={() => setColor(option)}
+                type="radio"
+                value={option}
+              />
+              <span
+                className={[
+                  "size-4 rounded-sm border bg-paper",
+                  BLOCK_TINTS[option],
+                ].join(" ")}
+              />
+              {option[0].toUpperCase() + option.slice(1)}
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       {end !== "" && start !== "" && end < start ? (
         <p className="mt-3 text-sm text-ink-soft">
