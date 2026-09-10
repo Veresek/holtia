@@ -25,7 +25,6 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    environment: production
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -38,7 +37,7 @@ jobs:
           missing=0
           for name in DEPLOY_HOST DEPLOY_USER DEPLOY_KEY; do
             if [ -z "${!name}" ]; then
-              echo "${name} is not set on the production environment"
+              echo "${name} is not set in repository secrets"
               missing=1
             fi
           done

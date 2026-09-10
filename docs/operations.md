@@ -117,12 +117,9 @@ ssh-keygen -t ed25519 -f holtia-deploy -N "" -C "github-actions-cd"
 Append `holtia-deploy.pub` to `~/.ssh/authorized_keys` for the same user that
 owns `/opt/holtia`. The first CD run accepts the host key (`accept-new`).
 
-### GitHub environment `production`
+### GitHub Actions secrets
 
-Settings → Environments → New environment → `production`. Optional: required
-reviewers so a push to `main` does not go live unattended.
-
-Secrets:
+Settings → Secrets and variables → Actions → Repository secrets.
 
 | Secret | Value |
 |--------|--------|
@@ -130,7 +127,7 @@ Secrets:
 | `DEPLOY_USER` | SSH user that owns `/opt/holtia` and can run Docker |
 | `DEPLOY_KEY` | Full private key (`-----BEGIN … PRIVATE KEY-----`) |
 
-Variables (optional):
+Optional repository variables (Settings → Secrets and variables → Actions → Variables):
 
 | Variable | Default | Notes |
 |----------|---------|--------|
