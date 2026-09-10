@@ -25,6 +25,6 @@ npm run build
 
 ## Production build
 
-CD on the VPS runs `npm run build` (Node 24 in Docker) and writes
+CD on the VPS runs `npm run build` (Node 24 via nvm) and writes
 `client/dist/index.html`. Host nginx serves that directory and proxies `/api`
 to `127.0.0.1:8001`. See [`docs/operations.md`](../docs/operations.md).

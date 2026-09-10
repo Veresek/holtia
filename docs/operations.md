@@ -26,8 +26,8 @@ Optional AI (off until you set both):
 Point DNS at the VPS. Port 80/443 stay on the host nginx. Compose does not
 bind them.
 
-Fill `.env`, add the nginx site below, then run GitHub Actions CD (or
-Actions → CD → Run workflow). The workflow migrates before the API starts,
+Fill `.env`, add the nginx site below, then run GitHub Actions Deploy (or
+Actions → Deploy → Run workflow). The workflow migrates before the API starts,
 publishes FastAPI on `127.0.0.1:8001`, and builds the SPA to
 `client/dist/index.html`. Postgres stays on the internal Docker network. Point
 nginx `root` at that `dist/` directory and proxy `/api` to `127.0.0.1:8001`.
@@ -81,21 +81,20 @@ server {
 
 ## Continuous deployment
 
-`.github/workflows/cd.yml` deploys the commit that just passed CI on `main`.
-It SSHs to the VPS, checks out that SHA, dumps Postgres, runs
-`docker compose -f docker-compose.prod.yml up --build -d`, then builds the SPA
-into `client/dist` with Node 24 in Docker. You can also run the workflow by
-hand (Actions → CD → Run workflow) and pass a ref. All of that lives in the
-workflow file; there is no separate deploy script.
+`.github/workflows/cd.yml` deploys on push to `main` (and from Actions →
+Deploy → Run workflow). It SSHs to the VPS, `git pull`s `main`, dumps
+Postgres, runs `docker compose -f docker-compose.prod.yml up -d --build`,
+then builds the SPA into `client/dist` with Node 24 via nvm on the box.
+All of that lives in the workflow file; there is no separate deploy script.
 
 Secrets stay on the box in `.env`. The workflow never receives
 `INSTANCE_CODE`, `SECRET_KEY`, or `AI_ENCRYPTION_KEY`.
 
 ### VPS bootstrap (once)
 
-Ubuntu, Docker Compose v2, git, curl. Clone over HTTPS so pull needs no
-GitHub credentials. Put the operator in the `docker` group so CD does not
-need sudo.
+Ubuntu, Docker Compose v2, git, curl, Node 24 (nvm). Clone over HTTPS so
+pull needs no GitHub credentials. The deploy user needs passwordless
+`sudo` for `docker`.
 
 ```bash
 sudo mkdir -p /opt/holtia
@@ -105,6 +104,11 @@ cd /opt/holtia
 cp .env.example .env
 # fill DOMAIN=holtia.xyz, INSTANCE_CODE, SECRET_KEY, POSTGRES_PASSWORD
 # add the nginx site above, then reload nginx
+
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+# new shell, then:
+nvm install 24
+nvm alias default 24
 ```
 
 Install a deploy-only SSH key. On the machine that will hold the private
@@ -115,7 +119,7 @@ ssh-keygen -t ed25519 -f holtia-deploy -N "" -C "github-actions-cd"
 ```
 
 Append `holtia-deploy.pub` to `~/.ssh/authorized_keys` for the same user that
-owns `/opt/holtia`. The first CD run accepts the host key (`accept-new`).
+owns `/opt/holtia`. Each deploy runs `ssh-keyscan` against `DEPLOY_HOST`.
 
 ### GitHub Actions secrets
 
@@ -126,17 +130,18 @@ Settings → Secrets and variables → Actions → Repository secrets.
 | `DEPLOY_HOST` | VPS hostname or IP |
 | `DEPLOY_USER` | SSH user that owns `/opt/holtia` and can run Docker |
 | `DEPLOY_KEY` | Full private key (`-----BEGIN … PRIVATE KEY-----`) |
+| `DEPLOY_PORT` | SSH port (optional; falls back to the `DEPLOY_PORT` variable, then `22`) |
 
 Optional repository variables (Settings → Secrets and variables → Actions → Variables):
 
 | Variable | Default | Notes |
 |----------|---------|--------|
 | `DEPLOY_PATH` | `~/holtia` | Clone directory |
-| `DEPLOY_PORT` | `22` | SSH port |
+| `DEPLOY_PORT` | `22` | SSH port, if not set as a secret |
 
 A deploy keeps the ten newest files under `backups/holtia-*.sql.gz` on the
 VPS. That is not off-box backup; copy dumps off the machine as well. To
-upgrade by hand, run the CD workflow (Actions → CD → Run workflow).
+upgrade by hand, run the Deploy workflow (Actions → Deploy → Run workflow).
 
 ## Backup
 

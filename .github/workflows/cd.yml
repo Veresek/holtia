@@ -1,177 +1,67 @@
-name: CD
+name: Deploy
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      ref:
-        description: Git ref or SHA to deploy
-        required: false
-        default: main
 
 concurrency:
   group: production-deploy
   cancel-in-progress: false
 
-permissions:
-  contents: read
-
 jobs:
   deploy:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    env:
-      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
-      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '~/holtia' }}
-      DEPLOY_REF: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_sha }}
     steps:
-      - name: Check deploy configuration
-        run: |
-          missing=0
-          for name in DEPLOY_HOST DEPLOY_USER DEPLOY_KEY; do
-            if [ -z "${!name}" ]; then
-              echo "${name} is not set in repository secrets"
-              missing=1
-            fi
-          done
-          if [ -z "$DEPLOY_REF" ]; then
-            echo "DEPLOY_REF is empty"
-            missing=1
-          fi
-          exit "$missing"
-        env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Deploy over SSH
-        env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Add VPS to known_hosts
         run: |
           mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p "${{ secrets.DEPLOY_PORT || vars.DEPLOY_PORT || '22' }}" "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
 
-          echo "Deploying $DEPLOY_REF to $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH"
-          timeout 20m ssh \
-            -p "$DEPLOY_PORT" \
-            -i ~/.ssh/id_deploy \
-            -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new \
-            -o ServerAliveInterval=15 \
-            -o ServerAliveCountMax=8 \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            bash -s -- "$DEPLOY_PATH" "$DEPLOY_REF" <<'EOF'
+      - name: Deploy (docker compose)
+        run: |
+          ssh -p "${{ secrets.DEPLOY_PORT || vars.DEPLOY_PORT || '22' }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "DEPLOY_PATH='${{ vars.DEPLOY_PATH }}' bash -s" <<'SSH'
           set -euo pipefail
-          DEPLOY_PATH="$1"
-          DEPLOY_REF="$2"
-          COMPOSE_FILE="docker-compose.prod.yml"
-          CLIENT_DIR="client"
-          DIST_INDEX="${CLIENT_DIR}/dist/index.html"
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          nvm use 24
 
+          : "${DEPLOY_PATH:=$HOME/holtia}"
+          case "$DEPLOY_PATH" in
+            ~) DEPLOY_PATH="$HOME" ;;
+            ~/*) DEPLOY_PATH="$HOME/${DEPLOY_PATH#~/}" ;;
+          esac
           cd "$DEPLOY_PATH"
-          git fetch --prune origin
-          git fetch origin "$DEPLOY_REF"
-          git checkout --force --detach FETCH_HEAD
+          git pull origin main
 
-          if [[ ! -f .env ]]; then
+          if [ ! -f .env ]; then
             echo "Missing .env in $(pwd). Copy .env.example and fill production values." >&2
             exit 1
           fi
-          if [[ ! -f "$COMPOSE_FILE" ]]; then
-            echo "Missing $COMPOSE_FILE in $(pwd)." >&2
-            exit 1
-          fi
-          if [[ ! -f "${CLIENT_DIR}/package-lock.json" ]]; then
-            echo "Missing ${CLIENT_DIR}/package-lock.json in $(pwd)." >&2
-            exit 1
-          fi
-
-          compose() {
-            docker compose -f "$COMPOSE_FILE" "$@"
-          }
 
           mkdir -p backups
-          if compose exec -T db pg_isready -U holtia -d holtia >/dev/null 2>&1; then
+          if sudo docker compose -f docker-compose.prod.yml exec -T db pg_isready -U holtia -d holtia >/dev/null 2>&1; then
             stamp="$(date -u +%Y%m%dT%H%M%SZ)"
             dump="backups/holtia-${stamp}.sql.gz"
             echo "Backing up postgres to ${dump}"
-            compose exec -T db pg_dump -U holtia holtia | gzip >"$dump"
-            shopt -s nullglob
-            dumps=(backups/holtia-*.sql.gz)
-            if ((${#dumps[@]} > 10)); then
-              printf '%s\n' "${dumps[@]}" | sort -r | tail -n +11 | xargs rm -f --
-            fi
-            shopt -u nullglob
+            sudo docker compose -f docker-compose.prod.yml exec -T db pg_dump -U holtia holtia | gzip >"$dump"
+            ls -1t backups/holtia-*.sql.gz | tail -n +11 | xargs -r rm -f --
           else
             echo "Postgres is not running yet; skipping backup"
           fi
 
-          compose up --build -d --remove-orphans
+          sudo docker compose -f docker-compose.prod.yml up -d --build
 
-          wait_for() {
-            local name="$1"
-            shift
-            local i
-            for i in $(seq 1 40); do
-              if "$@" >/dev/null 2>&1; then
-                echo "${name} is healthy"
-                return 0
-              fi
-              sleep 3
-            done
-            echo "${name} did not become healthy" >&2
-            compose ps >&2
-            return 1
-          }
-
-          wait_for "API" compose exec -T server python -c \
-            "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health', timeout=3)"
-          wait_for "API on 127.0.0.1:8001" curl -fsS http://127.0.0.1:8001/api/health
-
-          echo "Building SPA into ${CLIENT_DIR}/dist"
-          docker run --rm \
-            --user "$(id -u):$(id -g)" \
-            -v "$(pwd)/${CLIENT_DIR}:/app" \
-            -w /app \
-            -e HOME=/tmp \
-            -e npm_config_cache=/tmp/npm-cache \
-            node:24-alpine \
-            sh -c "npm ci && npm run build"
-
-          if [[ ! -f "$DIST_INDEX" ]]; then
-            echo "${DIST_INDEX} was not produced" >&2
-            ls -la "${CLIENT_DIR}/dist" >&2 || true
-            exit 1
-          fi
-          echo "SPA ready at ${DIST_INDEX}"
-
-          domain="$(grep -E '^DOMAIN=' .env | head -n1 | cut -d= -f2- | tr -d '[:space:]\r' | tr -d "\"'")"
-          if [[ -n "$domain" ]] && command -v curl >/dev/null 2>&1; then
-            if curl -fsS "https://${domain}/api/health" >/dev/null 2>&1; then
-              echo "https://${domain}/api/health is healthy"
-            else
-              echo "https://${domain}/api/health is not reachable yet." >&2
-              echo "Serve ${DIST_INDEX} and proxy /api to 127.0.0.1:8001 on the host reverse proxy." >&2
-            fi
-          fi
-
-          compose ps
-          docker image prune -f >/dev/null
-          echo "Deploy finished at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          EOF
-
-      - name: Summarize
-        run: |
-          {
-            echo "Deployed \`$DEPLOY_REF\` to \`$DEPLOY_PATH\` on \`$DEPLOY_HOST\`."
-            echo
-            echo "Health: \`https://\$DOMAIN/api/health\` through the host reverse proxy."
-            echo "SPA: \`$DEPLOY_PATH/client/dist/index.html\`; API: \`127.0.0.1:8001\`."
-          } >> "$GITHUB_STEP_SUMMARY"
+          cd client
+          npm ci
+          npm run build
+          SSH

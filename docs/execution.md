@@ -95,7 +95,7 @@ Refresh reuse within a short grace window no longer signs out a second tab as a 
 | Auth     | email + password (bcrypt) + `INSTANCE_CODE`; cookies; Google and SMTP not in MVP |
 | Hosting  | VPS, `docker compose` / `docker-compose.prod.yml`                                |
 | CI       | GitHub Actions: ruff + pytest; client lint / test / build                        |
-| CD       | GitHub Actions: SSH to the VPS after CI on `main`; Compose up --build + `client/dist` |
+| CD       | GitHub Actions: SSH to the VPS on push to `main`; Compose up --build + `client/dist` |
 | AI       | User BYOK: OpenAI, Anthropic, Gemini, DeepSeek, xAI; encrypted at rest; off by default |
 
 ## Data (as implemented)

@@ -38,7 +38,7 @@ registration waits on per-user email codes. See
 | PostgreSQL | 18 |
 | Docker Compose | v2 |
 | CI | GitHub Actions: `ruff` + `pytest` on the server, lint / test / build on the client |
-| CD | GitHub Actions: after CI on `main`, SSH to the VPS, Compose `--build`, SPA `dist/` |
+| CD | GitHub Actions: on push to `main`, SSH to the VPS, Compose `--build`, SPA `dist/` |
 
 ## Development with Docker
 
