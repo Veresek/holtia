@@ -75,6 +75,7 @@ Not blockers for a private deploy; shipped so the snapshot stays true.
 - Account: unverified status only; verify/reset stay on guest routes.
 - Calendar tiles: pinned titles are buttons; leftover count is “+N more”.
 - Cards: the body (padding, description, date, pin line) opens edit; checkbox, markdown chevron, links, and ⋮ stay their own actions. Title remains the keyboard path; ⋮ is 44px.
+- Tasks: completed items older than today (Warsaw) live in Archive on the Tasks panel; `completed_at` is set when `done` becomes true.
 - Host reverse proxy: CSP, `Cache-Control` split (`no-cache` HTML vs immutable `/assets`); see `docs/operations.md`.
 - `PATCH /api/users/me` detail is “Changing email is not available yet.”
 

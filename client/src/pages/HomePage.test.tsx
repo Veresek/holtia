@@ -22,6 +22,7 @@ function todayTask(overrides: Partial<Task> = {}): Task {
 		timeBlockId: null,
 		order: 0,
 		createdAt: new Date().toISOString(),
+		completedAt: null,
 		...overrides,
 	};
 }

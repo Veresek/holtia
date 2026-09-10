@@ -41,6 +41,7 @@ const sampleTask: Task = {
   timeBlockId: null,
   order: 0,
   createdAt: "2026-09-01T08:00:00Z",
+  completedAt: null,
 };
 
 const sampleNote: Note = {

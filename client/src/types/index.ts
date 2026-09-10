@@ -16,6 +16,7 @@ export interface Task {
   timeBlockId: string | null;
   order: number;
   createdAt: string;
+  completedAt: string | null;
 }
 
 export interface TaskCreate {

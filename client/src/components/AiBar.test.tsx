@@ -144,6 +144,7 @@ describe("AiBar", () => {
           timeBlockId: null,
           order: 0,
           createdAt: "2026-09-05T08:00:00Z",
+          completedAt: null,
         }, 201),
       "POST /notes": () =>
         jsonResponse({
@@ -202,6 +203,7 @@ describe("AiBar", () => {
           timeBlockId: null,
           order: 0,
           createdAt: "2026-09-05T08:00:00Z",
+          completedAt: null,
         }, 201),
       "POST /notes": () =>
         jsonResponse({ detail: "Notes are unavailable." }, 503),

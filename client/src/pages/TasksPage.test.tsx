@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { jsonResponse, stubSignedIn } from "../test/api";
 import { stubPreviewOverflow } from "../test/preview";
 import { renderPage } from "../test/render";
+import { addCalendarDays, warsawDateValue } from "../time";
 import type { Task, TimeBlock } from "../types";
 import { TasksPage } from "./TasksPage";
 
@@ -16,7 +17,16 @@ const task: Task = {
   timeBlockId: null,
   order: 0,
   createdAt: "2026-08-31T18:00:00Z",
+  completedAt: null,
 };
+
+function applyTaskPatch(current: Task, body: Record<string, unknown>): Task {
+  const next = { ...current, ...body } as Task;
+  if (typeof body.done === "boolean") {
+    next.completedAt = body.done ? new Date().toISOString() : null;
+  }
+  return next;
+}
 
 describe("TasksPage", () => {
   it("shows a loading state while tasks are pending", () => {
@@ -101,7 +111,7 @@ describe("TasksPage", () => {
       [`PATCH /tasks/${task.id}`]: (init) => {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         patchBodies.push(body);
-        return jsonResponse({ ...task, ...body });
+        return jsonResponse(applyTaskPatch(task, body));
       },
       [`DELETE /tasks/${task.id}`]: () => new Response(null, { status: 204 }),
     });
@@ -155,6 +165,7 @@ describe("TasksPage", () => {
             id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
             title: "Done first from the API",
             done: true,
+            completedAt: new Date().toISOString(),
             order: 0,
           },
           {
@@ -174,6 +185,53 @@ describe("TasksPage", () => {
     expect(titles).toEqual(["Still open", "Done first from the API"]);
   });
 
+  it("moves yesterday’s completed tasks into Archive", async () => {
+    const yesterday = addCalendarDays(warsawDateValue(new Date()), -1);
+    stubSignedIn({
+      "GET /tasks": () =>
+        jsonResponse([
+          {
+            ...task,
+            id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            title: "Still open",
+            done: false,
+            order: 0,
+          },
+          {
+            ...task,
+            id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            title: "Done today",
+            done: true,
+            completedAt: new Date().toISOString(),
+            order: 1,
+          },
+          {
+            ...task,
+            id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            title: "Done yesterday",
+            done: true,
+            completedAt: `${yesterday}T12:00:00+02:00`,
+            order: 2,
+          },
+        ]),
+    });
+    renderPage(<TasksPage />);
+
+    expect(await screen.findByText("Still open")).toBeInTheDocument();
+    expect(screen.getByText("Done today")).toBeInTheDocument();
+    expect(screen.getByText("2 tasks")).toBeInTheDocument();
+    expect(screen.getByText("Archive (1)")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Done yesterday" }).closest("details"),
+    ).not.toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Still open" }).closest("details"),
+    ).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Done today" }).closest("details"),
+    ).toBeNull();
+  });
+
   it("moves a task below open ones after it is marked done", async () => {
     const open = { ...task, title: "Write report", order: 0 };
     const later = {
@@ -186,7 +244,7 @@ describe("TasksPage", () => {
       "GET /tasks": () => jsonResponse([open, later]),
       [`PATCH /tasks/${open.id}`]: (init) => {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-        return jsonResponse({ ...open, ...body });
+        return jsonResponse(applyTaskPatch(open, body));
       },
     });
     renderPage(<TasksPage />);
@@ -286,7 +344,7 @@ describe("TasksPage", () => {
       [`PATCH /tasks/${task.id}`]: (init) => {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         patchBodies.push(body);
-        return jsonResponse({ ...task, ...body });
+        return jsonResponse(applyTaskPatch(task, body));
       },
     });
     renderPage(<TasksPage />);

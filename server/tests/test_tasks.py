@@ -57,7 +57,9 @@ def test_task_crud_trims_content_and_allows_clearing_date(
         "timeBlockId",
         "order",
         "createdAt",
+        "completedAt",
     }
+    assert task["completedAt"] is None
 
     fetched = client.get(f"/api/tasks/{task['id']}")
     assert fetched.status_code == 200
@@ -75,7 +77,9 @@ def test_task_crud_trims_content_and_allows_clearing_date(
         },
     )
     assert updated.status_code == 200
-    assert updated.json() | {"createdAt": task["createdAt"]} == {
+    body = updated.json()
+    assert body["completedAt"] is not None
+    assert {**body, "completedAt": None} | {"createdAt": task["createdAt"]} == {
         **task,
         "title": "Finish the plan",
         "description": "",
@@ -385,3 +389,40 @@ def test_repinning_with_a_cleared_date_autofills(
     assert updated.status_code == 200
     assert updated.json()["timeBlockId"] == block["id"]
     assert updated.json()["date"] == _today()
+
+
+def test_completing_a_task_sets_and_clears_completed_at(
+    client: TestClient,
+) -> None:
+    register_verified(client)
+    task = create_task(client, "Write")
+    assert task["done"] is False
+    assert task["completedAt"] is None
+
+    done = client.patch(f"/api/tasks/{task['id']}", json={"done": True})
+    assert done.status_code == 200
+    completed = done.json()
+    assert completed["done"] is True
+    assert completed["completedAt"] is not None
+
+    renamed = client.patch(
+        f"/api/tasks/{task['id']}",
+        json={"title": "Wrote"},
+    )
+    assert renamed.json()["completedAt"] == completed["completedAt"]
+
+    reopened = client.patch(f"/api/tasks/{task['id']}", json={"done": False})
+    assert reopened.status_code == 200
+    assert reopened.json()["done"] is False
+    assert reopened.json()["completedAt"] is None
+
+
+def test_creating_a_done_task_stamps_completed_at(client: TestClient) -> None:
+    register_verified(client)
+    created = client.post(
+        "/api/tasks",
+        json={"title": "Already finished", "done": True},
+    )
+    assert created.status_code == 201
+    assert created.json()["done"] is True
+    assert created.json()["completedAt"] is not None

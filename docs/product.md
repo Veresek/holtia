@@ -39,7 +39,7 @@ Five panels (sidebar on desktop, bottom tabs on mobile):
 | ------------ | ---------------------------------------------------------------------- |
 | **Home**     | Morning review: today’s open tasks, nearby-block preview, recent notes |
 | **Calendar** | Week of 24 h columns on desktop; one day plus a week strip on a phone  |
-| **Tasks**    | All tasks, including undated                                           |
+| **Tasks**    | Active tasks (open + completed today), including undated; older completed work in Archive |
 | **Notes**    | Loose cards (Keep-style)                                               |
 | **Account**  | Email, verification status, AI key, log out, delete           |
 
@@ -61,7 +61,7 @@ The calendar preview is a **window around now**: 1 h back and at least 3 h forwa
 
 Empty state: where tasks would be, a button in the app colors (dashed border, plus in the center) to add the first task; on the preview / grid — empty hours, no fake events; notes get a similar CTA or sit empty.
 
-Undated tasks do not appear on Home — they live in Tasks. Home’s task list is **open tasks for today**, at most four, with a chevron to expand the rest; the rest of the day’s work (including done items) lives in Tasks. Notes on Home are the **most recently edited** from the collection (four cards), not a “daily note”.
+Undated tasks do not appear on Home — they live in Tasks. Home’s task list is **open tasks for today**, at most four, with a chevron to expand the rest; today’s remaining work (including tasks completed today) lives in Tasks. Completed tasks older than today sit in Archive on that same panel. Notes on Home are the **most recently edited** from the collection (four cards), not a “daily note”.
 
 ## How the three pillars connect
 

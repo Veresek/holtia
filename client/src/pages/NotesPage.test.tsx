@@ -270,6 +270,7 @@ describe("NotesPage", () => {
       timeBlockId: null,
       order: 0,
       createdAt: "2026-08-31T18:00:00Z",
+      completedAt: null,
     };
     let submitted: Record<string, unknown> | undefined;
     stubSignedIn({
