@@ -4,7 +4,8 @@ FastAPI application that owns authentication and all user data.
 
 Auth, Tasks, time blocks (including recurrence expansion on read), and Notes are
 implemented. Sessions last until password reset, logout, or account deletion.
-`PATCH /api/users/me` (change email) still returns `501`. Auth rate limiting is
+`PATCH /api/users/me` saves the account timezone; change email still returns
+`501`. Auth rate limiting is
 in-memory per process; a single API worker is assumed. The assistant
 (`AI_ENABLED`) stores per-user provider keys encrypted with `AI_ENCRYPTION_KEY`.
 
@@ -49,7 +50,7 @@ Revoked refresh-token rows left behind by rotation can be cleaned with
 
 The application never creates tables at runtime. Alembic reads
 `Settings.database_url`, so configuration comes from `DATABASE_URL` or the
-server `.env` file. Current head: `20260912_0011` (`time_blocks.color` as hex).
+server `.env` file. Current head: `20260913_0012` (`users.timezone`).
 
 ```powershell
 python scripts/migrate.py

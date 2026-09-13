@@ -8,6 +8,7 @@ from app.models.user import User
 from app.schemas.user import UserRead, UserUpdate
 from app.services.auth import clear_session_cookies
 from app.services.users import delete_me as delete_current_user
+from app.services.users import update_me as update_current_user
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -26,11 +27,19 @@ def get_me(user: User = Depends(get_current_user)) -> User:
 
 @router.patch("/me", response_model=UserRead)
 def update_me(
-    _: UserUpdate,
+    payload: UserUpdate,
     user: User = Depends(get_current_user),
-) -> UserRead:
-    del user
-    not_implemented()
+    db: Session = Depends(get_db),
+) -> User:
+    changes = payload.model_dump(exclude_unset=True, by_alias=False)
+    if "email" in changes:
+        not_implemented()
+    if "timezone" not in changes:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Timezone is required.",
+        )
+    return update_current_user(db, user, changes["timezone"])
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)

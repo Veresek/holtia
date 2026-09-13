@@ -1,6 +1,6 @@
 import type { Recurrence } from './types';
 
-export const WARSAW_TIME_ZONE = 'Europe/Warsaw';
+export const DEFAULT_TIME_ZONE = 'Europe/Warsaw';
 
 function part(
 	parts: Intl.DateTimeFormatPart[],
@@ -9,8 +9,37 @@ function part(
 	return parts.find(entry => entry.type === type)?.value ?? '';
 }
 
+export function deviceTimeZone(fallback = DEFAULT_TIME_ZONE) {
+	try {
+		const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+		return zone && zone.trim() ? zone : fallback;
+	} catch {
+		return fallback;
+	}
+}
+
+export function formatTimeZoneLabel(timeZone: string, now = new Date()) {
+	try {
+		const name = part(
+			new Intl.DateTimeFormat('en', {
+				timeZone,
+				timeZoneName: 'long',
+			}).formatToParts(now),
+			'timeZoneName',
+		);
+		const city = timeZone.replaceAll('_', ' ');
+		return name ? `${name} (${city})` : city;
+	} catch {
+		return timeZone;
+	}
+}
+
 export function parseInstant(value: string) {
-	const normalized = value.replace(/\.(\d{3})\d+/, '.$1');
+	if (typeof value !== 'string' || !value.trim()) {
+		return null;
+	}
+	const withT = value.trim().replace(' ', 'T');
+	const normalized = withT.replace(/\.(\d{3})\d+/, '.$1');
 	const parsed = new Date(normalized);
 	if (!Number.isNaN(parsed.getTime())) {
 		return parsed;
@@ -19,12 +48,12 @@ export function parseInstant(value: string) {
 	return Number.isNaN(fallback.getTime()) ? null : fallback;
 }
 
-export function warsawDateValue(value: Date) {
+export function dateValue(value: Date, timeZone = DEFAULT_TIME_ZONE) {
 	if (Number.isNaN(value.getTime())) {
 		return '';
 	}
 	const parts = new Intl.DateTimeFormat('en', {
-		timeZone: WARSAW_TIME_ZONE,
+		timeZone,
 		year: 'numeric',
 		month: '2-digit',
 		day: '2-digit',
@@ -32,9 +61,9 @@ export function warsawDateValue(value: Date) {
 	return `${part(parts, 'year')}-${part(parts, 'month')}-${part(parts, 'day')}`;
 }
 
-export function warsawTimeParts(value: Date) {
+export function timeParts(value: Date, timeZone = DEFAULT_TIME_ZONE) {
 	const parts = new Intl.DateTimeFormat('en-GB', {
-		timeZone: WARSAW_TIME_ZONE,
+		timeZone,
 		hour: '2-digit',
 		minute: '2-digit',
 		hour12: false,
@@ -47,8 +76,8 @@ export function warsawTimeParts(value: Date) {
 	};
 }
 
-export function warsawGreeting(value: Date) {
-	const { hour } = warsawTimeParts(value);
+export function greeting(value: Date, timeZone = DEFAULT_TIME_ZONE) {
+	const { hour } = timeParts(value, timeZone);
 	if (hour >= 5 && hour < 12) return 'Good morning.';
 	if (hour >= 12 && hour < 18) return 'Good afternoon.';
 	if (hour >= 18 && hour < 22) return 'Good evening.';
@@ -246,10 +275,14 @@ export function axisMinutes(
 	);
 }
 
-export function warsawMinutesOnDate(value: Date, originDate: string) {
-	const { hour, minute } = warsawTimeParts(value);
+export function minutesOnDate(
+	value: Date,
+	originDate: string,
+	timeZone = DEFAULT_TIME_ZONE,
+) {
+	const { hour, minute } = timeParts(value, timeZone);
 	return (
-		calendarDayOffset(originDate, warsawDateValue(value)) * 1440 +
+		calendarDayOffset(originDate, dateValue(value, timeZone)) * 1440 +
 		hour * 60 +
 		minute
 	);
@@ -285,19 +318,20 @@ export function aroundNowLookAheadMinutes(heightPx: number) {
 export function aroundNowWindow(
 	now = new Date(),
 	lookAheadMinutes = AROUND_NOW_MIN_LOOKAHEAD_MINUTES,
+	timeZone = DEFAULT_TIME_ZONE,
 ) {
 	const windowStart = new Date(
 		now.getTime() - AROUND_NOW_LOOKBACK_MINUTES * 60 * 1000,
 	);
 	const windowEnd = new Date(now.getTime() + lookAheadMinutes * 60 * 1000);
-	const originDate = warsawDateValue(windowStart);
+	const originDate = dateValue(windowStart, timeZone);
 	const startDate = originDate;
-	const endDate = warsawDateValue(windowEnd);
+	const endDate = dateValue(windowEnd, timeZone);
 	return {
 		originDate,
 		dates: calendarDatesInclusive(startDate, endDate),
-		rangeStartMinutes: warsawMinutesOnDate(windowStart, originDate),
-		rangeEndMinutes: warsawMinutesOnDate(windowEnd, originDate),
-		nowMinutes: warsawMinutesOnDate(now, originDate),
+		rangeStartMinutes: minutesOnDate(windowStart, originDate, timeZone),
+		rangeEndMinutes: minutesOnDate(windowEnd, originDate, timeZone),
+		nowMinutes: minutesOnDate(now, originDate, timeZone),
 	};
 }

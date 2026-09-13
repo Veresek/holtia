@@ -1,3 +1,4 @@
+import { deviceTimeZone } from "../time";
 import type { User } from "../types";
 import { apiRequest } from "./client";
 
@@ -16,10 +17,13 @@ interface ResetPayload extends VerifyPayload {
 }
 
 export const authApi = {
-  register: (payload: Credentials) =>
+  register: (payload: Credentials & { timezone?: string }) =>
     apiRequest<User>("/auth/register", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        timezone: payload.timezone ?? deviceTimeZone(),
+      }),
     }),
   login: (payload: Credentials) =>
     apiRequest<User>("/auth/login", {

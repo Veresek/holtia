@@ -13,6 +13,7 @@ export interface User {
   id: string;
   email: string;
   verifiedAt: string | null;
+  timezone: string;
   createdAt: string;
 }
 

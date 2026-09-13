@@ -6,6 +6,7 @@ export const ada: User = {
   id: "11111111-1111-1111-1111-111111111111",
   email: "ada@example.com",
   verifiedAt: "2026-08-31T00:00:00.000Z",
+  timezone: "Europe/Warsaw",
   createdAt: "2026-08-30T00:00:00.000Z",
 };
 

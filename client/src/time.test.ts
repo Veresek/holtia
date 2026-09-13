@@ -13,8 +13,8 @@ import {
 	parseInstant,
 	parseTimeMinutes,
 	startOfWeek,
-	warsawDateValue,
-	warsawGreeting,
+	dateValue,
+	greeting,
 	weekdayMondayFirst,
 	weekDates,
 } from './time';
@@ -161,32 +161,32 @@ describe('time helpers', () => {
 		expect(aroundNowLookAheadMinutes(400)).toBe(540);
 	});
 
-	it('picks a greeting from Warsaw time of day', () => {
-		expect(warsawGreeting(new Date('2026-09-01T04:59:00+02:00'))).toBe(
+	it('picks a greeting from the account time of day', () => {
+		expect(greeting(new Date('2026-09-01T04:59:00+02:00'))).toBe(
 			'Good night.',
 		);
-		expect(warsawGreeting(new Date('2026-09-01T05:00:00+02:00'))).toBe(
+		expect(greeting(new Date('2026-09-01T05:00:00+02:00'))).toBe(
 			'Good morning.',
 		);
-		expect(warsawGreeting(new Date('2026-09-01T11:59:00+02:00'))).toBe(
+		expect(greeting(new Date('2026-09-01T11:59:00+02:00'))).toBe(
 			'Good morning.',
 		);
-		expect(warsawGreeting(new Date('2026-09-01T12:00:00+02:00'))).toBe(
+		expect(greeting(new Date('2026-09-01T12:00:00+02:00'))).toBe(
 			'Good afternoon.',
 		);
-		expect(warsawGreeting(new Date('2026-09-01T17:59:00+02:00'))).toBe(
+		expect(greeting(new Date('2026-09-01T17:59:00+02:00'))).toBe(
 			'Good afternoon.',
 		);
-		expect(warsawGreeting(new Date('2026-09-01T18:00:00+02:00'))).toBe(
+		expect(greeting(new Date('2026-09-01T18:00:00+02:00'))).toBe(
 			'Good evening.',
 		);
-		expect(warsawGreeting(new Date('2026-09-01T21:59:00+02:00'))).toBe(
+		expect(greeting(new Date('2026-09-01T21:59:00+02:00'))).toBe(
 			'Good evening.',
 		);
-		expect(warsawGreeting(new Date('2026-09-01T22:00:00+02:00'))).toBe(
+		expect(greeting(new Date('2026-09-01T22:00:00+02:00'))).toBe(
 			'Good night.',
 		);
-		expect(warsawGreeting(new Date('2026-09-01T00:30:00+02:00'))).toBe(
+		expect(greeting(new Date('2026-09-01T00:30:00+02:00'))).toBe(
 			'Good night.',
 		);
 	});
@@ -194,11 +194,18 @@ describe('time helpers', () => {
 	it('parses instants with extra fractional digits', () => {
 		const parsed = parseInstant('2026-09-11T12:00:00.123456+02:00');
 		expect(parsed).not.toBeNull();
-		expect(warsawDateValue(parsed as Date)).toBe('2026-09-11');
+		expect(dateValue(parsed as Date)).toBe('2026-09-11');
+	});
+
+	it('parses a space-separated datetime', () => {
+		const parsed = parseInstant('2026-09-11 12:00:00.123456+02:00');
+		expect(parsed).not.toBeNull();
+		expect(dateValue(parsed as Date)).toBe('2026-09-11');
 	});
 
 	it('does not throw on an invalid Date', () => {
-		expect(warsawDateValue(new Date('not-a-date'))).toBe('');
+		expect(dateValue(new Date('not-a-date'))).toBe('');
 		expect(parseInstant('not-a-date')).toBeNull();
+		expect(parseInstant('')).toBeNull();
 	});
 });

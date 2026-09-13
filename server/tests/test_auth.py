@@ -24,6 +24,7 @@ def test_register_creates_an_unverified_account(client: TestClient) -> None:
     body = response.json()
     assert body["email"] == "ada@example.com"
     assert body["verifiedAt"] is None
+    assert body["timezone"] == "Europe/Warsaw"
     assert "id" in body
     assert "password" not in body
     assert "access_token" not in body
@@ -62,6 +63,34 @@ def test_register_normalizes_email(client: TestClient) -> None:
 
     assert response.status_code == 201
     assert response.json()["email"] == "ada@example.com"
+
+
+def test_register_stores_a_device_timezone(client: TestClient) -> None:
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "email": "ada@example.com",
+            "password": "password1",
+            "timezone": "Pacific/Auckland",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["timezone"] == "Pacific/Auckland"
+
+
+def test_register_falls_back_when_timezone_is_unknown(client: TestClient) -> None:
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "email": "ada@example.com",
+            "password": "password1",
+            "timezone": "Not/AZone",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["timezone"] == "Europe/Warsaw"
 
 
 def test_register_auto_verifies_when_instance_code_is_empty(

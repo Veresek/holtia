@@ -23,6 +23,7 @@ def test_read_schemas_serialize_with_camel_case() -> None:
                 id=uuid.uuid4(),
                 email="ada@example.com",
                 verified_at=now,
+                timezone="Europe/Warsaw",
                 created_at=now,
             )
         ).model_dump(mode="json"),
@@ -92,7 +93,7 @@ def test_read_schemas_serialize_with_camel_case() -> None:
         ).model_dump(mode="json"),
     ]
 
-    assert set(responses[0]) == {"id", "email", "verifiedAt", "createdAt"}
+    assert set(responses[0]) == {"id", "email", "verifiedAt", "timezone", "createdAt"}
     assert set(responses[1]) == {
         "id",
         "title",
@@ -141,7 +142,13 @@ def test_auth_contract_uses_camel_case(client: TestClient) -> None:
     created = register(client)
 
     assert created.status_code == 201
-    assert set(created.json()) == {"id", "email", "verifiedAt", "createdAt"}
+    assert set(created.json()) == {
+        "id",
+        "email",
+        "verifiedAt",
+        "timezone",
+        "createdAt",
+    }
 
     verified = client.post(
         "/api/auth/verify",
@@ -151,7 +158,13 @@ def test_auth_contract_uses_camel_case(client: TestClient) -> None:
         },
     )
     assert verified.status_code == 200
-    assert set(verified.json()) == {"id", "email", "verifiedAt", "createdAt"}
+    assert set(verified.json()) == {
+        "id",
+        "email",
+        "verifiedAt",
+        "timezone",
+        "createdAt",
+    }
 
     reset = client.post(
         "/api/auth/reset",

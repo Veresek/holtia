@@ -8,14 +8,14 @@ import {
   formatDayHeading,
   formatWeekHeading,
   startOfWeek,
-  warsawDateValue,
+  dateValue,
   weekDates,
 } from "../time";
 import type { TimeBlock } from "../types";
 import { CalendarPage } from "./CalendarPage";
 
 function todayValue() {
-  return warsawDateValue(new Date());
+  return dateValue(new Date());
 }
 
 function thisWeek() {

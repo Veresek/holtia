@@ -77,8 +77,10 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
 
     migrate(url)
 
-    assert current_revision(url) == "20260912_0011"
+    assert current_revision(url) == "20260913_0012"
     assert "session_version" in column_names(url, "users")
+    assert "timezone" in column_names(url, "users")
+    assert column_nullable(url, "users", "timezone") is False
     assert "session_version" in column_names(url, "refresh_tokens")
     assert "updated_at" in column_names(url, "tasks")
     assert "updated_at" in column_names(url, "time_blocks")
@@ -140,7 +142,7 @@ def test_migrate_stamps_legacy_schema_and_preserves_data(tmp_path: Path) -> None
 
     migrate(url)
 
-    assert current_revision(url) == "20260912_0011"
+    assert current_revision(url) == "20260913_0012"
     assert column_nullable(url, "tasks", "date") is True
     assert column_nullable(url, "tasks", "updated_at") is False
     engine = create_engine(url)
@@ -153,6 +155,11 @@ def test_migrate_stamps_legacy_schema_and_preserves_data(tmp_path: Path) -> None
                 {"id": user_id},
             ).one()
             assert row == ("legacy@example.com", 0)
+            timezone = connection.execute(
+                text("SELECT timezone FROM users WHERE id = :id"),
+                {"id": user_id},
+            ).scalar_one()
+            assert timezone == "Europe/Warsaw"
     finally:
         engine.dispose()
 

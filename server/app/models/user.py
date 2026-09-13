@@ -7,6 +7,7 @@ from sqlalchemy import DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+from app.timezones import DEFAULT_TIMEZONE, IANA_TIMEZONE_MAX_LENGTH
 
 
 class User(Base):
@@ -20,6 +21,11 @@ class User(Base):
         Integer,
         default=0,
         server_default="0",
+    )
+    timezone: Mapped[str] = mapped_column(
+        String(IANA_TIMEZONE_MAX_LENGTH),
+        default=DEFAULT_TIMEZONE,
+        server_default=DEFAULT_TIMEZONE,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

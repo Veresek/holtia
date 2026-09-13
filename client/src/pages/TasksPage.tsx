@@ -7,22 +7,10 @@ import { TaskItem } from "../components/TaskItem";
 import { useData } from "../data/DataProvider";
 import { useNow } from "../hooks/useNow";
 import { useTasks } from "../hooks/useTasks";
-import { parseInstant, warsawDateValue } from "../time";
+import { useTimeZone } from "../hooks/useTimeZone";
+import { isArchivedTask } from "../taskArchive";
+import { dateValue } from "../time";
 import type { Task } from "../types";
-
-function isArchived(task: Task, today: string) {
-  if (!task.done) {
-    return false;
-  }
-  if (!task.completedAt) {
-    return true;
-  }
-  const completed = parseInstant(task.completedAt);
-  if (!completed) {
-    return true;
-  }
-  return warsawDateValue(completed) !== today;
-}
 
 export function TasksPage() {
   const {
@@ -35,12 +23,17 @@ export function TasksPage() {
     deleteTask,
   } = useTasks();
   const { blocks } = useData();
-  const today = warsawDateValue(useNow());
+  const timeZone = useTimeZone();
+  const today = dateValue(useNow(), timeZone);
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = tasks.find((task) => task.id === editingId);
-  const activeTasks = tasks.filter((task) => !isArchived(task, today));
-  const archivedTasks = tasks.filter((task) => isArchived(task, today));
+  const activeTasks = tasks.filter(
+    (task) => !isArchivedTask(task, today, timeZone),
+  );
+  const archivedTasks = tasks.filter((task) =>
+    isArchivedTask(task, today, timeZone),
+  );
 
   function renderTask(task: Task) {
     return (
@@ -70,7 +63,7 @@ export function TasksPage() {
           <h1 className="mt-2 font-serif text-3xl text-ink md:text-4xl">Tasks</h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-ink-soft">
             Every task lives here, including tasks with no date. Completed work
-            older than today sits in Archive.
+            from before today sits in Archive.
           </p>
         </header>
         <button
@@ -157,7 +150,7 @@ export function TasksPage() {
                 Archive ({archivedTasks.length})
               </summary>
               <p className="mt-2 text-sm leading-6 text-ink-soft">
-                Completed more than a day ago.
+                Completed before today.
               </p>
               <div className="mt-3 space-y-3">
                 {archivedTasks.map(renderTask)}

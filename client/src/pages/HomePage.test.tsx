@@ -4,12 +4,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { jsonResponse, stubSignedIn } from '../test/api';
 import { stubAroundNowSlotHeight } from '../test/preview';
 import { renderPage } from '../test/render';
-import { aroundNowWindow, warsawDateValue } from '../time';
+import { aroundNowWindow, dateValue } from '../time';
 import type { Note, Task, TimeBlock } from '../types';
 import { HomePage } from './HomePage';
 
 function todayValue() {
-	return warsawDateValue(new Date());
+	return dateValue(new Date());
 }
 
 function todayTask(overrides: Partial<Task> = {}): Task {
@@ -32,7 +32,7 @@ describe('HomePage tasks', () => {
 		vi.useRealTimers();
 	});
 
-	it('uses Warsaw time for the greeting and date', () => {
+	it('uses the account timezone for the greeting and date', () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date('2026-08-31T22:30:00.000Z'));
 		stubSignedIn();

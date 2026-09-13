@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { jsonResponse, stubSignedIn } from "../test/api";
 import { stubPreviewOverflow } from "../test/preview";
 import { renderPage } from "../test/render";
-import { addCalendarDays, warsawDateValue } from "../time";
+import { addCalendarDays, dateValue } from "../time";
 import type { Task, TimeBlock } from "../types";
 import { TasksPage } from "./TasksPage";
 
@@ -187,7 +187,7 @@ describe("TasksPage", () => {
   });
 
   it("moves yesterday’s completed tasks into Archive", async () => {
-    const yesterday = addCalendarDays(warsawDateValue(new Date()), -1);
+    const yesterday = addCalendarDays(dateValue(new Date()), -1);
     stubSignedIn({
       "GET /tasks": () =>
         jsonResponse([
@@ -234,7 +234,7 @@ describe("TasksPage", () => {
   });
 
   it("still renders when a completed task has a messy timestamp", async () => {
-    const yesterday = addCalendarDays(warsawDateValue(new Date()), -1);
+    const yesterday = addCalendarDays(dateValue(new Date()), -1);
     stubSignedIn({
       "GET /tasks": () =>
         jsonResponse([
@@ -273,7 +273,7 @@ describe("TasksPage", () => {
 
     expect(await screen.findByText("Datetime date")).toBeInTheDocument();
     expect(screen.getByText(/Sep 1, 2026/)).toBeInTheDocument();
-    expect(screen.getByText("Archive (3)")).toBeInTheDocument();
+    expect(screen.getByText("Archive (2)")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Legacy done" }).closest("details"),
     ).not.toBeNull();
@@ -286,7 +286,27 @@ describe("TasksPage", () => {
       screen
         .getByRole("heading", { name: "Bogus completedAt" })
         .closest("details"),
-    ).not.toBeNull();
+    ).toBeNull();
+  });
+
+  it("keeps a Python timestamp from today on the active list", async () => {
+    const today = dateValue(new Date());
+    stubSignedIn({
+      "GET /tasks": () =>
+        jsonResponse([
+          {
+            ...task,
+            title: "Done just now",
+            done: true,
+            completedAt: `${today}T12:00:00.123456+02:00`,
+          },
+        ]),
+    });
+    renderPage(<TasksPage />);
+
+    expect(await screen.findByText("Done just now")).toBeInTheDocument();
+    expect(screen.getByText("1 task")).toBeInTheDocument();
+    expect(screen.queryByText(/Archive \(/)).not.toBeInTheDocument();
   });
 
   it("moves a task below open ones after it is marked done", async () => {
@@ -323,6 +343,7 @@ describe("TasksPage", () => {
         ),
       ).toEqual(["Read a chapter", "Write report"]),
     );
+    expect(screen.queryByText(/Archive \(/)).not.toBeInTheDocument();
   });
 
   it("renders task description markdown", async () => {

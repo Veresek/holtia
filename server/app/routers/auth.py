@@ -25,7 +25,13 @@ def register(
     settings: Settings = Depends(get_settings),
     _rate_limit: None = Depends(enforce_auth_rate_limit),
 ) -> User:
-    user, tokens = auth_service.register(db, settings, payload.email, payload.password)
+    user, tokens = auth_service.register(
+        db,
+        settings,
+        payload.email,
+        payload.password,
+        payload.timezone,
+    )
     if tokens is not None:
         auth_service.set_session_cookies(response, tokens, settings)
     return user

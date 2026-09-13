@@ -13,15 +13,22 @@ import { ConfirmDelete } from "../components/ConfirmDelete";
 import { Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icon";
 import { useAiSettings } from "../hooks/useAiSettings";
+import { deviceTimeZone, formatTimeZoneLabel } from "../time";
 import type { AiKey, AiProvider } from "../types";
 
 const PROVIDERS = Object.keys(PROVIDER_LABELS) as AiProvider[];
 
 export function AccountPage() {
-  const { user, logout, deleteAccount } = useAuth();
+  const { user, logout, deleteAccount, updateUser } = useAuth();
   const { settings, loading: settingsLoading, setSettings } = useAiSettings();
   const [pendingAction, setPendingAction] = useState<
-    "logout" | "delete" | "save-ai" | "delete-ai" | "activate-ai" | null
+    | "logout"
+    | "delete"
+    | "timezone"
+    | "save-ai"
+    | "delete-ai"
+    | "activate-ai"
+    | null
   >(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingKeyId, setConfirmingKeyId] = useState<string | null>(null);
@@ -91,6 +98,22 @@ export function AccountPage() {
         caught instanceof ApiError
           ? caught.message
           : "You could not be logged out. Please try again.",
+      );
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function handleUseDeviceTimeZone() {
+    setError(null);
+    setPendingAction("timezone");
+    try {
+      await updateUser({ timezone: deviceTimeZone() });
+    } catch (caught) {
+      setError(
+        caught instanceof ApiError
+          ? caught.message
+          : "The timezone could not be updated.",
       );
     } finally {
       setPendingAction(null);
@@ -193,11 +216,30 @@ export function AccountPage() {
           <p className="text-sm text-ink-soft">Your instance</p>
           <h1 className="mt-2 font-serif text-3xl md:text-4xl">Account</h1>
           <p className="mt-6 text-sm text-ink">{user?.email}</p>
+          {user?.timezone ? (
+            <p className="mt-2 text-sm text-ink-soft">
+              {formatTimeZoneLabel(user.timezone)}
+            </p>
+          ) : null}
           {user?.verifiedAt ? null : (
             <p className="mt-2 text-sm text-ink-soft">
               This account is not verified yet.
             </p>
           )}
+          <button
+            className="mt-3 rounded-md border border-line px-4 py-2 text-sm font-medium text-ink hover:border-lichen disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={
+              pending ||
+              !user?.timezone ||
+              user.timezone === deviceTimeZone()
+            }
+            onClick={() => void handleUseDeviceTimeZone()}
+            type="button"
+          >
+            {pendingAction === "timezone"
+              ? "Updating timezone…"
+              : "Use this device"}
+          </button>
           <button
             className={buttonClassName}
             disabled={pending}

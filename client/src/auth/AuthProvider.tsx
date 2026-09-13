@@ -21,6 +21,7 @@ interface AuthContextValue {
   register: (email: string, password: string) => Promise<User>;
   verify: (email: string, instanceCode: string) => Promise<User>;
   logout: () => Promise<void>;
+  updateUser: (payload: Partial<Pick<User, "timezone">>) => Promise<User>;
   deleteAccount: () => Promise<void>;
 }
 
@@ -106,6 +107,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback(
+    async (payload: Partial<Pick<User, "timezone">>) => {
+      const next = await userApi.update(payload);
+      sessionChange.current += 1;
+      setUser(next);
+      return next;
+    },
+    [],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -114,9 +125,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       register,
       verify,
       logout,
+      updateUser,
       deleteAccount,
     }),
-    [user, loading, login, register, verify, logout, deleteAccount],
+    [user, loading, login, register, verify, logout, updateUser, deleteAccount],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

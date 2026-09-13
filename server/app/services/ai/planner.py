@@ -23,13 +23,13 @@ def create_plan(
             detail=PROMPT_TOO_LONG,
         )
     stored, api_key = load_configured_key(db, user, settings)
-    context = build_day_context(db, user, settings)
+    context = build_day_context(db, user)
     try:
         return complete_plan(
             provider=stored.provider,
             api_key=api_key,
             model=stored.model,
-            system_prompt=system_prompt(settings),
+            system_prompt=system_prompt(user),
             user_prompt=user_prompt(payload.prompt, context),
             settings=settings,
         )

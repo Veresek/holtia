@@ -34,7 +34,7 @@ server/                 FastAPI + SQLAlchemy + PostgreSQL
     schemas/            Pydantic request/response models
     routers/            one router per resource, mounted under /api
     services/           domain logic (auth, recurrence, pins, AI BYOK)
-    migrations/           Alembic versions; head is 20260912_0011
+    migrations/           Alembic versions; head is 20260913_0012
   scripts/              migrate.py, purge_revoked_tokens.py
   tests/                pytest + FastAPI TestClient
 docs/                   product.md is the source of truth
@@ -128,8 +128,9 @@ markup into components and do not add icon dependencies.
   `/api` router in `main.py`.
 - Auth, tasks, blocks, notes, state, account deletion, and the AI assistant
   (BYOK settings + plan) are implemented. Do not reintroduce empty-collection
-  scaffolding. The remaining stub is `PATCH /api/users/me` (change email),
-  which still raises `501`.
+  scaffolding. The remaining stub is `PATCH /api/users/me` with `email`
+  (change email), which still raises `501`. Timezone updates on that route
+  are implemented.
 - Configuration comes from `Settings` in `config.py` only; never read `os.environ`
   directly in feature code.
 

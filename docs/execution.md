@@ -77,7 +77,7 @@ Refresh reuse within a short grace window no longer signs out a second tab as a 
 
 ## Assumptions
 
-- Instance timezone: **Europe/Warsaw** (until there is a setting on Account).
+- Instance timezone (`TIMEZONE`, default **Europe/Warsaw**) is the fallback for new accounts and unknown IANA names. Each user stores an IANA timezone on Account (seeded from the device at register; **Use this device** updates it). Home, Calendar, Archive, pin autofill, and the AI “today” all use that zone.
 - Block times are typed in by hand.
 - Repeating block: `date` is the anchor (first day / weekday for “weekly”). No series end in MVP (it runs forward).
 - Empty: task / note CTA; empty hour window — no dummy data.
@@ -91,7 +91,7 @@ Refresh reuse within a short grace window no longer signs out a second tab as a 
 | -------- | -------------------------------------------------------------------------------- |
 | Frontend | React 19, Vite, TypeScript, Tailwind v4 (phone in the browser)                   |
 | Backend  | FastAPI, Python 3.13                                                             |
-| Database | PostgreSQL 18, Alembic (head `20260909_0010`)                                    |
+| Database | PostgreSQL 18, Alembic (head `20260913_0012`)                                    |
 | Auth     | email + password (bcrypt) + `INSTANCE_CODE`; cookies; Google and SMTP not in MVP |
 | Hosting  | VPS, `docker compose` / `docker-compose.prod.yml`                                |
 | CI       | GitHub Actions: ruff + pytest; client lint / test / build                        |
@@ -101,7 +101,7 @@ Refresh reuse within a short grace window no longer signs out a second tab as a 
 ## Data (as implemented)
 
 ```
-User          id, email, password_hash, verified_at?, session_version, created_at
+User          id, email, password_hash, verified_at?, session_version, timezone, created_at
 UserAiSettings id, user_id, provider, model, key_ciphertext, key_nonce, key_hint,
                is_active, timestamps
                — many keys per user; one is_active at a time

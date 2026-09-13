@@ -66,7 +66,7 @@ export const stateApi = {
 
 export const userApi = {
   me: () => apiRequest<User>("/users/me"),
-  update: (payload: Partial<Pick<User, "email">>) =>
+  update: (payload: Partial<Pick<User, "timezone">>) =>
     apiRequest<User>("/users/me", {
       method: "PATCH",
       body: JSON.stringify(payload),

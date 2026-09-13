@@ -25,6 +25,7 @@ from app.services.tokens import (
     hash_refresh_token,
     new_refresh_token,
 )
+from app.timezones import resolve_timezone
 
 INVALID_CREDENTIALS = "Invalid email or password."
 NOT_AUTHENTICATED = "Not authenticated."
@@ -159,12 +160,13 @@ def _live_family_token(db: Session, token: RefreshToken) -> RefreshToken | None:
     return None
 
 
-def _opaque_unverified_user(email: str) -> User:
+def _opaque_unverified_user(email: str, timezone: str) -> User:
     return User(
         id=uuid.uuid4(),
         email=email,
         password_hash="",
         verified_at=None,
+        timezone=timezone,
         created_at=datetime.now(UTC),
     )
 
@@ -222,19 +224,22 @@ def register(
     settings: Settings,
     email: str,
     password: str,
+    timezone: str | None = None,
 ) -> tuple[User, SessionTokens | None]:
     require_strong_password(password)
     email = normalize_email(email)
+    timezone = resolve_timezone(timezone, settings.timezone)
     existing = db.scalar(select(User).where(User.email == email))
     if existing is not None:
         hash_password(password)
-        return _opaque_unverified_user(email), None
+        return _opaque_unverified_user(email, timezone), None
 
     verified_at = datetime.now(UTC) if settings.instance_code == "" else None
     user = User(
         email=email,
         password_hash=hash_password(password),
         verified_at=verified_at,
+        timezone=timezone,
     )
     db.add(user)
     try:
@@ -242,7 +247,7 @@ def register(
     except IntegrityError:
         db.rollback()
         hash_password(password)
-        return _opaque_unverified_user(email), None
+        return _opaque_unverified_user(email, timezone), None
 
     tokens = issue_session(db, settings, user) if verified_at is not None else None
     db.commit()

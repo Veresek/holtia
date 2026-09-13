@@ -391,6 +391,37 @@ def test_repinning_with_a_cleared_date_autofills(
     assert updated.json()["date"] == _today()
 
 
+def test_pinning_without_a_date_uses_the_users_timezone(
+    client: TestClient,
+) -> None:
+    register_verified(client)
+    updated = client.patch(
+        "/api/users/me",
+        json={"timezone": "Pacific/Auckland"},
+    )
+    assert updated.status_code == 200
+    block = client.post(
+        "/api/blocks",
+        json={
+            "title": "Daily",
+            "date": "2026-08-31",
+            "start": "09:00:00",
+            "end": "10:00:00",
+            "recurrence": "daily",
+        },
+    ).json()
+
+    pinned = client.post(
+        "/api/tasks",
+        json={"title": "Across the date line", "timeBlockId": block["id"]},
+    )
+
+    assert pinned.status_code == 201
+    assert pinned.json()["date"] == datetime.now(
+        ZoneInfo("Pacific/Auckland")
+    ).date().isoformat()
+
+
 def test_completing_a_task_sets_and_clears_completed_at(
     client: TestClient,
 ) -> None:

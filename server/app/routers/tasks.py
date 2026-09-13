@@ -46,7 +46,7 @@ def create_task(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> TaskRead:
-    return create_owned_task(db, user.id, payload)
+    return create_owned_task(db, user.id, payload, user.timezone)
 
 
 @router.get("/{task_id}", response_model=TaskRead)
@@ -65,7 +65,7 @@ def update_task(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> TaskRead:
-    return update_owned_task(db, task_id, user.id, payload)
+    return update_owned_task(db, task_id, user.id, payload, user.timezone)
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

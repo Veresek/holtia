@@ -97,3 +97,28 @@ def test_update_me_is_not_implemented(client: TestClient) -> None:
 
     assert response.status_code == 501
     assert response.json()["detail"] == "Changing email is not available yet."
+
+
+def test_update_me_saves_timezone(client: TestClient) -> None:
+    created = register_verified(client)
+    assert created.json()["timezone"] == "Europe/Warsaw"
+
+    response = client.patch(
+        "/api/users/me",
+        json={"timezone": "Pacific/Auckland"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["timezone"] == "Pacific/Auckland"
+    assert client.get("/api/users/me").json()["timezone"] == "Pacific/Auckland"
+
+
+def test_update_me_rejects_an_unknown_timezone(client: TestClient) -> None:
+    register_verified(client)
+    response = client.patch(
+        "/api/users/me",
+        json={"timezone": "Not/AZone"},
+    )
+
+    assert response.status_code == 422
+

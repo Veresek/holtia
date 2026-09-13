@@ -16,6 +16,7 @@ import { useBlocksAroundNow } from '../hooks/useBlocksAroundNow';
 import { useNotes } from '../hooks/useNotes';
 import { useNow } from '../hooks/useNow';
 import { useTasks } from '../hooks/useTasks';
+import { useTimeZone } from '../hooks/useTimeZone';
 import {
 	AROUND_NOW_GROW_MEDIA,
 	AROUND_NOW_GROW_MIN_WIDTH,
@@ -23,16 +24,16 @@ import {
 	AROUND_NOW_PIXELS_PER_HOUR,
 	aroundNowLookAheadMinutes,
 	formatTimeLabel,
-	WARSAW_TIME_ZONE,
-	warsawDateValue,
-	warsawGreeting,
+	dateValue,
+	greeting,
 } from '../time';
 
 const HOME_OPEN_TASK_LIMIT = 4;
 
 export function HomePage() {
 	const now = useNow();
-	const dateValue = warsawDateValue(now);
+	const timeZone = useTimeZone();
+	const dateValueToday = dateValue(now, timeZone);
 	const tasksBodyRef = useRef<HTMLDivElement>(null);
 	const [lookAheadMinutes, setLookAheadMinutes] = useState(
 		AROUND_NOW_MIN_LOOKAHEAD_MINUTES,
@@ -84,7 +85,7 @@ export function HomePage() {
 		};
 	}, []);
 	const { tasks, loading, error, retry, createTask, updateTask, deleteTask } =
-		useTasks(dateValue);
+		useTasks(dateValueToday);
 	const [creating, setCreating] = useState(false);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [expandedTasks, setExpandedTasks] = useState(false);
@@ -133,7 +134,7 @@ export function HomePage() {
 		day: 'numeric',
 		hour: '2-digit',
 		minute: '2-digit',
-		timeZone: WARSAW_TIME_ZONE,
+		timeZone,
 	}).format(now);
 
 	return (
@@ -141,7 +142,7 @@ export function HomePage() {
 			<header>
 				<p className='text-sm text-ink-soft'>{dateAndTime}</p>
 				<h1 className='mt-2 font-serif text-3xl md:text-4xl'>
-					{warsawGreeting(now)}
+					{greeting(now, timeZone)}
 				</h1>
 				<p className='mt-2 text-sm text-ink-soft'>
 					Start with one thing that matters today.
@@ -183,7 +184,7 @@ export function HomePage() {
 							title='Add block'
 							wide>
 							<BlockForm
-								defaultDate={dateValue}
+								defaultDate={dateValueToday}
 								onCancel={() => setCreatingBlock(false)}
 								onSubmit={async payload => {
 									await createBlock(payload);

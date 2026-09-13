@@ -27,7 +27,7 @@ camelCase (`timeBlockId`, `recurrenceDays`).
 ## Plan endpoint
 
 `POST /api/ai/plan` with `{ "prompt": "…" }`. The server adds today’s tasks,
-today’s blocks, and recent note titles in `Europe/Warsaw`, then calls the
+today’s blocks, and recent note titles in the signed-in user’s timezone, then calls the
 configured provider with `propose_day_changes`. The response is:
 
 ```

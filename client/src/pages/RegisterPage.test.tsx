@@ -52,11 +52,21 @@ describe("RegisterPage", () => {
     fireEvent.change(screen.getByLabelText("Password"), {
       target: { value: "password1" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Create account" }),
+    );
 
     expect(
       await screen.findByRole("heading", { name: "Verify your account" }),
     ).toBeInTheDocument();
+    const registerCall = vi
+      .mocked(fetch)
+      .mock.calls.find((call) => String(call[0]).includes("/auth/register"));
+    expect(JSON.parse(String(registerCall?.[1]?.body))).toMatchObject({
+      email: "ada@example.com",
+      password: "password1",
+      timezone: expect.any(String),
+    });
     expect(screen.getByDisplayValue("ada@example.com")).toBeInTheDocument();
   });
 

@@ -5,11 +5,11 @@ from fastapi import HTTPException, status
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
 from app.models.task import Task
 from app.models.time_block import TimeBlock
 from app.schemas.task import TaskCreate, TaskUpdate
 from app.services.blocks import next_occurrence_on_or_after, occurs_on
+from app.timezones import today_in_timezone, zoneinfo_of
 
 
 TASK_NOT_FOUND = "Task not found."
@@ -51,13 +51,17 @@ def _ensure_owned_time_block(
     return block
 
 
-def _today() -> date:
-    return datetime.now(get_settings().zoneinfo).date()
+def _today(timezone: str) -> date:
+    return today_in_timezone(timezone)
 
 
-def _pin_date_for(block: TimeBlock, requested: date | None) -> date:
+def _pin_date_for(
+    block: TimeBlock,
+    requested: date | None,
+    timezone: str,
+) -> date:
     pinned_date = (
-        next_occurrence_on_or_after(block, _today())
+        next_occurrence_on_or_after(block, _today(timezone))
         if requested is None
         else requested
     )
@@ -89,14 +93,15 @@ def create_owned_task(
     db: Session,
     user_id: uuid.UUID,
     payload: TaskCreate,
+    timezone: str,
 ) -> Task:
     values = payload.model_dump(by_alias=False)
     values["sort_order"] = values.pop("order")
     block = _ensure_owned_time_block(db, values["time_block_id"], user_id)
     if block is not None:
-        values["date"] = _pin_date_for(block, values["date"])
+        values["date"] = _pin_date_for(block, values["date"], timezone)
     if values["done"]:
-        values["completed_at"] = datetime.now(get_settings().zoneinfo)
+        values["completed_at"] = datetime.now(zoneinfo_of(timezone))
     task = Task(user_id=user_id, **values)
     db.add(task)
     db.commit()
@@ -109,6 +114,7 @@ def update_owned_task(
     task_id: uuid.UUID,
     user_id: uuid.UUID,
     payload: TaskUpdate,
+    timezone: str,
 ) -> Task:
     task = get_owned_task(db, task_id, user_id)
     changes = payload.model_dump(exclude_unset=True, by_alias=False)
@@ -126,20 +132,20 @@ def update_owned_task(
         assert block is not None
         requested = None if (not date_specified or next_date is None) else next_date
         changes["time_block_id"] = next_block_id
-        changes["date"] = _pin_date_for(block, requested)
+        changes["date"] = _pin_date_for(block, requested, timezone)
     elif date_cleared:
         changes["date"] = None
         changes["time_block_id"] = None
     elif next_block_id is not None and date_specified:
         block = _ensure_owned_time_block(db, next_block_id, user_id)
         assert block is not None
-        changes["date"] = _pin_date_for(block, next_date)
+        changes["date"] = _pin_date_for(block, next_date, timezone)
     elif block_specified:
         changes["time_block_id"] = None
 
     if "done" in changes and changes["done"] != task.done:
         changes["completed_at"] = (
-            datetime.now(get_settings().zoneinfo) if changes["done"] else None
+            datetime.now(zoneinfo_of(timezone)) if changes["done"] else None
         )
 
     for field, value in changes.items():

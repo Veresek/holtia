@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
@@ -42,10 +42,40 @@ describe("AccountPage", () => {
 
     await screen.findByRole("heading", { name: "Account" });
     expect(screen.getByText(ada.email)).toBeInTheDocument();
+    expect(screen.getByText(/Europe\/Warsaw/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Use this device" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByText("This account is verified."),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/instance code/i)).not.toBeInTheDocument();
+  });
+
+  it("saves this device’s timezone", async () => {
+    const away = { ...ada, timezone: "Pacific/Auckland" };
+    stubApi(
+      {
+        "PATCH /users/me": (init) => {
+          const body = JSON.parse(String(init?.body)) as { timezone: string };
+          return jsonResponse({ ...away, timezone: body.timezone });
+        },
+      },
+      { user: away },
+    );
+    renderWithRouter(<App />, { route: "/account" });
+
+    const button = await screen.findByRole("button", {
+      name: "Use this device",
+    });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Use this device" }),
+      ).toBeDisabled(),
+    );
   });
 
   it("keeps account, assistant, then delete in document order", async () => {

@@ -1,10 +1,11 @@
 import { useMemo, useState, type FormEvent } from "react";
 
+import { useTimeZone } from "../hooks/useTimeZone";
 import {
   blockOccursOn,
   formatTimeLabel,
   nextOccurrenceOnOrAfter,
-  warsawDateValue,
+  dateValue,
 } from "../time";
 import type { TaskCreate, TimeBlock } from "../types";
 
@@ -33,6 +34,7 @@ export function TaskForm({
   const [date, setDate] = useState(initial?.date ?? "");
   const [timeBlockId, setTimeBlockId] = useState(initial?.timeBlockId ?? "");
   const [saving, setSaving] = useState(false);
+  const timeZone = useTimeZone();
   const availableBlocks = useMemo(
     () =>
       date
@@ -63,7 +65,7 @@ export function TaskForm({
     }
     const selected = blocks.find((block) => block.id === value);
     if (selected) {
-      setDate(nextOccurrenceOnOrAfter(selected, warsawDateValue(new Date())));
+      setDate(nextOccurrenceOnOrAfter(selected, dateValue(new Date(), timeZone)));
     }
   }
 

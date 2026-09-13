@@ -11,6 +11,7 @@ import { notePinsByBlock, taskPinsByBlockOnDate } from "../assignments";
 import { useData } from "../data/DataProvider";
 import { useBlocks } from "../hooks/useBlocks";
 import { useNow } from "../hooks/useNow";
+import { useTimeZone } from "../hooks/useTimeZone";
 import {
   addCalendarDays,
   blockSegmentsOnDay,
@@ -19,14 +20,15 @@ import {
   formatWeekdayShort,
   formatWeekHeading,
   startOfWeek,
-  warsawDateValue,
-  warsawTimeParts,
+  dateValue,
+  timeParts,
   weekDates,
 } from "../time";
 
 export function CalendarPage() {
   const now = useNow();
-  const today = warsawDateValue(now);
+  const timeZone = useTimeZone();
+  const today = dateValue(now, timeZone);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today));
   const [selectedDate, setSelectedDate] = useState(today);
   const dates = useMemo(() => weekDates(weekStart), [weekStart]);
@@ -53,7 +55,7 @@ export function CalendarPage() {
   const editing = blocks.find((block) => block.id === editingId);
   const editingTask = tasks.find((task) => task.id === editingTaskId);
   const editingNote = notes.find((note) => note.id === editingNoteId);
-  const nowParts = warsawTimeParts(now);
+  const nowParts = timeParts(now, timeZone);
   const nowMinutes = nowParts.hour * 60 + nowParts.minute;
   const defaultCreateDate = dates.includes(selectedDate)
     ? selectedDate

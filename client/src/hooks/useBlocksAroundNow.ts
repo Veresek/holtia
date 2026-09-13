@@ -9,6 +9,7 @@ import {
 } from "../time";
 import type { TimeBlock } from "../types";
 import { useNow } from "./useNow";
+import { useTimeZone } from "./useTimeZone";
 
 export interface BlockOccurrence {
   block: TimeBlock;
@@ -21,12 +22,13 @@ export function useBlocksAroundNow(
   lookAheadMinutes = AROUND_NOW_MIN_LOOKAHEAD_MINUTES,
 ) {
   const now = useNow();
-  const window = aroundNowWindow(now, lookAheadMinutes);
+  const timeZone = useTimeZone();
+  const window = aroundNowWindow(now, lookAheadMinutes, timeZone);
   const { blocks, blocksLoading, blocksError, retryBlocks, createBlock } =
     useData();
 
   const occurrences = useMemo(() => {
-    const current = aroundNowWindow(now, lookAheadMinutes);
+    const current = aroundNowWindow(now, lookAheadMinutes, timeZone);
     const next: BlockOccurrence[] = [];
     for (const date of current.dates) {
       const dayOffset = calendarDayOffset(current.originDate, date) * 1440;
@@ -50,7 +52,7 @@ export function useBlocksAroundNow(
       }
     }
     return next;
-  }, [blocks, lookAheadMinutes, now]);
+  }, [blocks, lookAheadMinutes, now, timeZone]);
 
   return {
     occurrences,

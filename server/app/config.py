@@ -1,11 +1,12 @@
 from functools import lru_cache
 from typing import Literal
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.services.ai.crypto import parse_encryption_key
+from app.timezones import DEFAULT_TIMEZONE, parse_timezone
 
 DEFAULT_SECRET_KEY = "change-me-before-deploying"
 KNOWN_WEAK_SECRET_KEYS = {
@@ -21,7 +22,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://holtia:holtia@localhost:5432/holtia"
     instance_code: str = ""
     secret_key: str = DEFAULT_SECRET_KEY
-    timezone: str = "Europe/Warsaw"
+    timezone: str = DEFAULT_TIMEZONE
     client_origin: str = "http://localhost:5173"
     access_token_minutes: int = Field(default=30, gt=0)
     auth_rate_limit_enabled: bool | None = None
@@ -45,11 +46,7 @@ class Settings(BaseSettings):
     @field_validator("timezone")
     @classmethod
     def validate_timezone(cls, value: str) -> str:
-        try:
-            ZoneInfo(value)
-        except (ZoneInfoNotFoundError, KeyError) as exc:
-            raise ValueError(f"Unknown timezone: {value}") from exc
-        return value
+        return parse_timezone(value)
 
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":

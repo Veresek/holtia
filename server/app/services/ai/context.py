@@ -1,12 +1,12 @@
-from datetime import date, datetime
+from datetime import date
 
 from sqlalchemy.orm import Session
 
-from app.config import Settings
 from app.models.user import User
 from app.services.blocks import list_owned_blocks
 from app.services.notes import list_owned_notes
 from app.services.tasks import list_owned_tasks
+from app.timezones import today_in_timezone
 
 RECENT_NOTE_TITLES = 4
 
@@ -24,8 +24,8 @@ Call propose_day_changes with your reply and any items. Do not invent identifier
 """
 
 
-def today_in_settings(settings: Settings) -> date:
-    return datetime.now(settings.zoneinfo).date()
+def today_for_user(user: User) -> date:
+    return today_in_timezone(user.timezone)
 
 
 def format_time(value) -> str:
@@ -35,13 +35,12 @@ def format_time(value) -> str:
 def build_day_context(
     db: Session,
     user: User,
-    settings: Settings,
 ) -> str:
-    today = today_in_settings(settings)
+    today = today_for_user(user)
     tasks = list_owned_tasks(db, user.id, today)
     blocks = list_owned_blocks(db, user.id, today)
     notes = list_owned_notes(db, user.id)[:RECENT_NOTE_TITLES]
-    lines = [f"Today is {today.isoformat()} ({settings.timezone}).", ""]
+    lines = [f"Today is {today.isoformat()} ({user.timezone}).", ""]
     lines.append("Today's tasks:")
     if tasks:
         for task in tasks:
@@ -68,10 +67,10 @@ def build_day_context(
     return "\n".join(lines)
 
 
-def system_prompt(settings: Settings) -> str:
+def system_prompt(user: User) -> str:
     return SYSTEM_PROMPT.format(
-        timezone=settings.timezone,
-        today=today_in_settings(settings).isoformat(),
+        timezone=user.timezone,
+        today=today_for_user(user).isoformat(),
     )
 
 
