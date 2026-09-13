@@ -9,7 +9,20 @@ function part(
 	return parts.find(entry => entry.type === type)?.value ?? '';
 }
 
+export function parseInstant(value: string) {
+	const normalized = value.replace(/\.(\d{3})\d+/, '.$1');
+	const parsed = new Date(normalized);
+	if (!Number.isNaN(parsed.getTime())) {
+		return parsed;
+	}
+	const fallback = new Date(value);
+	return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
 export function warsawDateValue(value: Date) {
+	if (Number.isNaN(value.getTime())) {
+		return '';
+	}
 	const parts = new Intl.DateTimeFormat('en', {
 		timeZone: WARSAW_TIME_ZONE,
 		year: 'numeric',

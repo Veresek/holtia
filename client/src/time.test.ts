@@ -10,8 +10,10 @@ import {
 	hourTicks,
 	isOvernight,
 	nextOccurrenceOnOrAfter,
+	parseInstant,
 	parseTimeMinutes,
 	startOfWeek,
+	warsawDateValue,
 	warsawGreeting,
 	weekdayMondayFirst,
 	weekDates,
@@ -187,5 +189,16 @@ describe('time helpers', () => {
 		expect(warsawGreeting(new Date('2026-09-01T00:30:00+02:00'))).toBe(
 			'Good night.',
 		);
+	});
+
+	it('parses instants with extra fractional digits', () => {
+		const parsed = parseInstant('2026-09-11T12:00:00.123456+02:00');
+		expect(parsed).not.toBeNull();
+		expect(warsawDateValue(parsed as Date)).toBe('2026-09-11');
+	});
+
+	it('does not throw on an invalid Date', () => {
+		expect(warsawDateValue(new Date('not-a-date'))).toBe('');
+		expect(parseInstant('not-a-date')).toBeNull();
 	});
 });

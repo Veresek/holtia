@@ -114,7 +114,7 @@ TimeBlock     id, user_id, title, description,
               date           — one-off day OR series anchor
               start, end     — times of day; end < start continues into the next day
               recurrence     — none | daily | weekly | weekdays
-              recurrence_days, color (moss | lichen | rust | ink), updated_at
+              recurrence_days, color (#rrggbb; five presets plus custom), updated_at
 Note          id, user_id, title, markdown, updated_at
               (no date)
               task_id?       — optional; independent of the block pin; note form

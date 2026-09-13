@@ -7,17 +7,21 @@ import { TaskItem } from "../components/TaskItem";
 import { useData } from "../data/DataProvider";
 import { useNow } from "../hooks/useNow";
 import { useTasks } from "../hooks/useTasks";
-import { warsawDateValue } from "../time";
+import { parseInstant, warsawDateValue } from "../time";
 import type { Task } from "../types";
 
 function isArchived(task: Task, today: string) {
   if (!task.done) {
     return false;
   }
-  if (task.completedAt === null) {
+  if (!task.completedAt) {
     return true;
   }
-  return warsawDateValue(new Date(task.completedAt)) !== today;
+  const completed = parseInstant(task.completedAt);
+  if (!completed) {
+    return true;
+  }
+  return warsawDateValue(completed) !== today;
 }
 
 export function TasksPage() {

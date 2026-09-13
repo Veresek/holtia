@@ -557,22 +557,30 @@ def test_visible_on_includes_overnight_continuation(
     assert visible_on(block, day) is expected
 
 
-def test_block_color_defaults_to_moss_and_rejects_unknown(
+def test_block_color_defaults_to_moss_hex_and_rejects_unknown(
     client: TestClient,
 ) -> None:
     register_verified(client)
     created = create_block(client)
-    assert created["color"] == "moss"
+    assert created["color"] == "#3e513c"
 
-    updated = client.patch(
+    from_token = client.patch(
         f"/api/blocks/{created['id']}",
         json={"color": "lichen"},
     )
-    assert updated.status_code == 200
-    assert updated.json()["color"] == "lichen"
+    assert from_token.status_code == 200
+    assert from_token.json()["color"] == "#6a7d5c"
 
-    rejected = client.patch(
+    custom = client.patch(
         f"/api/blocks/{created['id']}",
-        json={"color": "neon"},
+        json={"color": "#1A3344"},
     )
-    assert rejected.status_code == 422
+    assert custom.status_code == 200
+    assert custom.json()["color"] == "#1a3344"
+
+    for invalid in ("neon", "#fff", "#1a334"):
+        rejected = client.patch(
+            f"/api/blocks/{created['id']}",
+            json={"color": invalid},
+        )
+        assert rejected.status_code == 422

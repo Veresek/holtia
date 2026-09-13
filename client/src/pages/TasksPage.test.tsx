@@ -233,6 +233,62 @@ describe("TasksPage", () => {
     ).toBeNull();
   });
 
+  it("still renders when a completed task has a messy timestamp", async () => {
+    const yesterday = addCalendarDays(warsawDateValue(new Date()), -1);
+    stubSignedIn({
+      "GET /tasks": () =>
+        jsonResponse([
+          {
+            id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            title: "Legacy done",
+            description: "",
+            done: true,
+            date: null,
+            timeBlockId: null,
+            order: 0,
+          },
+          {
+            ...task,
+            id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            title: "Python microseconds",
+            done: true,
+            completedAt: `${yesterday}T12:00:00.123456+02:00`,
+          },
+          {
+            ...task,
+            id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            title: "Bogus completedAt",
+            done: true,
+            completedAt: "not-a-date",
+          },
+          {
+            ...task,
+            id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+            title: "Datetime date",
+            date: "2026-09-01T00:00:00Z",
+          },
+        ]),
+    });
+    renderPage(<TasksPage />);
+
+    expect(await screen.findByText("Datetime date")).toBeInTheDocument();
+    expect(screen.getByText(/Sep 1, 2026/)).toBeInTheDocument();
+    expect(screen.getByText("Archive (3)")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Legacy done" }).closest("details"),
+    ).not.toBeNull();
+    expect(
+      screen
+        .getByRole("heading", { name: "Python microseconds" })
+        .closest("details"),
+    ).not.toBeNull();
+    expect(
+      screen
+        .getByRole("heading", { name: "Bogus completedAt" })
+        .closest("details"),
+    ).not.toBeNull();
+  });
+
   it("moves a task below open ones after it is marked done", async () => {
     const open = { ...task, title: "Write report", order: 0 };
     const later = {

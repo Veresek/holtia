@@ -1,9 +1,14 @@
 import { useId, useState, type FormEvent } from "react";
 
-import { BLOCK_COLORS, type BlockColor, type Recurrence, type TimeBlockCreate } from "../types";
+import { isPresetBlockColor, normalizeBlockColor } from "../blockColor";
 import { timeInputValue, toTimePayload } from "../time";
+import {
+  BLOCK_COLOR_PRESETS,
+  type Recurrence,
+  type TimeBlockCreate,
+} from "../types";
 import { ConfirmDelete } from "./ConfirmDelete";
-import { BLOCK_TINTS } from "./DayGrid";
+import { Icon } from "./Icon";
 
 const WEEKDAYS = [
   { day: 0, label: "Monday" },
@@ -24,7 +29,7 @@ interface BlockFormProps {
     end: string;
     recurrence: Recurrence;
     recurrenceDays: number[];
-    color: BlockColor;
+    color: string;
   };
   defaultDate?: string;
   submitLabel: string;
@@ -57,7 +62,7 @@ export function BlockForm({
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>(
     initial?.recurrenceDays ?? [],
   );
-  const [color, setColor] = useState<BlockColor>(initial?.color ?? "moss");
+  const [color, setColor] = useState(normalizeBlockColor(initial?.color));
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -97,7 +102,7 @@ export function BlockForm({
         end: toTimePayload(end),
         recurrence,
         recurrenceDays: recurrence === "weekdays" ? recurrenceDays : [],
-        color,
+        color: normalizeBlockColor(color),
       });
     } catch {
       // The shared calendar state renders the API error.
@@ -253,35 +258,66 @@ export function BlockForm({
       ) : null}
 
       <fieldset className="mt-4">
-        <legend className="text-sm font-medium text-ink">Colour</legend>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {BLOCK_COLORS.map((option) => (
-            <label
-              className={[
-                "flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm text-ink",
-                color === option
-                  ? "border-moss bg-paper-raised"
-                  : "border-line bg-paper",
-              ].join(" ")}
-              key={option}
-            >
-              <input
-                checked={color === option}
-                className="accent-moss"
-                name={`${formId}-color`}
-                onChange={() => setColor(option)}
-                type="radio"
-                value={option}
-              />
-              <span
+        <legend className="text-sm font-medium text-ink">Color</legend>
+        <div className="mt-2 grid grid-cols-6 gap-2">
+          {BLOCK_COLOR_PRESETS.map((option) => {
+            const selected = color === option.value;
+            return (
+              <label
                 className={[
-                  "size-4 rounded-sm border bg-paper",
-                  BLOCK_TINTS[option],
+                  "relative block aspect-square w-full cursor-pointer rounded-md",
+                  "has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-moss",
+                  selected
+                    ? "outline outline-2 outline-offset-2 outline-moss"
+                    : "border border-line",
                 ].join(" ")}
+                key={option.value}
+              >
+                <input
+                  aria-label={option.label}
+                  checked={selected}
+                  className="sr-only"
+                  name={`${formId}-color`}
+                  onChange={() => setColor(option.value)}
+                  type="radio"
+                  value={option.value}
+                />
+                <span
+                  aria-hidden="true"
+                  className="block size-full rounded-md"
+                  style={{ backgroundColor: option.value }}
+                />
+              </label>
+            );
+          })}
+          <label
+            className={[
+              "relative block aspect-square w-full cursor-pointer rounded-md",
+              "has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-moss",
+              isPresetBlockColor(color)
+                ? "border border-dashed border-line bg-paper"
+                : "outline outline-2 outline-offset-2 outline-moss",
+            ].join(" ")}
+          >
+            {isPresetBlockColor(color) ? (
+              <span className="pointer-events-none flex size-full items-center justify-center text-ink-soft">
+                <Icon className="size-4" name="plus" />
+              </span>
+            ) : (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none block size-full rounded-md"
+                style={{ backgroundColor: color }}
               />
-              {option[0].toUpperCase() + option.slice(1)}
-            </label>
-          ))}
+            )}
+            <input
+              aria-label="Custom color"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              onChange={(event) => setColor(normalizeBlockColor(event.target.value))}
+              type="color"
+              value={color}
+            />
+          </label>
         </div>
       </fieldset>
 

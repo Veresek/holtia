@@ -195,8 +195,8 @@ describe("CalendarPage", () => {
     });
   });
 
-  it("creates a block with a colour token", async () => {
-    const created = sampleBlock({ title: "Reading", color: "lichen" });
+  it("creates a block with a color", async () => {
+    const created = sampleBlock({ title: "Reading", color: "#6a7d5c" });
     let stored: TimeBlock[] = [];
     let submitted: Record<string, unknown> | undefined;
     stubSignedIn({
@@ -218,17 +218,55 @@ describe("CalendarPage", () => {
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Reading" },
     });
+    expect(screen.getAllByRole("radio")).toHaveLength(5);
+    expect(screen.getByRole("group", { name: "Color" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("radio", { name: "Lichen" }));
     fireEvent.click(screen.getByRole("button", { name: "Create block" }));
 
     expect(submitted).toMatchObject({
       title: "Reading",
-      color: "lichen",
+      color: "#6a7d5c",
     });
     const tile = (await weekBlockButton("Reading, 09:00–11:00")).closest(
       "article",
     );
-    expect(tile).toHaveClass("border-l-lichen/70");
+    expect(tile).toHaveStyle({
+      borderLeftColor: "rgb(106, 125, 92)",
+    });
+  });
+
+  it("creates a block with a custom color", async () => {
+    const created = sampleBlock({ title: "Studio", color: "#1a3344" });
+    let stored: TimeBlock[] = [];
+    let submitted: Record<string, unknown> | undefined;
+    stubSignedIn({
+      ...stubBlocks(),
+      "POST /blocks": (init) => {
+        submitted = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        stored = [
+          {
+            ...created,
+            title: String(submitted.title),
+            color: submitted.color as TimeBlock["color"],
+          },
+        ];
+        return jsonResponse(stored[0], 201);
+      },
+    });
+    renderPage(<CalendarPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add block" }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Studio" },
+    });
+    fireEvent.change(screen.getByLabelText("Custom color"), {
+      target: { value: "#1a3344" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create block" }));
+
+    expect(submitted).toMatchObject({
+      title: "Studio",
+      color: "#1a3344",
+    });
   });
 
   it("submits selected weekdays from the form", async () => {

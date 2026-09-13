@@ -49,7 +49,7 @@ Revoked refresh-token rows left behind by rotation can be cleaned with
 
 The application never creates tables at runtime. Alembic reads
 `Settings.database_url`, so configuration comes from `DATABASE_URL` or the
-server `.env` file. Current head: `20260909_0010` (`time_blocks.color`).
+server `.env` file. Current head: `20260912_0011` (`time_blocks.color` as hex).
 
 ```powershell
 python scripts/migrate.py

@@ -3,12 +3,16 @@ import { useMemo } from "react";
 import { useData } from "../data/DataProvider";
 import type { Task } from "../types";
 
+function compareText(left: string | undefined, right: string | undefined) {
+  return (left ?? "").localeCompare(right ?? "");
+}
+
 function taskOrder(left: Task, right: Task) {
   return (
-    Number(left.done) - Number(right.done) ||
-    left.order - right.order ||
-    left.createdAt.localeCompare(right.createdAt) ||
-    left.id.localeCompare(right.id)
+    Number(Boolean(left.done)) - Number(Boolean(right.done)) ||
+    (left.order ?? 0) - (right.order ?? 0) ||
+    compareText(left.createdAt, right.createdAt) ||
+    compareText(left.id, right.id)
   );
 }
 

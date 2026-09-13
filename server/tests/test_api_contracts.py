@@ -49,7 +49,7 @@ def test_read_schemas_serialize_with_camel_case() -> None:
                 end=time(11),
                 recurrence=Recurrence.WEEKDAYS,
                 recurrence_days=[0, 2, 4],
-                color="moss",
+                color="#3e513c",
             )
         ).model_dump(mode="json"),
         NoteRead.model_validate(

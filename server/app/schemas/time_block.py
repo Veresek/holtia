@@ -1,10 +1,11 @@
+import re
 import uuid
 from datetime import date as DateType
 from datetime import time as TimeType
 
 from pydantic import Field, field_validator, model_validator
 
-from app.models.time_block import BlockColor, Recurrence
+from app.models.time_block import BLOCK_COLOR_TOKENS, DEFAULT_BLOCK_COLOR, Recurrence
 from app.schemas.base import (
     DESCRIPTION_MAX_LENGTH,
     TITLE_MAX_LENGTH,
@@ -15,6 +16,8 @@ from app.schemas.base import (
     normalize_optional_title,
     normalize_required_title,
 )
+
+HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 def normalize_recurrence_days(days: list[int]) -> list[int]:
@@ -38,6 +41,18 @@ def recurrence_days_for(recurrence: Recurrence, days: list[int]) -> list[int]:
     return []
 
 
+def normalize_block_color(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("Color cannot be null.")
+    token = BLOCK_COLOR_TOKENS.get(value.strip().lower())
+    if token:
+        return token
+    hex_value = value.strip()
+    if HEX_COLOR.fullmatch(hex_value):
+        return hex_value.lower()
+    raise ValueError("Color must be a 6-digit hex value.")
+
+
 class TimeBlockCreate(ApiModel):
     title: str = Field(min_length=1, max_length=TITLE_MAX_LENGTH)
     description: str = Field(default="", max_length=DESCRIPTION_MAX_LENGTH)
@@ -46,7 +61,7 @@ class TimeBlockCreate(ApiModel):
     end: TimeType
     recurrence: Recurrence = Recurrence.NONE
     recurrence_days: list[int] = Field(default_factory=list)
-    color: BlockColor = BlockColor.MOSS
+    color: str = DEFAULT_BLOCK_COLOR
 
     @field_validator("title")
     @classmethod
@@ -57,6 +72,13 @@ class TimeBlockCreate(ApiModel):
     @classmethod
     def normalize_description_field(cls, value: str) -> str:
         return normalize_description(value)
+
+    @field_validator("color", mode="before")
+    @classmethod
+    def normalize_color(cls, value: object) -> str:
+        if value is None:
+            return DEFAULT_BLOCK_COLOR
+        return normalize_block_color(value)
 
     @model_validator(mode="after")
     def validate_block(self) -> "TimeBlockCreate":
@@ -77,7 +99,7 @@ class TimeBlockUpdate(ApiModel):
     end: TimeType | None = None
     recurrence: Recurrence | None = None
     recurrence_days: list[int] | None = None
-    color: BlockColor | None = None
+    color: str | None = None
 
     @field_validator("title")
     @classmethod
@@ -124,12 +146,10 @@ class TimeBlockUpdate(ApiModel):
             raise ValueError("Recurrence days cannot be null.")
         return normalize_recurrence_days(value)
 
-    @field_validator("color")
+    @field_validator("color", mode="before")
     @classmethod
-    def validate_color(cls, value: BlockColor | None) -> BlockColor:
-        if value is None:
-            raise ValueError("Colour cannot be null.")
-        return value
+    def validate_color(cls, value: object) -> str:
+        return normalize_block_color(value)
 
 
 class TimeBlockRead(ApiReadModel):
@@ -141,4 +161,9 @@ class TimeBlockRead(ApiReadModel):
     end: TimeType
     recurrence: Recurrence
     recurrence_days: list[int]
-    color: BlockColor
+    color: str
+
+    @field_validator("color", mode="before")
+    @classmethod
+    def normalize_color(cls, value: object) -> str:
+        return normalize_block_color(value)

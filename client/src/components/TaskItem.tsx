@@ -20,11 +20,18 @@ interface TaskItemProps {
 }
 
 function displayDate(value: string) {
+  const dateOnly = /^(\d{4}-\d{2}-\d{2})/.exec(value)?.[1];
+  const parsed = dateOnly
+    ? new Date(`${dateOnly}T00:00:00`)
+    : new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
   return new Intl.DateTimeFormat("en", {
     month: "short",
     day: "numeric",
     year: "numeric",
-  }).format(new Date(`${value}T00:00:00`));
+  }).format(parsed);
 }
 
 export function TaskItem({

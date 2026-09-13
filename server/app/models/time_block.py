@@ -27,11 +27,14 @@ class Recurrence(str, enum.Enum):
     WEEKDAYS = "weekdays"
 
 
-class BlockColor(str, enum.Enum):
-    MOSS = "moss"
-    LICHEN = "lichen"
-    RUST = "rust"
-    INK = "ink"
+DEFAULT_BLOCK_COLOR = "#3e513c"
+BLOCK_COLOR_TOKENS = {
+    "moss": "#3e513c",
+    "lichen": "#6a7d5c",
+    "rust": "#8c4a3e",
+    "ink": "#2a3128",
+    "slate": "#4d5f6b",
+}
 
 
 class TimeBlock(Base):
@@ -56,14 +59,10 @@ class TimeBlock(Base):
         default=Recurrence.NONE,
     )
     recurrence_days: Mapped[list[int]] = mapped_column(JSON, default=list)
-    color: Mapped[BlockColor] = mapped_column(
-        Enum(
-            BlockColor,
-            native_enum=False,
-            values_callable=lambda items: [item.value for item in items],
-        ),
-        default=BlockColor.MOSS,
-        server_default="moss",
+    color: Mapped[str] = mapped_column(
+        String(7),
+        default=DEFAULT_BLOCK_COLOR,
+        server_default=DEFAULT_BLOCK_COLOR,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
