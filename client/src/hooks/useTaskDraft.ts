@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 
-import { useTimeZone } from "./useTimeZone";
 import {
   blockOccursOn,
   dateValue,
+  DEFAULT_TIME_ZONE,
   nextOccurrenceOnOrAfter,
 } from "../time";
 import type { TaskCreate, TimeBlock } from "../types";
@@ -19,8 +19,8 @@ export function useTaskDraft(
   blocks: TimeBlock[],
   initial?: TaskDraftValues,
   defaultDate?: string | null,
+  timeZone: string = DEFAULT_TIME_ZONE,
 ) {
-  const timeZone = useTimeZone();
   const startingDate = initial ? (initial.date ?? "") : (defaultDate ?? "");
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -58,10 +58,7 @@ export function useTaskDraft(
     const selected = blocks.find((block) => block.id === value);
     if (selected) {
       setDate(
-        nextOccurrenceOnOrAfter(
-          selected,
-          dateValue(new Date(), timeZone),
-        ),
+        nextOccurrenceOnOrAfter(selected, dateValue(new Date(), timeZone)),
       );
     }
   }

@@ -1,6 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { stubSignedIn } from "../test/api";
+import { renderPage } from "../test/render";
 import type { TimeBlock } from "../types";
 import { TaskComposer } from "./TaskComposer";
 
@@ -13,15 +15,16 @@ const morning: TimeBlock = {
   end: "11:00:00",
   recurrence: "none",
   recurrenceDays: [],
-  color: "moss",
+  color: "#3e513c",
 };
 
 describe("TaskComposer", () => {
   it("expands into a form, submits, and stays open", async () => {
+    stubSignedIn();
     const onSubmit = vi.fn(async () => undefined);
     const onExpand = vi.fn();
     const onCollapse = vi.fn();
-    const { rerender } = render(
+    const { rerender } = renderPage(
       <TaskComposer
         blocks={[]}
         defaultDate="2026-09-19"
@@ -32,7 +35,7 @@ describe("TaskComposer", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Add task" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add task" }));
     expect(onExpand).toHaveBeenCalledTimes(1);
 
     rerender(
@@ -65,8 +68,9 @@ describe("TaskComposer", () => {
     expect(screen.queryByRole("button", { name: "Add task" })).not.toBeInTheDocument();
   });
 
-  it("fills the date from a time block and clears both when the date is emptied", () => {
-    render(
+  it("fills the date from a time block and clears both when the date is emptied", async () => {
+    stubSignedIn();
+    renderPage(
       <TaskComposer
         blocks={[morning]}
         defaultDate={null}
@@ -77,6 +81,7 @@ describe("TaskComposer", () => {
       />,
     );
 
+    await screen.findByLabelText("Title");
     fireEvent.change(screen.getByLabelText("Time block"), {
       target: { value: morning.id },
     });
@@ -89,9 +94,10 @@ describe("TaskComposer", () => {
     expect(screen.getByLabelText("Time block")).toHaveValue("");
   });
 
-  it("collapses on Escape and Cancel", () => {
+  it("collapses on Escape and Cancel", async () => {
+    stubSignedIn();
     const onCollapse = vi.fn();
-    render(
+    renderPage(
       <TaskComposer
         blocks={[]}
         defaultDate={null}
@@ -102,6 +108,7 @@ describe("TaskComposer", () => {
       />,
     );
 
+    await screen.findByLabelText("Title");
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onCollapse).toHaveBeenCalledTimes(1);
 

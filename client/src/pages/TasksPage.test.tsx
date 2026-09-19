@@ -291,7 +291,7 @@ describe("TasksPage", () => {
     renderPage(<TasksPage />);
 
     expect(await screen.findByText("Datetime date")).toBeInTheDocument();
-    expect(screen.getByText(/Sep 1, 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Sep 1/)).toBeInTheDocument();
     expect(screen.getByText("Archive (2)")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Legacy done" }).closest("details"),

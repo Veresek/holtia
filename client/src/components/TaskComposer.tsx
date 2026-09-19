@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type FormEvent } from "react";
 
 import { useTaskDraft } from "../hooks/useTaskDraft";
+import { useTimeZone } from "../hooks/useTimeZone";
 import { blockOptionLabel } from "../time";
 import type { TaskCreate, TimeBlock } from "../types";
 import { Icon } from "./Icon";
@@ -63,7 +64,8 @@ function TaskComposerForm({
   const dateId = useId();
   const blockId = useId();
   const titleRef = useRef<HTMLInputElement>(null);
-  const draft = useTaskDraft(blocks, undefined, defaultDate);
+  const timeZone = useTimeZone();
+  const draft = useTaskDraft(blocks, undefined, defaultDate, timeZone);
 
   useEffect(() => {
     titleRef.current?.focus();

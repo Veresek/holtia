@@ -1,6 +1,7 @@
 import { useId, type FormEvent } from "react";
 
 import { useTaskDraft } from "../hooks/useTaskDraft";
+import { useTimeZone } from "../hooks/useTimeZone";
 import { blockOptionLabel } from "../time";
 import type { TaskCreate, TimeBlock } from "../types";
 
@@ -28,7 +29,8 @@ export function TaskForm({
   const descriptionId = useId();
   const dateId = useId();
   const blockId = useId();
-  const draft = useTaskDraft(blocks, initial);
+  const timeZone = useTimeZone();
+  const draft = useTaskDraft(blocks, initial, undefined, timeZone);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

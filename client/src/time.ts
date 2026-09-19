@@ -199,8 +199,17 @@ export function formatWeekdayDate(isoDate: string) {
 
 export type TaskDateTone = 'overdue' | 'today' | 'upcoming';
 
+function calendarDateOnly(value: string) {
+	return /^(\d{4}-\d{2}-\d{2})/.exec(value)?.[1] ?? value;
+}
+
 export function formatTaskDateChip(isoDate: string, today: string) {
-	const offset = calendarDayOffset(today, isoDate);
+	const day = calendarDateOnly(isoDate);
+	const todayDay = calendarDateOnly(today);
+	const offset = calendarDayOffset(todayDay, day);
+	if (Number.isNaN(offset)) {
+		return { label: day, tone: 'upcoming' as const };
+	}
 	if (offset === 0) {
 		return { label: 'Today', tone: 'today' as const };
 	}
@@ -212,26 +221,26 @@ export function formatTaskDateChip(isoDate: string, today: string) {
 	}
 
 	const tone: TaskDateTone = offset < 0 ? 'overdue' : 'upcoming';
-	if (startOfWeek(isoDate) === startOfWeek(today)) {
+	if (startOfWeek(day) === startOfWeek(todayDay)) {
 		return {
 			label: new Intl.DateTimeFormat('en', {
 				weekday: 'long',
 				timeZone: 'UTC',
-			}).format(utcCalendarDate(isoDate)),
+			}).format(utcCalendarDate(day)),
 			tone,
 		};
 	}
 
 	const sameYear =
-		utcCalendarDate(isoDate).getUTCFullYear() ===
-		utcCalendarDate(today).getUTCFullYear();
+		utcCalendarDate(day).getUTCFullYear() ===
+		utcCalendarDate(todayDay).getUTCFullYear();
 	return {
 		label: new Intl.DateTimeFormat('en', {
 			month: 'short',
 			day: 'numeric',
 			...(sameYear ? {} : { year: 'numeric' }),
 			timeZone: 'UTC',
-		}).format(utcCalendarDate(isoDate)),
+		}).format(utcCalendarDate(day)),
 		tone,
 	};
 }
