@@ -11,6 +11,7 @@ const note: Note = {
   id: "11111111-1111-1111-1111-111111111111",
   title: "Launch notes",
   markdown: "# Decisions\n\nKeep the first version small.",
+  date: null,
   taskId: null,
   timeBlockId: null,
   updatedAt: "2026-09-01T10:00:00Z",
@@ -87,6 +88,7 @@ describe("NotesPage", () => {
     expect(submitted).toEqual({
       title: "Reading list",
       markdown: "- The Dispossessed\n- Parable of the Sower",
+      date: null,
       taskId: null,
       timeBlockId: null,
     });
@@ -166,6 +168,7 @@ describe("NotesPage", () => {
     expect(patchBody).toEqual({
       title: "Launch decisions",
       markdown: "Ship notes CRUD.",
+      date: null,
       taskId: null,
       timeBlockId: null,
     });
@@ -258,7 +261,7 @@ describe("NotesPage", () => {
       title: "Session notes",
       timeBlockId: block.id,
     });
-    expect(screen.getByText("Deep work · 09:00–11:00")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "On Deep work every day · 09:00–11:00" })).toBeInTheDocument();
   });
 
   it("pins a note to a task and shows the assignment", async () => {
@@ -308,6 +311,46 @@ describe("NotesPage", () => {
       title: "Outline",
       taskId: task.id,
     });
-    expect(screen.getByText("Write report")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Write report" })).toBeInTheDocument();
+  });
+
+  it("pins a note to a day and shows the assignment", async () => {
+    let submitted: Record<string, unknown> | undefined;
+    stubSignedIn({
+      "GET /notes": () => jsonResponse([]),
+      "POST /notes": (init) => {
+        submitted = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return jsonResponse(
+          {
+            ...note,
+            title: submitted.title,
+            markdown: submitted.markdown,
+            date: submitted.date,
+          },
+          201,
+        );
+      },
+    });
+    renderPage(<NotesPage />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Add your first note/ }),
+    );
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Morning pages" },
+    });
+    fireEvent.change(screen.getByLabelText("Date"), {
+      target: { value: "2026-09-15" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create note" }));
+
+    expect(await screen.findByText("Morning pages")).toBeInTheDocument();
+    expect(submitted).toMatchObject({
+      title: "Morning pages",
+      date: "2026-09-15",
+    });
+    expect(
+      screen.getByText("Pinned to Sep 15, 2026"),
+    ).toBeInTheDocument();
   });
 });

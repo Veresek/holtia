@@ -1,13 +1,12 @@
 import { useMemo, useState } from "react";
 
+import { notesOnDate, notePinsByBlock, taskPinsByBlockOnDate } from "../assignments";
 import { BlockForm } from "../components/BlockForm";
 import { DayGrid } from "../components/DayGrid";
 import { Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icon";
-import { NoteForm } from "../components/NoteForm";
-import { TaskForm } from "../components/TaskForm";
+import { usePinOverlays } from "../components/PinOverlays";
 import { WeekGrid } from "../components/WeekGrid";
-import { notePinsByBlock, taskPinsByBlockOnDate } from "../assignments";
 import { useData } from "../data/DataProvider";
 import { useBlocks } from "../hooks/useBlocks";
 import { useNow } from "../hooks/useNow";
@@ -50,11 +49,14 @@ export function CalendarPage() {
   const notesByBlock = notePinsByBlock(notes);
   const [creatingDate, setCreatingDate] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingDate, setEditingDate] = useState<string | null>(null);
+  const pinOverlays = usePinOverlays({
+    onEditBlock: (id) => {
+      setCreatingDate(null);
+      setEditingId(id);
+    },
+  });
   const editing = blocks.find((block) => block.id === editingId);
-  const editingTask = tasks.find((task) => task.id === editingTaskId);
-  const editingNote = notes.find((note) => note.id === editingNoteId);
   const nowParts = timeParts(now, timeZone);
   const nowMinutes = nowParts.hour * 60 + nowParts.minute;
   const defaultCreateDate = dates.includes(selectedDate)
@@ -66,8 +68,7 @@ export function CalendarPage() {
   const closeEditors = () => {
     setCreatingDate(null);
     setEditingId(null);
-    setEditingTaskId(null);
-    setEditingNoteId(null);
+    pinOverlays.closeAll();
   };
 
   function moveWeek(nextStart: string) {
@@ -97,8 +98,13 @@ export function CalendarPage() {
     ),
     tasksByBlock: taskPinsByBlockOnDate(tasks, date),
     notesByBlock,
+    dayNotes: notesOnDate(notes, date).map((note) => ({
+      id: note.id,
+      title: note.title,
+    })),
   }));
   const selectedDay = weekDays.find((day) => day.date === selectedDate) ?? weekDays[0];
+  const pinDate = editingDate ?? selectedDate;
 
   return (
     <section className="mx-auto w-full min-w-0 max-w-[90rem] px-4 py-8 md:px-8 md:py-12">
@@ -198,45 +204,25 @@ export function CalendarPage() {
               await deleteBlock(editing.id);
               setEditingId(null);
             }}
+            onOpenNote={(id) => pinOverlays.openNote(id)}
+            onOpenTask={(id) => pinOverlays.openTask(id)}
             onSubmit={async (payload) => {
               await updateBlock(editing.id, payload);
               setEditingId(null);
             }}
+            onUnpinNote={(id) => updateNote(id, { timeBlockId: null })}
+            onUnpinTask={(id) => updateTask(id, { timeBlockId: null })}
+            pinnedNotes={notes.filter((note) => note.timeBlockId === editing.id)}
+            pinnedTasks={tasks.filter(
+              (task) =>
+                task.timeBlockId === editing.id && task.date === pinDate,
+            )}
             submitLabel="Save changes"
           />
         </Dialog>
       ) : null}
 
-      {editingTask ? (
-        <Dialog onClose={() => setEditingTaskId(null)} title="Edit task">
-          <TaskForm
-            blocks={blocks}
-            initial={editingTask}
-            onCancel={() => setEditingTaskId(null)}
-            onSubmit={async (payload) => {
-              await updateTask(editingTask.id, payload);
-              setEditingTaskId(null);
-            }}
-            submitLabel="Save changes"
-          />
-        </Dialog>
-      ) : null}
-
-      {editingNote ? (
-        <Dialog onClose={() => setEditingNoteId(null)} title="Edit note">
-          <NoteForm
-            blocks={blocks}
-            initial={editingNote}
-            onCancel={() => setEditingNoteId(null)}
-            onSubmit={async (payload) => {
-              await updateNote(editingNote.id, payload);
-              setEditingNoteId(null);
-            }}
-            submitLabel="Save changes"
-            tasks={tasks}
-          />
-        </Dialog>
-      ) : null}
+      {pinOverlays.overlay}
 
       {loading ? (
         <p className="mt-8 text-sm text-ink-soft" role="status">
@@ -249,22 +235,19 @@ export function CalendarPage() {
               days={weekDays}
               label={`Week of ${formatWeekHeading(weekStart)}`}
               nowMinutes={nowMinutes}
-              onSelect={(id) => {
+              onSelect={(id, date) => {
                 closeEditors();
                 setEditingId(id);
+                setEditingDate(date);
               }}
               onSelectDay={(date) => {
                 closeEditors();
                 setCreatingDate(date);
               }}
-              onSelectNote={(id) => {
-                closeEditors();
-                setEditingNoteId(id);
-              }}
-              onSelectTask={(id) => {
-                closeEditors();
-                setEditingTaskId(id);
-              }}
+              onSelectDayNote={(id) => pinOverlays.openNote(id)}
+              onSelectNote={(id) => pinOverlays.openNote(id)}
+              onSelectPins={(id, date) => pinOverlays.openPins(id, date)}
+              onSelectTask={(id) => pinOverlays.openTask(id)}
             />
           </div>
           <div className="min-w-0 md:hidden">
@@ -298,6 +281,20 @@ export function CalendarPage() {
             </div>
             {selectedDay ? (
               <div className="mt-4 min-w-0">
+                {selectedDay.dayNotes.length > 0 ? (
+                  <div className="mb-3 flex flex-wrap gap-1.5">
+                    {selectedDay.dayNotes.map((note) => (
+                      <button
+                        className="rounded-md border border-line bg-paper-raised px-2 py-1 text-xs text-ink-soft hover:text-ink"
+                        key={note.id}
+                        onClick={() => pinOverlays.openNote(note.id)}
+                        type="button"
+                      >
+                        {note.title}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 <DayGrid
                   blocks={selectedDay.blocks}
                   label={selectedDay.label}
@@ -306,15 +303,13 @@ export function CalendarPage() {
                   onSelect={(id) => {
                     closeEditors();
                     setEditingId(id);
+                    setEditingDate(selectedDay.date);
                   }}
-                  onSelectNote={(id) => {
-                    closeEditors();
-                    setEditingNoteId(id);
-                  }}
-                  onSelectTask={(id) => {
-                    closeEditors();
-                    setEditingTaskId(id);
-                  }}
+                  onSelectNote={(id) => pinOverlays.openNote(id)}
+                  onSelectPins={(id) =>
+                    pinOverlays.openPins(id, selectedDay.date)
+                  }
+                  onSelectTask={(id) => pinOverlays.openTask(id)}
                   pixelsPerHour={40}
                   rangeEndMinutes={1440}
                   rangeStartMinutes={0}

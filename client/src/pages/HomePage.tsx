@@ -8,6 +8,7 @@ import { Icon } from '../components/Icon';
 import { Masonry } from '../components/Masonry';
 import { NoteCard } from '../components/NoteCard';
 import { NoteForm } from '../components/NoteForm';
+import { usePinOverlays } from '../components/PinOverlays';
 import { TaskForm } from '../components/TaskForm';
 import { TaskItem } from '../components/TaskItem';
 import { notePinsByBlock, taskPinsByBlockOnDate } from '../assignments';
@@ -26,6 +27,7 @@ import {
 	formatTimeLabel,
 	dateValue,
 	greeting,
+	nextOccurrenceOnOrAfter,
 } from '../time';
 
 const HOME_OPEN_TASK_LIMIT = 4;
@@ -117,6 +119,7 @@ export function HomePage() {
 		createBlock,
 	} = useBlocksAroundNow(lookAheadMinutes);
 	const { tasks: allTasks, blocks, notes: allNotes } = useData();
+	const pinOverlays = usePinOverlays();
 	const editing = allTasks.find(task => task.id === editingId);
 	const aroundNowTasksByBlock = Object.fromEntries(
 		occurrences.map(occurrence => [
@@ -148,6 +151,8 @@ export function HomePage() {
 					Start with one thing that matters today.
 				</p>
 			</header>
+
+			{pinOverlays.overlay}
 
 			<div className='mt-8 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]'>
 				<section
@@ -214,14 +219,16 @@ export function HomePage() {
 								label='Around now'
 								notesByBlock={aroundNowNotesByBlock}
 								nowMinutes={nowMinutes}
-								onSelectNote={id => {
-									setCreatingNote(false);
-									setEditingNoteId(id);
+								onSelectNote={id => pinOverlays.openNote(id)}
+								onSelectPins={id => {
+									const occurrence = occurrences.find(
+										item => item.block.id === id,
+									);
+									if (occurrence) {
+										pinOverlays.openPins(id, occurrence.occurrenceDate);
+									}
 								}}
-								onSelectTask={id => {
-									setCreating(false);
-									setEditingId(id);
-								}}
+								onSelectTask={id => pinOverlays.openTask(id)}
 								pixelsPerHour={AROUND_NOW_PIXELS_PER_HOUR}
 								rangeEndMinutes={rangeEndMinutes}
 								rangeStartMinutes={rangeStartMinutes}
@@ -311,27 +318,40 @@ export function HomePage() {
 								/>
 							) : (
 								<div className='space-y-2'>
-									{visibleTasks.map(task => (
+									{visibleTasks.map(task => {
+										const block = task.timeBlockId
+											? blocks.find(item => item.id === task.timeBlockId)
+											: undefined;
+										return (
 										<TaskItem
-											block={
-												task.timeBlockId
-													? blocks.find(item => item.id === task.timeBlockId)
-													: undefined
-											}
+											block={block}
 											dense
 											key={task.id}
+											notes={allNotes.filter(note => note.taskId === task.id)}
 											onDelete={() => deleteTask(task.id)}
 											onEdit={() => {
 												setCreating(false);
 												setEditingId(task.id);
 											}}
+											onOpenBlock={
+												block
+													? () =>
+															pinOverlays.openPins(
+																block.id,
+																task.date ??
+																	nextOccurrenceOnOrAfter(block, dateValueToday),
+															)
+													: undefined
+											}
+											onOpenNote={id => pinOverlays.openNote(id)}
 											onToggle={() =>
 												updateTask(task.id, { done: !task.done })
 											}
 											showDate={false}
 											task={task}
 										/>
-									))}
+										);
+									})}
 								</div>
 							)}
 						</div>
@@ -437,13 +457,16 @@ export function HomePage() {
 						/>
 					) : (
 						<Masonry>
-							{notes.slice(0, 4).map(note => (
+							{notes.slice(0, 4).map(note => {
+								const block = note.timeBlockId
+									? blocks.find(item => item.id === note.timeBlockId)
+									: undefined;
+								const linkedTask = note.taskId
+									? allTasks.find(item => item.id === note.taskId)
+									: undefined;
+								return (
 								<NoteCard
-									block={
-										note.timeBlockId
-											? blocks.find(item => item.id === note.timeBlockId)
-											: undefined
-									}
+									block={block}
 									compact
 									key={note.id}
 									note={note}
@@ -452,13 +475,24 @@ export function HomePage() {
 										setCreatingNote(false);
 										setEditingNoteId(note.id);
 									}}
-									task={
-										note.taskId
-											? allTasks.find(item => item.id === note.taskId)
+									onOpenBlock={
+										block
+											? () =>
+													pinOverlays.openPins(
+														block.id,
+														nextOccurrenceOnOrAfter(block, dateValueToday),
+													)
 											: undefined
 									}
+									onOpenTask={
+										linkedTask
+											? () => pinOverlays.openTask(linkedTask.id)
+											: undefined
+									}
+									task={linkedTask}
 								/>
-							))}
+								);
+							})}
 						</Masonry>
 					)}
 				</section>

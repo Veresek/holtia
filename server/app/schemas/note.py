@@ -1,4 +1,5 @@
 import uuid
+from datetime import date as DateType
 from datetime import datetime
 
 from pydantic import Field, field_validator
@@ -17,6 +18,7 @@ MARKDOWN_MAX_LENGTH = 100_000
 class NoteCreate(ApiModel):
     title: str = Field(min_length=1, max_length=TITLE_MAX_LENGTH)
     markdown: str = Field(default="", max_length=MARKDOWN_MAX_LENGTH)
+    date: DateType | None = None
     task_id: uuid.UUID | None = None
     time_block_id: uuid.UUID | None = None
 
@@ -29,6 +31,7 @@ class NoteCreate(ApiModel):
 class NoteUpdate(ApiModel):
     title: str | None = None
     markdown: str | None = None
+    date: DateType | None = None
     task_id: uuid.UUID | None = None
     time_block_id: uuid.UUID | None = None
 
@@ -53,6 +56,7 @@ class NoteRead(ApiReadModel):
     id: uuid.UUID
     title: str
     markdown: str
+    date: DateType | None
     task_id: uuid.UUID | None
     time_block_id: uuid.UUID | None
     updated_at: datetime

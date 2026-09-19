@@ -16,7 +16,7 @@ Timezone: {timezone}. Today is {today}.
 
 You may only propose creating:
 - tasks: title, optional description, optional date (YYYY-MM-DD). Omit the date for an undated task.
-- notes: title and markdown. Notes have no date.
+- notes: title and markdown. Optional date is allowed on notes in the app; do not set it.
 - one-off time blocks: title, optional description, date, start, and end as HH:MM. Never repeating.
 
 Do not edit, delete, complete, pin, or guess missing times or dates. If the request is unclear, ask a short question and return empty tasks, notes, and blocks.

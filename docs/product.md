@@ -39,7 +39,7 @@ Five panels (sidebar on desktop, bottom tabs on mobile):
 | ------------ | ---------------------------------------------------------------------- |
 | **Home**     | Morning review: today’s open tasks, nearby-block preview, recent notes |
 | **Calendar** | Week of 24 h columns on desktop; one day plus a week strip on a phone  |
-| **Tasks**    | Active tasks (open + completed today), including undated; older completed work in Archive |
+| **Tasks**    | Active tasks grouped by Overdue, Today, Upcoming, and No date; older completed work in Archive |
 | **Notes**    | Loose cards (Keep-style)                                               |
 | **Account**  | Email, timezone, verification status, AI key, log out, delete           |
 
@@ -61,7 +61,7 @@ The calendar preview is a **window around now**: 1 h back and at least 3 h forwa
 
 Empty state: where tasks would be, a button in the app colors (dashed border, plus in the center) to add the first task; on the preview / grid — empty hours, no fake events; notes get a similar CTA or sit empty.
 
-Undated tasks do not appear on Home — they live in Tasks. Home’s task list is **open tasks for today**, at most four, with a chevron to expand the rest; today’s remaining work (including tasks completed today) lives in Tasks. Completed tasks from before today sit in Archive on that same panel. Notes on Home are the **most recently edited** from the collection (four cards), not a “daily note”. Calendar dates, Home’s greeting, Archive, and “today” for pins use the timezone stored on Account (seeded from the device at sign-up).
+Undated tasks do not appear on Home — they live in Tasks under No date. Home’s task list is **open tasks for today**, at most four, with a chevron to expand the rest; today’s remaining work (including tasks completed today) lives in Tasks, grouped with overdue, upcoming, and undated items. Capture there is an **Add task** row under Today, Upcoming, and No date. Completed tasks from before today sit in Archive on that same panel. Notes on Home are the **most recently edited** from the collection (four cards), not a “daily note”. Calendar dates, Home’s greeting, Archive, and “today” for pins use the timezone stored on Account (seeded from the device at sign-up).
 
 ## How the three pillars connect
 
@@ -71,7 +71,7 @@ Undated tasks do not appear on Home — they live in Tasks. Home’s task list i
 - sit fully outside the calendar (visible in Tasks, not on Home),
 - pin to a **specific occurrence** of a time block (`date` + `timeBlockId`). The date must be a day the block occurs; if you pin without a date, the next occurrence is filled in.
 
-**Note** is a loose markdown card **with no date** (Keep-style). The Notes panel is the full collection. Home shows a few recent ones. A note may hang on a time block (`timeBlockId`) independently of any task — the pin is to the series, so the note shows on every occurrence. A note may also attach to a task (`taskId`) from the note form. There is no note pinned to a day.
+**Note** is a loose markdown card. The Notes panel is the full collection. Home shows a few recent ones. A note may hang on a **day** (`date`), on a time block (`timeBlockId`) independently of any task — the block pin is to the series, so the note shows on every occurrence — and/or on a task (`taskId`) from the note form.
 
 **Time block** is **one row, one id**. Event: title, description, start–end. It can repeat (daily / weekly / chosen weekdays) — then the same block shows on many days. Edit or delete applies **everywhere**, because it is the same object. There is no “this occurrence”. The day does not have to be filled. Times are typed in by hand.
 

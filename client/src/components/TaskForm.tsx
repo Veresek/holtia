@@ -1,12 +1,7 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useId, type FormEvent } from "react";
 
-import { useTimeZone } from "../hooks/useTimeZone";
-import {
-  blockOccursOn,
-  formatTimeLabel,
-  nextOccurrenceOnOrAfter,
-  dateValue,
-} from "../time";
+import { useTaskDraft } from "../hooks/useTaskDraft";
+import { blockOptionLabel } from "../time";
 import type { TaskCreate, TimeBlock } from "../types";
 
 interface TaskFormProps {
@@ -29,142 +24,101 @@ export function TaskForm({
   onSubmit,
   onCancel,
 }: TaskFormProps) {
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
-  const [date, setDate] = useState(initial?.date ?? "");
-  const [timeBlockId, setTimeBlockId] = useState(initial?.timeBlockId ?? "");
-  const [saving, setSaving] = useState(false);
-  const timeZone = useTimeZone();
-  const availableBlocks = useMemo(
-    () =>
-      date
-        ? blocks.filter((block) => blockOccursOn(block, date))
-        : blocks,
-    [blocks, date],
-  );
-
-  function handleDateChange(value: string) {
-    setDate(value);
-    if (!value) {
-      setTimeBlockId("");
-      return;
-    }
-    if (!timeBlockId) {
-      return;
-    }
-    const selected = blocks.find((block) => block.id === timeBlockId);
-    if (selected && !blockOccursOn(selected, value)) {
-      setTimeBlockId("");
-    }
-  }
-
-  function handleBlockChange(value: string) {
-    setTimeBlockId(value);
-    if (!value || date) {
-      return;
-    }
-    const selected = blocks.find((block) => block.id === value);
-    if (selected) {
-      setDate(nextOccurrenceOnOrAfter(selected, dateValue(new Date(), timeZone)));
-    }
-  }
+  const titleId = useId();
+  const descriptionId = useId();
+  const dateId = useId();
+  const blockId = useId();
+  const draft = useTaskDraft(blocks, initial);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedTitle = title.trim();
-    if (!normalizedTitle) {
+    if (!draft.payload().title) {
       return;
     }
-    setSaving(true);
+    draft.setSaving(true);
     try {
-      await onSubmit({
-        title: normalizedTitle,
-        description: description.trim(),
-        date: date || null,
-        timeBlockId: timeBlockId || null,
-      });
+      await onSubmit(draft.payload());
       if (!initial) {
-        setTitle("");
-        setDescription("");
-        setTimeBlockId("");
-        setDate("");
+        draft.resetToDefaults();
       }
     } catch {
       // The shared task state renders the API error.
     } finally {
-      setSaving(false);
+      draft.setSaving(false);
     }
   }
 
   return (
     <form onSubmit={handleSubmit}>
-      <label className="block text-sm font-medium text-ink" htmlFor="task-title">
+      <label className="block text-sm font-medium text-ink" htmlFor={titleId}>
         Title
       </label>
       <input
         className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
-        id="task-title"
+        id={titleId}
         maxLength={255}
-        onChange={(event) => setTitle(event.target.value)}
+        onChange={(event) => draft.setTitle(event.target.value)}
         placeholder="What needs doing?"
         required
-        value={title}
+        value={draft.title}
       />
 
       <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_11rem]">
         <div>
           <label
             className="block text-sm font-medium text-ink"
-            htmlFor="task-description"
+            htmlFor={descriptionId}
           >
             Description
           </label>
           <textarea
             className="mt-1 min-h-24 w-full resize-y rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
-            id="task-description"
+            id={descriptionId}
             maxLength={10000}
-            onChange={(event) => setDescription(event.target.value)}
+            onChange={(event) => draft.setDescription(event.target.value)}
             placeholder="Add useful context. Markdown is welcome."
-            value={description}
+            value={draft.description}
           />
         </div>
         <div>
           <label
             className="block text-sm font-medium text-ink"
-            htmlFor="task-date"
+            htmlFor={dateId}
           >
             Date
           </label>
           <input
             className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
-            id="task-date"
-            onChange={(event) => handleDateChange(event.target.value)}
+            id={dateId}
+            onChange={(event) => draft.handleDateChange(event.target.value)}
             type="date"
-            value={date}
+            value={draft.date}
           />
         </div>
       </div>
 
       <label
         className="mt-4 block text-sm font-medium text-ink"
-        htmlFor="task-time-block"
+        htmlFor={blockId}
       >
         Time block
       </label>
       <select
         className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
-        id="task-time-block"
-        onChange={(event) => handleBlockChange(event.target.value)}
-        value={timeBlockId}
+        id={blockId}
+        onChange={(event) => draft.handleBlockChange(event.target.value)}
+        value={draft.timeBlockId}
       >
         <option value="">No time block</option>
-        {availableBlocks.map((block) => (
+        {draft.availableBlocks.map((block) => (
           <option key={block.id} value={block.id}>
-            {block.title} · {formatTimeLabel(block.start)}–
-            {formatTimeLabel(block.end)}
+            {blockOptionLabel(block, draft.date || undefined)}
           </option>
         ))}
       </select>
+      <p className="mt-1 text-xs text-ink-faint">
+        Pins to one day this block occurs.
+      </p>
 
       <div className="mt-4 flex justify-end gap-2">
         {onCancel ? (
@@ -178,10 +132,10 @@ export function TaskForm({
         ) : null}
         <button
           className="rounded-md bg-moss px-4 py-2 text-sm font-medium text-paper-raised hover:bg-moss-hover disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={saving}
+          disabled={draft.saving}
           type="submit"
         >
-          {saving ? "Saving…" : submitLabel}
+          {draft.saving ? "Saving…" : submitLabel}
         </button>
       </div>
     </form>

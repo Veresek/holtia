@@ -11,6 +11,7 @@ export interface WeekGridDay {
   blocks: DayGridBlock[];
   tasksByBlock?: Record<string, BlockPin[]>;
   notesByBlock?: Record<string, BlockPin[]>;
+  dayNotes?: { id: string; title: string }[];
 }
 
 interface WeekGridProps {
@@ -18,10 +19,12 @@ interface WeekGridProps {
   days: WeekGridDay[];
   nowMinutes?: number;
   pixelsPerHour?: number;
-  onSelect?: (id: string) => void;
+  onSelect?: (id: string, date: string) => void;
   onSelectDay?: (date: string) => void;
   onSelectNote?: (id: string) => void;
   onSelectTask?: (id: string) => void;
+  onSelectPins?: (id: string, date: string) => void;
+  onSelectDayNote?: (id: string) => void;
 }
 
 export function WeekGrid({
@@ -33,12 +36,15 @@ export function WeekGrid({
   onSelectDay,
   onSelectNote,
   onSelectTask,
+  onSelectPins,
+  onSelectDayNote,
 }: WeekGridProps) {
   const rangeStartMinutes = 0;
   const rangeEndMinutes = 1440;
   const duration = rangeEndMinutes - rangeStartMinutes;
   const height = (duration / 60) * pixelsPerHour;
   const ticks = hourTicks(rangeStartMinutes, rangeEndMinutes);
+  const hasDayNotes = days.some((day) => (day.dayNotes?.length ?? 0) > 0);
 
   return (
     <div
@@ -92,6 +98,31 @@ export function WeekGrid({
             </div>
           );
         })}
+        {hasDayNotes ? (
+          <>
+            <div className="sticky left-0 z-20 border-b border-line bg-paper-raised" />
+            {days.map((day) => (
+              <div
+                className={[
+                  "min-h-8 space-y-0.5 border-b border-l border-line px-1 py-1",
+                  day.isToday ? "bg-paper-deep" : "",
+                ].join(" ")}
+                key={`${day.date}-notes`}
+              >
+                {(day.dayNotes ?? []).map((note) => (
+                  <button
+                    className="block w-full truncate text-left text-[0.7rem] text-ink-soft hover:text-ink"
+                    key={note.id}
+                    onClick={() => onSelectDayNote?.(note.id)}
+                    type="button"
+                  >
+                    {note.title}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </>
+        ) : null}
         <div
           className="sticky left-0 z-20 border-r border-line/80 bg-paper-raised"
           style={{ height }}
@@ -126,8 +157,11 @@ export function WeekGrid({
             label={day.label}
             notesByBlock={day.notesByBlock}
             nowMinutes={day.isToday ? nowMinutes : undefined}
-            onSelect={onSelect}
+            onSelect={onSelect ? (id) => onSelect(id, day.date) : undefined}
             onSelectNote={onSelectNote}
+            onSelectPins={
+              onSelectPins ? (id) => onSelectPins(id, day.date) : undefined
+            }
             onSelectTask={onSelectTask}
             pixelsPerHour={pixelsPerHour}
             rangeEndMinutes={rangeEndMinutes}

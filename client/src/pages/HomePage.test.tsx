@@ -69,6 +69,7 @@ describe('HomePage tasks', () => {
 			id: `00000000-0000-0000-0000-00000000000${index}`,
 			title: `Note ${index + 1}`,
 			markdown: '',
+			date: null,
 			taskId: null,
 			timeBlockId: null,
 			updatedAt: `2026-09-01T0${index}:00:00Z`,
@@ -91,6 +92,7 @@ describe('HomePage tasks', () => {
 			id: '00000000-0000-0000-0000-000000000001',
 			title: 'Morning idea',
 			markdown: 'Start small.',
+			date: null,
 			taskId: null,
 			timeBlockId: null,
 			updatedAt: '2026-09-01T10:00:00Z',
@@ -678,8 +680,8 @@ describe('HomePage around now', () => {
 		const window = aroundNowWindow(new Date());
 		const block = sampleHomeBlock({
 			date: window.dates[0],
-			start: '08:30:00',
-			end: '09:30:00',
+			start: '08:00:00',
+			end: '10:00:00',
 		});
 		stubSignedIn({
 			'GET /blocks': () => jsonResponse([block]),
@@ -696,5 +698,14 @@ describe('HomePage around now', () => {
 
 		const preview = await screen.findByRole('list', { name: 'Around now' });
 		expect(within(preview).getByText('Draft the outline')).toBeInTheDocument();
+		fireEvent.click(
+			within(preview).getByRole('button', { name: 'Draft the outline' }),
+		);
+		expect(
+			screen.getByRole('dialog', { name: 'Draft the outline' }),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByRole('dialog', { name: 'Edit task' }),
+		).not.toBeInTheDocument();
 	});
 });

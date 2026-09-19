@@ -179,6 +179,89 @@ export function formatDayHeading(isoDate: string) {
 	}).format(utcCalendarDate(isoDate));
 }
 
+export function formatDateLabel(isoDate: string) {
+	return new Intl.DateTimeFormat('en', {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+		timeZone: 'UTC',
+	}).format(utcCalendarDate(isoDate));
+}
+
+export function formatWeekdayDate(isoDate: string) {
+	return new Intl.DateTimeFormat('en', {
+		weekday: 'short',
+		month: 'short',
+		day: 'numeric',
+		timeZone: 'UTC',
+	}).format(utcCalendarDate(isoDate));
+}
+
+export type TaskDateTone = 'overdue' | 'today' | 'upcoming';
+
+export function formatTaskDateChip(isoDate: string, today: string) {
+	const offset = calendarDayOffset(today, isoDate);
+	if (offset === 0) {
+		return { label: 'Today', tone: 'today' as const };
+	}
+	if (offset === 1) {
+		return { label: 'Tomorrow', tone: 'upcoming' as const };
+	}
+	if (offset === -1) {
+		return { label: 'Yesterday', tone: 'overdue' as const };
+	}
+
+	const tone: TaskDateTone = offset < 0 ? 'overdue' : 'upcoming';
+	if (startOfWeek(isoDate) === startOfWeek(today)) {
+		return {
+			label: new Intl.DateTimeFormat('en', {
+				weekday: 'long',
+				timeZone: 'UTC',
+			}).format(utcCalendarDate(isoDate)),
+			tone,
+		};
+	}
+
+	const sameYear =
+		utcCalendarDate(isoDate).getUTCFullYear() ===
+		utcCalendarDate(today).getUTCFullYear();
+	return {
+		label: new Intl.DateTimeFormat('en', {
+			month: 'short',
+			day: 'numeric',
+			...(sameYear ? {} : { year: 'numeric' }),
+			timeZone: 'UTC',
+		}).format(utcCalendarDate(isoDate)),
+		tone,
+	};
+}
+
+export function blockOptionLabel(
+	block: {
+		title: string;
+		date: string;
+		start: string;
+		end: string;
+		recurrence: Recurrence;
+		recurrenceDays: number[];
+	},
+	fromDate?: string,
+) {
+	const times = `${formatTimeLabel(block.start)}–${formatTimeLabel(block.end)}`;
+	if (block.recurrence === 'none') {
+		return `${block.title} · ${times} · ${formatWeekdayDate(block.date)}`;
+	}
+	const today = fromDate ?? dateValue(new Date());
+	const next = nextOccurrenceOnOrAfter(block, today);
+	const rec =
+		block.recurrence === 'daily'
+			? 'daily'
+			: block.recurrence === 'weekly'
+				? 'weekly'
+				: 'selected days';
+	return `${block.title} · ${times} · ${rec} · next ${formatWeekdayDate(next)}`;
+}
+
 export function formatWeekdayShort(isoDate: string) {
 	return new Intl.DateTimeFormat('en', {
 		weekday: 'short',

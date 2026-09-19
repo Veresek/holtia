@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { jsonResponse, stubSignedIn } from "../test/api";
@@ -7,6 +7,18 @@ import { renderPage } from "../test/render";
 import { addCalendarDays, dateValue } from "../time";
 import type { Task, TimeBlock } from "../types";
 import { TasksPage } from "./TasksPage";
+
+function todayValue() {
+  return dateValue(new Date());
+}
+
+function section(name: string) {
+  return screen.getByRole("region", { name });
+}
+
+function openComposer(name: string) {
+  fireEvent.click(within(section(name)).getByRole("button", { name: "Add task" }));
+}
 
 const task: Task = {
   id: "11111111-1111-1111-1111-111111111111",
@@ -57,8 +69,14 @@ describe("TasksPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(
-      await screen.findByRole("button", { name: /Add your first task/ }),
+      within(await screen.findByRole("region", { name: "Today" })).getByRole(
+        "button",
+        { name: "Add task" },
+      ),
     ).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "No date" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Overdue" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Upcoming" })).not.toBeInTheDocument();
     expect(attempts).toBe(2);
   });
 
@@ -81,11 +99,10 @@ describe("TasksPage", () => {
     });
     renderPage(<TasksPage />);
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Add your first task/ }),
-    );
-    expect(screen.getByRole("dialog", { name: "Add task" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Date")).toHaveValue("");
+    await screen.findByRole("region", { name: "Today" });
+    openComposer("Today");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Date")).toHaveValue(todayValue());
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Read a chapter" },
     });
@@ -95,7 +112,7 @@ describe("TasksPage", () => {
     fireEvent.change(screen.getByLabelText("Date"), {
       target: { value: "2026-09-01" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     expect(await screen.findByText("Read a chapter")).toBeInTheDocument();
     expect(submitted).toMatchObject({
@@ -103,6 +120,8 @@ describe("TasksPage", () => {
       description: "Start with chapter four.",
       date: "2026-09-01",
     });
+    expect(screen.getByRole("region", { name: "Overdue" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Title")).toHaveValue("");
   });
 
   it("toggles, edits, and deletes an existing task", async () => {
@@ -220,7 +239,7 @@ describe("TasksPage", () => {
 
     expect(await screen.findByText("Still open")).toBeInTheDocument();
     expect(screen.getByText("Done today")).toBeInTheDocument();
-    expect(screen.getByText("2 tasks")).toBeInTheDocument();
+    expect(within(section("No date")).getByText("2 tasks")).toBeInTheDocument();
     expect(screen.getByText("Archive (1)")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Done yesterday" }).closest("details"),
@@ -411,7 +430,7 @@ describe("TasksPage", () => {
     expect(screen.getByRole("dialog", { name: "Edit task" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    fireEvent.click(screen.getByText("No date"));
+    fireEvent.click(screen.getByText("Write report"));
     expect(screen.getByRole("dialog", { name: "Edit task" })).toBeInTheDocument();
   });
 
@@ -470,9 +489,8 @@ describe("TasksPage", () => {
     });
     renderPage(<TasksPage />);
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Add your first task/ }),
-    );
+    await screen.findByRole("region", { name: "No date" });
+    openComposer("No date");
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Write the intro" },
     });
@@ -480,7 +498,7 @@ describe("TasksPage", () => {
       target: { value: morning.id },
     });
     expect(screen.getByLabelText("Date")).toHaveValue("2026-09-01");
-    fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     expect(await screen.findByText("Write the intro")).toBeInTheDocument();
     expect(submitted).toMatchObject({
@@ -488,7 +506,7 @@ describe("TasksPage", () => {
       date: "2026-09-01",
       timeBlockId: morning.id,
     });
-    expect(screen.getByText("Morning block · 09:00–11:00")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pinned to Morning block · 09:00–11:00" })).toBeInTheDocument();
   });
 
   it("clears the date and pin when the date field is emptied", async () => {
@@ -522,9 +540,8 @@ describe("TasksPage", () => {
     });
     renderPage(<TasksPage />);
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Add your first task/ }),
-    );
+    await screen.findByRole("region", { name: "No date" });
+    openComposer("No date");
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Inbox later" },
     });
@@ -537,7 +554,7 @@ describe("TasksPage", () => {
     });
     expect(screen.getByLabelText("Date")).toHaveValue("");
     expect(screen.getByLabelText("Time block")).toHaveValue("");
-    fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     expect(await screen.findByText("Inbox later")).toBeInTheDocument();
     expect(submitted).toMatchObject({
@@ -576,9 +593,8 @@ describe("TasksPage", () => {
     });
     renderPage(<TasksPage />);
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Add your first task/ }),
-    );
+    await screen.findByRole("region", { name: "No date" });
+    openComposer("No date");
     const select = screen.getByLabelText("Time block");
     expect(select).toHaveTextContent("Monday deep work");
     expect(select).toHaveTextContent("Tuesday review");
@@ -588,5 +604,69 @@ describe("TasksPage", () => {
     });
     expect(select).not.toHaveTextContent("Monday deep work");
     expect(select).toHaveTextContent("Tuesday review");
+  });
+
+  it("groups active tasks by overdue, today, upcoming, and no date", async () => {
+    const today = todayValue();
+    const yesterday = addCalendarDays(today, -1);
+    const tomorrow = addCalendarDays(today, 1);
+    stubSignedIn({
+      "GET /tasks": () =>
+        jsonResponse([
+          {
+            ...task,
+            id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            title: "Past due",
+            date: yesterday,
+            order: 0,
+          },
+          {
+            ...task,
+            id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            title: "Due today",
+            date: today,
+            order: 1,
+          },
+          {
+            ...task,
+            id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            title: "Due tomorrow",
+            date: tomorrow,
+            order: 2,
+          },
+          {
+            ...task,
+            id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+            title: "Inbox item",
+            date: null,
+            order: 3,
+          },
+          {
+            ...task,
+            id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+            title: "Finished yesterday’s leftover",
+            date: yesterday,
+            done: true,
+            completedAt: new Date().toISOString(),
+            order: 4,
+          },
+        ]),
+    });
+    renderPage(<TasksPage />);
+
+    expect(await screen.findByText("Past due")).toBeInTheDocument();
+    expect(within(section("Overdue")).getByText("Past due")).toBeInTheDocument();
+    expect(within(section("Overdue")).getByText("Yesterday")).toBeInTheDocument();
+    expect(within(section("Today")).getByText("Due today")).toBeInTheDocument();
+    expect(
+      within(section("Today")).getByText("Finished yesterday’s leftover"),
+    ).toBeInTheDocument();
+    expect(within(section("Upcoming")).getByText("Due tomorrow")).toBeInTheDocument();
+    expect(within(section("Upcoming")).getByText("Tomorrow")).toBeInTheDocument();
+    expect(within(section("No date")).getByText("Inbox item")).toBeInTheDocument();
+
+    openComposer("Upcoming");
+    expect(screen.getByLabelText("Date")).toHaveValue(tomorrow);
+    expect(within(section("Today")).queryByLabelText("Title")).not.toBeInTheDocument();
   });
 });

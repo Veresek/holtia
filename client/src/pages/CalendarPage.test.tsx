@@ -501,6 +501,7 @@ describe("CalendarPage", () => {
             id: "33333333-3333-3333-3333-333333333333",
             title: "Session notes",
             markdown: "",
+            date: null,
             taskId: null,
             timeBlockId: block.id,
             updatedAt: "2026-09-01T10:00:00Z",
@@ -516,7 +517,81 @@ describe("CalendarPage", () => {
     fireEvent.click(
       within(grid).getByRole("button", { name: "Write the intro" }),
     );
+    expect(
+      screen.getByRole("dialog", { name: "Write the intro" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Edit task" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     expect(screen.getByRole("dialog", { name: "Edit task" })).toBeInTheDocument();
+  });
+
+  it("opens the leftover pins in a reading list, not the block form", async () => {
+    const block = sampleBlock();
+    stubSignedIn({
+      "GET /blocks": () => jsonResponse([block]),
+      "GET /tasks": () =>
+        jsonResponse(
+          [1, 2, 3].map((index) => ({
+            id: `22222222-2222-2222-2222-22222222222${index}`,
+            title: `Task ${index}`,
+            description: "",
+            done: false,
+            date: todayValue(),
+            timeBlockId: block.id,
+            order: index,
+            createdAt: "2026-09-01T08:00:00Z",
+            completedAt: null,
+          })),
+        ),
+      "GET /notes": () =>
+        jsonResponse([
+          {
+            id: "33333333-3333-3333-3333-333333333333",
+            title: "Session notes",
+            markdown: "",
+            date: null,
+            taskId: null,
+            timeBlockId: block.id,
+            updatedAt: "2026-09-01T10:00:00Z",
+          },
+        ]),
+    });
+    renderPage(<CalendarPage />);
+
+    const grid = await screen.findByRole("group", { name: /Week of/ });
+    fireEvent.click(within(grid).getByRole("button", { name: "+1 more" }));
+    expect(screen.getByRole("dialog", { name: "Deep work" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New task" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Edit block" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a note pinned to a day on the week grid", async () => {
+    stubSignedIn({
+      "GET /notes": () =>
+        jsonResponse([
+          {
+            id: "33333333-3333-3333-3333-333333333333",
+            title: "Morning pages",
+            markdown: "Write three pages.",
+            date: todayValue(),
+            taskId: null,
+            timeBlockId: null,
+            updatedAt: "2026-09-01T10:00:00Z",
+          },
+        ]),
+    });
+    renderPage(<CalendarPage />);
+
+    const grid = await screen.findByRole("group", { name: /Week of/ });
+    fireEvent.click(within(grid).getByRole("button", { name: "Morning pages" }));
+    expect(
+      screen.getByRole("dialog", { name: "Morning pages" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Write three pages.")).toBeInTheDocument();
   });
 
   it("lets a phone-sized layout pick one day from the week strip", async () => {

@@ -48,6 +48,7 @@ const sampleNote: Note = {
   id: "33333333-3333-3333-3333-333333333333",
   title: "Launch notes",
   markdown: "",
+  date: null,
   taskId: null,
   timeBlockId: null,
   updatedAt: "2026-09-01T10:00:00Z",

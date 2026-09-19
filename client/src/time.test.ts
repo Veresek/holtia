@@ -6,6 +6,7 @@ import {
 	aroundNowWindow,
 	blockOccursOn,
 	blockSegmentsOnDay,
+	formatTaskDateChip,
 	formatWeekHeading,
 	hourTicks,
 	isOvernight,
@@ -50,6 +51,42 @@ describe('time helpers', () => {
 			'August 31 – September 6, 2026',
 		);
 		expect(formatWeekHeading('2026-09-07')).toBe('September 7–13, 2026');
+	});
+
+	it('labels a task date relative to today', () => {
+		const today = '2026-09-16';
+		expect(formatTaskDateChip(today, today)).toEqual({
+			label: 'Today',
+			tone: 'today',
+		});
+		expect(formatTaskDateChip('2026-09-17', today)).toEqual({
+			label: 'Tomorrow',
+			tone: 'upcoming',
+		});
+		expect(formatTaskDateChip('2026-09-15', today)).toEqual({
+			label: 'Yesterday',
+			tone: 'overdue',
+		});
+		expect(formatTaskDateChip('2026-09-18', today)).toEqual({
+			label: 'Friday',
+			tone: 'upcoming',
+		});
+		expect(formatTaskDateChip('2026-09-14', today)).toEqual({
+			label: 'Monday',
+			tone: 'overdue',
+		});
+		expect(formatTaskDateChip('2026-09-23', today)).toEqual({
+			label: 'Sep 23',
+			tone: 'upcoming',
+		});
+		expect(formatTaskDateChip('2026-09-09', today)).toEqual({
+			label: 'Sep 9',
+			tone: 'overdue',
+		});
+		expect(formatTaskDateChip('2027-01-05', today)).toEqual({
+			label: 'Jan 5, 2027',
+			tone: 'upcoming',
+		});
 	});
 
 	it('lists hour ticks inside a range', () => {

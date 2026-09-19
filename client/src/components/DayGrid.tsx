@@ -1,6 +1,8 @@
 import type { BlockPin } from "../assignments";
+import { mixPins, pinCountLabel } from "../assignments";
 import { blockColorFill } from "../blockColor";
 import { formatHourLabel, hourTicks } from "../time";
+import { Icon } from "./Icon";
 import { MarkdownBody } from "./MarkdownBody";
 
 export interface DayGridBlock {
@@ -33,6 +35,7 @@ interface DayGridProps {
   framed?: boolean;
   className?: string;
   onSelect?: (id: string) => void;
+  onSelectPins?: (id: string) => void;
   onSelectTask?: (id: string) => void;
   onSelectNote?: (id: string) => void;
   tasksByBlock?: Record<string, BlockPin[]>;
@@ -94,65 +97,103 @@ function layoutOverlaps(blocks: DayGridBlock[], rangeStart: number, rangeEnd: nu
 }
 
 const PIN_LIMIT = 3;
+const COMPACT_PIN_HEIGHT_PX = 72;
 
 function BlockPins({
   blockId,
+  compact,
   notes,
-  onSelect,
+  onSelectPins,
   onSelectNote,
   onSelectTask,
   tasks,
 }: {
   blockId: string;
+  compact: boolean;
   notes: BlockPin[];
-  onSelect?: (id: string) => void;
+  onSelectPins?: (id: string) => void;
   onSelectNote?: (id: string) => void;
   onSelectTask?: (id: string) => void;
   tasks: BlockPin[];
 }) {
-  const shownTasks = tasks.slice(0, PIN_LIMIT);
-  const shownNotes = notes.slice(0, PIN_LIMIT - shownTasks.length);
-  const extra = tasks.length + notes.length - shownTasks.length - shownNotes.length;
+  const total = tasks.length + notes.length;
+  if (total === 0) {
+    return null;
+  }
 
-  function pinButton(
-    pin: BlockPin,
-    kind: "task" | "note",
-    onOpen?: (id: string) => void,
-  ) {
-    const className = "relative z-10 block w-full truncate text-left text-[0.7rem] text-ink-faint hover:text-ink";
+  const summary = pinCountLabel(tasks.length, notes.length) || `${total} pinned`;
+  const summaryButton = onSelectPins ? (
+    <button
+      className="relative z-10 mt-0.5 block w-full truncate text-left text-[0.7rem] text-ink-faint hover:text-ink"
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelectPins(blockId);
+      }}
+      type="button"
+    >
+      {summary}
+    </button>
+  ) : (
+    <span className="mt-0.5 block truncate text-[0.7rem] text-ink-faint">
+      {summary}
+    </span>
+  );
+
+  if (compact) {
+    return summaryButton;
+  }
+
+  const { shown, extra } = mixPins(tasks, notes, PIN_LIMIT);
+
+  function pinButton(pin: BlockPin) {
+    const onOpen = pin.kind === "task" ? onSelectTask : onSelectNote;
+    const className = [
+      "relative z-10 flex w-full min-w-0 items-center gap-1 text-left text-[0.7rem] text-ink-faint hover:text-ink",
+      pin.done ? "opacity-60" : "",
+    ].join(" ");
+    const label = (
+      <>
+        <Icon
+          className="size-3 shrink-0"
+          name={pin.kind === "task" ? "tasks" : "notes"}
+        />
+        <span className={["min-w-0 truncate", pin.done ? "line-through" : ""].join(" ")}>
+          {pin.title}
+        </span>
+      </>
+    );
     if (!onOpen) {
       return (
-        <span className="block truncate text-[0.7rem] text-ink-faint" key={`${kind}-${pin.id}`}>
-          {pin.title}
+        <span className={className.replace(" hover:text-ink", "")} key={`${pin.kind}-${pin.id}`}>
+          {label}
         </span>
       );
     }
     return (
       <button
         className={className}
-        key={`${kind}-${pin.id}`}
+        key={`${pin.kind}-${pin.id}`}
         onClick={(event) => {
           event.stopPropagation();
           onOpen(pin.id);
         }}
         type="button"
       >
-        {pin.title}
+        {label}
       </button>
     );
   }
 
   return (
     <>
-      {shownTasks.map((pin) => pinButton(pin, "task", onSelectTask))}
-      {shownNotes.map((pin) => pinButton(pin, "note", onSelectNote))}
+      {shown.map((pin) => pinButton(pin))}
       {extra > 0 ? (
-        onSelect ? (
+        onSelectPins ? (
           <button
             className="relative z-10 block w-full truncate text-left text-[0.7rem] text-ink-faint hover:text-ink"
             onClick={(event) => {
               event.stopPropagation();
-              onSelect(blockId);
+              onSelectPins(blockId);
             }}
             type="button"
           >
@@ -180,6 +221,7 @@ export function DayGrid({
   framed = true,
   className = "",
   onSelect,
+  onSelectPins,
   onSelectTask,
   onSelectNote,
   tasksByBlock,
@@ -253,6 +295,8 @@ export function DayGrid({
               width,
               ...blockColorFill(block.color),
             };
+            const heightPx =
+              ((block.clippedEnd - block.clippedStart) / 60) * pixelsPerHour;
             const heading = readOnly ? (
               <>
                 <span className="block truncate text-sm font-medium text-ink">
@@ -287,9 +331,10 @@ export function DayGrid({
                 {heading}
                 <BlockPins
                   blockId={block.id}
+                  compact={heightPx < COMPACT_PIN_HEIGHT_PX}
                   notes={notesByBlock?.[block.id] ?? []}
-                  onSelect={onSelect}
                   onSelectNote={onSelectNote}
+                  onSelectPins={onSelectPins}
                   onSelectTask={onSelectTask}
                   tasks={tasksByBlock?.[block.id] ?? []}
                 />

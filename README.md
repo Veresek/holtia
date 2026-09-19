@@ -13,8 +13,8 @@ The September MVP is feature-complete in code:
 - Email/password accounts, HttpOnly cookie sessions, instance-code verification
   and password reset, logout, and account deletion.
 - Tasks, calendar time blocks (including recurrence and overnight spans), and
-  markdown notes, including pins from a task to a block occurrence and from a
-  note to a block series.
+  markdown notes, including pins from a task to a block occurrence, from a
+  note to a block series, and from a note to a day.
 - Home’s morning review: today’s open tasks, a window around now, and recent
   notes.
 - Responsive web shell (sidebar on desktop, bottom tabs on the phone) with an

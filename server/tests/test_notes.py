@@ -42,10 +42,12 @@ def test_note_crud_trims_title_and_preserves_markdown(
     assert note["markdown"] == "# Decisions\n\n- Keep the scope small\n"
     assert note["taskId"] == task["id"]
     assert note["timeBlockId"] is None
+    assert note["date"] is None
     assert set(note) == {
         "id",
         "title",
         "markdown",
+        "date",
         "taskId",
         "timeBlockId",
         "updatedAt",
@@ -184,6 +186,26 @@ def test_note_can_pin_to_a_time_block(client: TestClient) -> None:
     )
     assert updated.status_code == 200
     assert updated.json()["timeBlockId"] is None
+
+
+def test_note_can_pin_to_a_day(client: TestClient) -> None:
+    register_verified(client)
+
+    created = client.post(
+        "/api/notes",
+        json={"title": "Morning pages", "date": "2026-09-15"},
+    )
+    assert created.status_code == 201
+    note = created.json()
+    assert note["date"] == "2026-09-15"
+    assert note["timeBlockId"] is None
+
+    updated = client.patch(
+        f"/api/notes/{note['id']}",
+        json={"date": None},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["date"] is None
 
 
 def test_note_time_block_must_belong_to_current_user(client: TestClient) -> None:

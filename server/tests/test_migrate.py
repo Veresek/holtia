@@ -77,7 +77,7 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
 
     migrate(url)
 
-    assert current_revision(url) == "20260913_0012"
+    assert current_revision(url) == "20260915_0013"
     assert "session_version" in column_names(url, "users")
     assert "timezone" in column_names(url, "users")
     assert column_nullable(url, "users", "timezone") is False
@@ -93,6 +93,8 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
     assert column_nullable(url, "tasks", "completed_at") is True
     assert "color" in column_names(url, "time_blocks")
     assert column_nullable(url, "time_blocks", "color") is False
+    assert "date" in column_names(url, "notes")
+    assert column_nullable(url, "notes", "date") is True
     assert column_nullable(url, "tasks", "updated_at") is False
     assert column_nullable(url, "time_blocks", "updated_at") is False
     assert column_nullable(url, "notes", "time_block_id") is True
@@ -108,6 +110,7 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
         assert "ix_tasks_time_block_id" in task_indexes
         assert "ix_notes_task_id" in note_indexes
         assert "ix_notes_time_block_id" in note_indexes
+        assert "ix_notes_date" in note_indexes
         assert "ix_time_blocks_user_id_date" in block_indexes
     finally:
         engine.dispose()
@@ -142,7 +145,7 @@ def test_migrate_stamps_legacy_schema_and_preserves_data(tmp_path: Path) -> None
 
     migrate(url)
 
-    assert current_revision(url) == "20260913_0012"
+    assert current_revision(url) == "20260915_0013"
     assert column_nullable(url, "tasks", "date") is True
     assert column_nullable(url, "tasks", "updated_at") is False
     engine = create_engine(url)

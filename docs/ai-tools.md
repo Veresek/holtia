@@ -59,8 +59,8 @@ characters) at most. At most 10 keys per user.
 ## Assignment invariants
 
 Unchanged for the rest of the app. The first assistant version does **not**
-set `timeBlockId` or `taskId`. A task may still include a `date`; a note has
-no date; a proposed block is one-off.
+set `timeBlockId` or `taskId`. A task may still include a `date`; a note may
+too, but the assistant does not set it. A proposed block is one-off.
 
 ## Errors the UI can trust
 

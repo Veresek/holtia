@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Date, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -17,6 +17,7 @@ class Note(Base):
     )
     title: Mapped[str] = mapped_column(String(255))
     markdown: Mapped[str] = mapped_column(Text, default="")
+    date: Mapped[date | None] = mapped_column(Date, index=True, nullable=True)
     task_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("tasks.id", ondelete="SET NULL"),
         index=True,

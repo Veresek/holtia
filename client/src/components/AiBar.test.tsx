@@ -151,6 +151,7 @@ describe("AiBar", () => {
           id: "33333333-3333-3333-3333-333333333333",
           title: "Shopping list",
           markdown: "- milk",
+          date: null,
           taskId: null,
           timeBlockId: null,
           updatedAt: "2026-09-05T08:00:00Z",

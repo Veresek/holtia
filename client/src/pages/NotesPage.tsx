@@ -5,8 +5,12 @@ import { EmptyCta } from "../components/EmptyCta";
 import { Masonry } from "../components/Masonry";
 import { NoteCard } from "../components/NoteCard";
 import { NoteForm } from "../components/NoteForm";
+import { usePinOverlays } from "../components/PinOverlays";
 import { useData } from "../data/DataProvider";
 import { useNotes } from "../hooks/useNotes";
+import { useNow } from "../hooks/useNow";
+import { useTimeZone } from "../hooks/useTimeZone";
+import { nextOccurrenceOnOrAfter, dateValue } from "../time";
 
 export function NotesPage() {
   const {
@@ -19,6 +23,9 @@ export function NotesPage() {
     deleteNote,
   } = useNotes();
   const { blocks, tasks } = useData();
+  const timeZone = useTimeZone();
+  const today = dateValue(useNow(), timeZone);
+  const pinOverlays = usePinOverlays();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = notes.find((note) => note.id === editingId);
@@ -46,6 +53,8 @@ export function NotesPage() {
           Add note
         </button>
       </div>
+
+      {pinOverlays.overlay}
 
       {error ? (
         <div
@@ -112,13 +121,16 @@ export function NotesPage() {
             {notes.length} {notes.length === 1 ? "note" : "notes"}
           </p>
           <Masonry>
-            {notes.map((note) => (
+            {notes.map((note) => {
+              const block = note.timeBlockId
+                ? blocks.find((item) => item.id === note.timeBlockId)
+                : undefined;
+              const linkedTask = note.taskId
+                ? tasks.find((item) => item.id === note.taskId)
+                : undefined;
+              return (
               <NoteCard
-                block={
-                  note.timeBlockId
-                    ? blocks.find((item) => item.id === note.timeBlockId)
-                    : undefined
-                }
+                block={block}
                 key={note.id}
                 note={note}
                 onDelete={() => deleteNote(note.id)}
@@ -126,13 +138,24 @@ export function NotesPage() {
                   setCreating(false);
                   setEditingId(note.id);
                 }}
-                task={
-                  note.taskId
-                    ? tasks.find((item) => item.id === note.taskId)
+                onOpenBlock={
+                  block
+                    ? () =>
+                        pinOverlays.openPins(
+                          block.id,
+                          nextOccurrenceOnOrAfter(block, today),
+                        )
                     : undefined
                 }
+                onOpenTask={
+                  linkedTask
+                    ? () => pinOverlays.openTask(linkedTask.id)
+                    : undefined
+                }
+                task={linkedTask}
               />
-            ))}
+              );
+            })}
           </Masonry>
         </div>
       )}

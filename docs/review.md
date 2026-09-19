@@ -15,8 +15,8 @@ app, not another round of product questions. Locked decisions stay in
 - Block = one id. Repeat = the same row on many days. No occurrence exceptions.
   Overnight: `end < start`. Desktop Calendar is seven 24 h columns; a phone
   shows one day plus a week strip.
-- Notes have no date (Keep). Pin to a block **series** (`timeBlockId`) and
-  optionally to a task (`taskId`) from the note form.
+- Notes may hang on a day (`date`), a block **series** (`timeBlockId`) and
+  optionally a task (`taskId`) from the note form.
 - Auth: email/password; verify and reset = one `INSTANCE_CODE`. Delete account
   in MVP. Verify/reset UI is on guest routes, not on Account.
 - Production Compose (API on localhost:8001) + host reverse proxy, Alembic, CI (ruff + pytest; client lint / test / build).
@@ -73,7 +73,8 @@ Not blockers for a private deploy; shipped so the snapshot stays true.
 - Calendar: one day + week strip below `md`; desktop week unchanged.
 - Note form: pin to a task (`taskId`), shown on the card.
 - Account: unverified status only; verify/reset stay on guest routes.
-- Calendar tiles: pinned titles are buttons; leftover count is “+N more”.
+- Calendar tiles: pinned titles are buttons that open a reading sheet; leftover
+  count opens the pin list for that day, not the block form.
 - Cards: the body (padding, description, date, pin line) opens edit; checkbox, markdown chevron, links, and ⋮ stay their own actions. Title remains the keyboard path; ⋮ is 44px.
 - Tasks: completed items from before today in the account timezone live in Archive on the Tasks panel; `completed_at` is set when `done` becomes true.
 - Time blocks: color is a hex fill (`#rrggbb`); five presets plus a custom picker sit on one row; one color per series.

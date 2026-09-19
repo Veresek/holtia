@@ -69,6 +69,7 @@ export interface Note {
   id: string;
   title: string;
   markdown: string;
+  date: string | null;
   updatedAt: string;
   taskId: string | null;
   timeBlockId: string | null;
@@ -77,6 +78,7 @@ export interface Note {
 export interface NoteCreate {
   title: string;
   markdown?: string;
+  date?: string | null;
   taskId?: string | null;
   timeBlockId?: string | null;
 }

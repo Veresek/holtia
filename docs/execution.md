@@ -17,12 +17,12 @@ The four-week build is done in code. What remains is using the app, a private de
 | 7   | Blocks: one row = one id; 24 h week on desktop; one day + week strip on a phone; overnight spans     | Done                                        |
 | 8   | Home: nearby-block preview around now (1 h back, ≥3 h forward; desktop matches today’s tasks height) | Done                                        |
 | 9   | Repeat: the same block shows on many days; edit/delete everywhere                                    | Done                                        |
-| 10  | Notes: markdown cards **with no date**; panel = collection; Home = 4 recent                          | Done                                        |
+| 10  | Notes: markdown cards; optional day pin; panel = collection; Home = 4 recent                          | Done                                        |
 | 11  | Delete account (Account panel)                                                                       | Done                                        |
 | 12  | Responsive web; Docker API + host reverse proxy                                                      | Done in repo; VPS not yet a public instance |
 | 13  | Assignments: pin a task to a block occurrence; pin a note to a block series                          | Done in API and UI                          |
 
-Pin a task to a block: `date` + `timeBlockId`; the date is a day the block occurs (autofilled from today when omitted). A note pins to the series (`timeBlockId`) with no date, and may also pin to a task (`taskId`) from the note form. A block tile may **show** pinned items and open them; it does not contain a task list inside.
+Pin a task to a block: `date` + `timeBlockId`; the date is a day the block occurs (autofilled from today when omitted). A note may pin to a day (`date`), to the series (`timeBlockId`) with no occurrence date, and/or to a task (`taskId`) from the note form. A block tile may **show** pinned items and open them; it does not contain a task list inside.
 
 **Ready for a private VPS** when `.env` is filled, DNS points at the box, and you can: create an account, verify / reset with the instance code you keep secret, walk through Home in the morning, lay out the week in Calendar, open all tasks and the notes collection.
 
@@ -72,7 +72,6 @@ Refresh reuse within a short grace window no longer signs out a second tab as a 
 - Admin vs user roles
 - Drag-and-drop hours onto the grid
 - Separate occurrences of a repeating block (calendar exceptions)
-- Note pinned to a day
 - Change email (`PATCH /api/users/me` is `501`)
 
 ## Assumptions
@@ -91,7 +90,7 @@ Refresh reuse within a short grace window no longer signs out a second tab as a 
 | -------- | -------------------------------------------------------------------------------- |
 | Frontend | React 19, Vite, TypeScript, Tailwind v4 (phone in the browser)                   |
 | Backend  | FastAPI, Python 3.13                                                             |
-| Database | PostgreSQL 18, Alembic (head `20260913_0012`)                                    |
+| Database | PostgreSQL 18, Alembic (head `20260915_0013`)                                    |
 | Auth     | email + password (bcrypt) + `INSTANCE_CODE`; cookies; Google and SMTP not in MVP |
 | Hosting  | VPS, `docker compose` / `docker-compose.prod.yml`                                |
 | CI       | GitHub Actions: ruff + pytest; client lint / test / build                        |
@@ -116,7 +115,7 @@ TimeBlock     id, user_id, title, description,
               recurrence     — none | daily | weekly | weekdays
               recurrence_days, color (#rrggbb; five presets plus custom), updated_at
 Note          id, user_id, title, markdown, updated_at
-              (no date)
+              date?          — null = collection only; shown on that calendar day
               task_id?       — optional; independent of the block pin; note form
               time_block_id? — pin to the series; shown on every occurrence
 ```

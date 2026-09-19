@@ -36,6 +36,12 @@ interface BlockFormProps {
   onSubmit: (payload: TimeBlockCreate) => Promise<unknown>;
   onCancel?: () => void;
   onDelete?: () => Promise<unknown>;
+  pinnedTasks?: Task[];
+  pinnedNotes?: Note[];
+  onOpenTask?: (id: string) => void;
+  onOpenNote?: (id: string) => void;
+  onUnpinTask?: (id: string) => Promise<unknown>;
+  onUnpinNote?: (id: string) => Promise<unknown>;
 }
 
 export function BlockForm({
@@ -45,6 +51,12 @@ export function BlockForm({
   onSubmit,
   onCancel,
   onDelete,
+  pinnedTasks = [],
+  pinnedNotes = [],
+  onOpenTask,
+  onOpenNote,
+  onUnpinTask,
+  onUnpinNote,
 }: BlockFormProps) {
   const formId = useId();
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -66,6 +78,7 @@ export function BlockForm({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [unpinningId, setUnpinningId] = useState<string | null>(null);
   const errorId = `${formId}-error`;
   const repeating = recurrence !== "none";
 
@@ -331,6 +344,90 @@ export function BlockForm({
         <p className="mt-3 text-sm text-rust" id={errorId} role="alert">
           {formError}
         </p>
+      ) : null}
+
+      {initial ? (
+        <section className="mt-4">
+          <h3 className="text-sm font-medium text-ink">Pinned to this day</h3>
+          {pinnedTasks.length === 0 ? (
+            <p className="mt-1 text-sm text-ink-faint">No tasks on this day.</p>
+          ) : (
+            <ul className="mt-1 space-y-1">
+              {pinnedTasks.map((task) => (
+                <li
+                  className="flex items-center justify-between gap-2"
+                  key={task.id}
+                >
+                  <button
+                    className={[
+                      "min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-sm hover:bg-paper",
+                      task.done ? "text-ink-faint line-through" : "text-ink",
+                    ].join(" ")}
+                    onClick={() => onOpenTask?.(task.id)}
+                    type="button"
+                  >
+                    {task.title}
+                  </button>
+                  {onUnpinTask ? (
+                    <button
+                      className="shrink-0 rounded-md px-2 py-1 text-xs text-ink-faint hover:text-ink"
+                      disabled={unpinningId === task.id}
+                      onClick={() => {
+                        setUnpinningId(task.id);
+                        void onUnpinTask(task.id).finally(() =>
+                          setUnpinningId(null),
+                        );
+                      }}
+                      type="button"
+                    >
+                      Unpin
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+          <h3 className="mt-3 text-sm font-medium text-ink">
+            Pinned to this series
+          </h3>
+          {pinnedNotes.length === 0 ? (
+            <p className="mt-1 text-sm text-ink-faint">
+              No notes on this block.
+            </p>
+          ) : (
+            <ul className="mt-1 space-y-1">
+              {pinnedNotes.map((note) => (
+                <li
+                  className="flex items-center justify-between gap-2"
+                  key={note.id}
+                >
+                  <button
+                    className="min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-sm text-ink hover:bg-paper"
+                    onClick={() => onOpenNote?.(note.id)}
+                    type="button"
+                  >
+                    {note.title}
+                  </button>
+                  {onUnpinNote ? (
+                    <button
+                      className="shrink-0 rounded-md px-2 py-1 text-xs text-ink-faint hover:text-ink"
+                      disabled={unpinningId === note.id}
+                      onClick={() => {
+                        setUnpinningId(note.id);
+                        void onUnpinNote(note.id).finally(() =>
+                          setUnpinningId(null),
+                        );
+                      }}
+                      type="button"
+                    >
+                      Unpin
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       ) : null}
 
       {onDelete && confirmingDelete ? (

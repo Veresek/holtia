@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from "react";
 
-import { formatTimeLabel } from "../time";
+import { blockOptionLabel } from "../time";
 import type { NoteCreate, Task, TimeBlock } from "../types";
 
 interface NoteFormProps {
   initial?: {
     title: string;
     markdown: string;
+    date?: string | null;
     taskId?: string | null;
     timeBlockId?: string | null;
   };
@@ -27,6 +28,7 @@ export function NoteForm({
 }: NoteFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [markdown, setMarkdown] = useState(initial?.markdown ?? "");
+  const [date, setDate] = useState(initial?.date ?? "");
   const [taskId, setTaskId] = useState(initial?.taskId ?? "");
   const [timeBlockId, setTimeBlockId] = useState(initial?.timeBlockId ?? "");
   const [saving, setSaving] = useState(false);
@@ -42,12 +44,14 @@ export function NoteForm({
       await onSubmit({
         title: normalizedTitle,
         markdown,
+        date: date || null,
         taskId: taskId || null,
         timeBlockId: timeBlockId || null,
       });
       if (!initial) {
         setTitle("");
         setMarkdown("");
+        setDate("");
         setTaskId("");
         setTimeBlockId("");
       }
@@ -90,6 +94,23 @@ export function NoteForm({
 
       <label
         className="mt-4 block text-sm font-medium text-ink"
+        htmlFor="note-date"
+      >
+        Date
+      </label>
+      <input
+        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        id="note-date"
+        onChange={(event) => setDate(event.target.value)}
+        type="date"
+        value={date}
+      />
+      <p className="mt-1 text-xs text-ink-faint">
+        Optional. Hangs this note on a calendar day.
+      </p>
+
+      <label
+        className="mt-4 block text-sm font-medium text-ink"
         htmlFor="note-task"
       >
         Task
@@ -107,6 +128,9 @@ export function NoteForm({
           </option>
         ))}
       </select>
+      <p className="mt-1 text-xs text-ink-faint">
+        Optional. Hang this note on a task.
+      </p>
 
       <label
         className="mt-4 block text-sm font-medium text-ink"
@@ -123,11 +147,13 @@ export function NoteForm({
         <option value="">No time block</option>
         {blocks.map((block) => (
           <option key={block.id} value={block.id}>
-            {block.title} · {formatTimeLabel(block.start)}–
-            {formatTimeLabel(block.end)}
+            {blockOptionLabel(block)}
           </option>
         ))}
       </select>
+      <p className="mt-1 text-xs text-ink-faint">
+        Shows on every day this block repeats.
+      </p>
 
       <div className="mt-4 flex justify-end gap-2">
         {onCancel ? (

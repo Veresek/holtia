@@ -1,6 +1,6 @@
 import { useState, type MouseEvent } from "react";
 
-import { formatTimeLabel } from "../time";
+import { formatDateLabel, formatTimeLabel } from "../time";
 import type { Note, Task, TimeBlock } from "../types";
 import { ConfirmDelete } from "./ConfirmDelete";
 import {
@@ -8,6 +8,7 @@ import {
   NOTE_PREVIEW_MAX_HEIGHT_REM,
 } from "./ExpandableMarkdown";
 import { ItemMenu } from "./ItemMenu";
+import { PinChip } from "./PinChip";
 
 interface NoteCardProps {
   note: Note;
@@ -16,6 +17,8 @@ interface NoteCardProps {
   onDelete?: () => Promise<unknown>;
   block?: TimeBlock;
   task?: Task;
+  onOpenBlock?: () => void;
+  onOpenTask?: () => void;
 }
 
 function displayUpdatedAt(value: string) {
@@ -33,6 +36,8 @@ export function NoteCard({
   onDelete,
   block,
   task,
+  onOpenBlock,
+  onOpenTask,
 }: NoteCardProps) {
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
@@ -136,14 +141,25 @@ export function NoteCard({
       <p className="mt-4 wrap-break-word text-xs text-ink-faint">
         Edited {displayUpdatedAt(note.updatedAt)}
       </p>
-      {task ? (
-        <p className="mt-1 wrap-break-word text-xs text-ink-faint">{task.title}</p>
-      ) : null}
-      {block ? (
-        <p className="mt-1 wrap-break-word text-xs text-ink-faint">
-          {block.title} · {formatTimeLabel(block.start)}–
-          {formatTimeLabel(block.end)}
-        </p>
+      {note.date || task || block ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {note.date ? (
+            <PinChip
+              icon="calendar"
+              label={`Pinned to ${formatDateLabel(note.date)}`}
+            />
+          ) : null}
+          {task ? (
+            <PinChip icon="tasks" label={task.title} onClick={onOpenTask} />
+          ) : null}
+          {block ? (
+            <PinChip
+              icon="notes"
+              label={`On ${block.title} every day · ${formatTimeLabel(block.start)}–${formatTimeLabel(block.end)}`}
+              onClick={onOpenBlock}
+            />
+          ) : null}
+        </div>
       ) : null}
     </article>
   );

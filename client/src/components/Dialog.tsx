@@ -7,6 +7,7 @@ interface DialogProps {
   title: string;
   onClose: () => void;
   wide?: boolean;
+  action?: ReactNode;
   children: ReactNode;
 }
 
@@ -49,7 +50,13 @@ function unlockPage() {
   }
 }
 
-export function Dialog({ title, onClose, wide = false, children }: DialogProps) {
+export function Dialog({
+  title,
+  onClose,
+  wide = false,
+  action,
+  children,
+}: DialogProps) {
   const titleId = useId();
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -149,14 +156,17 @@ export function Dialog({ title, onClose, wide = false, children }: DialogProps) 
           >
             {title}
           </h2>
-          <button
-            aria-label="Close"
-            className="rounded-md p-1.5 text-ink-soft hover:bg-paper"
-            onClick={() => onCloseRef.current()}
-            type="button"
-          >
-            <Icon name="close" className="size-5" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            {action}
+            <button
+              aria-label="Close"
+              className="rounded-md p-1.5 text-ink-soft hover:bg-paper"
+              onClick={() => onCloseRef.current()}
+              type="button"
+            >
+              <Icon name="close" className="size-5" />
+            </button>
+          </div>
         </div>
         <div className="mt-4">{children}</div>
       </div>

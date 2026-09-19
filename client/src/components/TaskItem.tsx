@@ -1,13 +1,20 @@
 import { useState, type MouseEvent } from "react";
 
-import { formatTimeLabel } from "../time";
-import type { Task, TimeBlock } from "../types";
+import {
+  formatDateLabel,
+  formatTaskDateChip,
+  formatTimeLabel,
+  dateValue,
+} from "../time";
+import type { Note, Task, TimeBlock } from "../types";
 import { ConfirmDelete } from "./ConfirmDelete";
 import {
   ExpandableMarkdown,
   TASK_PREVIEW_MAX_HEIGHT_REM,
 } from "./ExpandableMarkdown";
+import { Icon } from "./Icon";
 import { ItemMenu } from "./ItemMenu";
+import { PinChip } from "./PinChip";
 
 interface TaskItemProps {
   task: Task;
@@ -16,22 +23,12 @@ interface TaskItemProps {
   onDelete?: () => Promise<unknown>;
   showDate?: boolean;
   dense?: boolean;
+  variant?: "card" | "row";
+  today?: string;
   block?: TimeBlock;
-}
-
-function displayDate(value: string) {
-  const dateOnly = /^(\d{4}-\d{2}-\d{2})/.exec(value)?.[1];
-  const parsed = dateOnly
-    ? new Date(`${dateOnly}T00:00:00`)
-    : new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(parsed);
+  notes?: Note[];
+  onOpenBlock?: () => void;
+  onOpenNote?: (id: string) => void;
 }
 
 export function TaskItem({
@@ -41,11 +38,25 @@ export function TaskItem({
   onDelete,
   showDate = true,
   dense = false,
+  variant = "card",
+  today,
   block,
+  notes = [],
+  onOpenBlock,
+  onOpenNote,
 }: TaskItemProps) {
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
-  const hasBody = Boolean(task.description) || showDate || Boolean(block);
+  const row = variant === "row";
+  const todayValue = today ?? dateValue(new Date());
+  const dateChip =
+    showDate && task.date ? formatTaskDateChip(task.date, todayValue) : null;
+  const hasDateLine = row ? Boolean(dateChip) : showDate;
+  const hasBody =
+    Boolean(task.description) ||
+    hasDateLine ||
+    Boolean(block) ||
+    notes.length > 0;
 
   async function handleToggle() {
     setPending(true);
@@ -91,15 +102,29 @@ export function TaskItem({
     onEdit();
   }
 
+  const dateToneClass =
+    dateChip?.tone === "overdue"
+      ? "text-rust"
+      : dateChip?.tone === "today"
+        ? "text-moss"
+        : "text-lichen";
+
   return (
     // Keyboard access is the title button (`aria-label="Edit …"`).
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <article
-      className={[
-        "min-w-0 rounded-lg border border-line bg-paper-raised transition-colors duration-150 hover:border-lichen",
-        dense ? "p-3" : "p-4",
-        onEdit ? "cursor-pointer" : "",
-      ].join(" ")}
+      className={
+        row
+          ? [
+              "min-w-0 border-b border-line py-3",
+              onEdit ? "cursor-pointer" : "",
+            ].join(" ")
+          : [
+              "min-w-0 rounded-lg border border-line bg-paper-raised transition-colors duration-150 hover:border-lichen",
+              dense ? "p-3" : "p-4",
+              onEdit ? "cursor-pointer" : "",
+            ].join(" ")
+      }
       onClick={handleCardClick}
     >
       <div
@@ -112,7 +137,10 @@ export function TaskItem({
           aria-label={`Mark ${task.title} as ${task.done ? "not done" : "done"}`}
           checked={task.done}
           className={[
-            "size-4 shrink-0 accent-moss",
+            "shrink-0",
+            row
+              ? "size-5 appearance-none rounded-full border border-ink-faint bg-paper-raised checked:border-moss checked:bg-moss"
+              : "size-4 accent-moss",
             hasBody ? "mt-1" : "",
           ].join(" ")}
           disabled={pending}
@@ -142,26 +170,50 @@ export function TaskItem({
           {task.description ? (
             <ExpandableMarkdown
               className={
-                showDate
-                  ? "mt-1 wrap-break-word text-sm leading-6 text-ink-soft"
-                  : "mt-0.5 wrap-break-word text-xs text-ink-faint"
+                row || !showDate
+                  ? "mt-0.5 wrap-break-word text-xs text-ink-faint"
+                  : "mt-1 wrap-break-word text-sm leading-6 text-ink-soft"
               }
-              compact={!showDate}
+              compact={row || !showDate}
               label={task.title}
               maxHeightRem={TASK_PREVIEW_MAX_HEIGHT_REM}
               markdown={task.description}
             />
           ) : null}
-          {showDate ? (
-            <p className="mt-2 wrap-break-word text-xs text-ink-faint">
-              {task.date ? displayDate(task.date) : "No date"}
+          {row && dateChip ? (
+            <p
+              className={[
+                "mt-1 inline-flex items-center gap-1 text-xs",
+                dateToneClass,
+              ].join(" ")}
+            >
+              <Icon className="size-3.5 shrink-0" name="calendar" />
+              <span>{dateChip.label}</span>
             </p>
           ) : null}
-          {block ? (
-            <p className="mt-1 wrap-break-word text-xs text-ink-faint">
-              {block.title} · {formatTimeLabel(block.start)}–
-              {formatTimeLabel(block.end)}
+          {!row && showDate ? (
+            <p className="mt-2 wrap-break-word text-xs text-ink-faint">
+              {task.date ? formatDateLabel(task.date) : "No date"}
             </p>
+          ) : null}
+          {block || notes.length > 0 ? (
+            <div className={[row ? "mt-1.5" : "mt-2", "flex flex-wrap gap-1.5"].join(" ")}>
+              {block ? (
+                <PinChip
+                  icon="calendar"
+                  label={`Pinned to ${block.title} · ${formatTimeLabel(block.start)}–${formatTimeLabel(block.end)}`}
+                  onClick={onOpenBlock}
+                />
+              ) : null}
+              {notes.map((note) => (
+                <PinChip
+                  icon="notes"
+                  key={note.id}
+                  label={note.title}
+                  onClick={onOpenNote ? () => onOpenNote(note.id) : undefined}
+                />
+              ))}
+            </div>
           ) : null}
         </div>
         <ItemMenu
