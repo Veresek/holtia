@@ -4,7 +4,9 @@ import { isPresetBlockColor, normalizeBlockColor } from "../blockColor";
 import { timeInputValue, toTimePayload } from "../time";
 import {
   BLOCK_COLOR_PRESETS,
+  type Note,
   type Recurrence,
+  type Task,
   type TimeBlockCreate,
 } from "../types";
 import { ConfirmDelete } from "./ConfirmDelete";
