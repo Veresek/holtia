@@ -10,6 +10,7 @@ import {
   type TimeBlockCreate,
 } from "../types";
 import { ConfirmDelete } from "./ConfirmDelete";
+import { FieldError, FieldLabel, fieldClass, RequiredMark } from "./fields";
 import { Icon } from "./Icon";
 
 const WEEKDAYS = [
@@ -78,10 +79,16 @@ export function BlockForm({
   );
   const [color, setColor] = useState(normalizeBlockColor(initial?.color));
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<{
+    title?: string;
+    date?: string;
+    start?: string;
+    end?: string;
+    days?: string;
+  }>({});
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [unpinningId, setUnpinningId] = useState<string | null>(null);
-  const errorId = `${formId}-error`;
+  const daysErrorId = `${formId}-days-error`;
   const repeating = recurrence !== "none";
 
   function toggleDay(day: number) {
@@ -90,27 +97,42 @@ export function BlockForm({
         ? current.filter((value) => value !== day)
         : [...current, day].sort((left, right) => left - right),
     );
+    setErrors((current) => ({ ...current, days: undefined }));
+  }
+
+  function fieldErrors() {
+    const next: typeof errors = {};
+    if (!title.trim()) {
+      next.title = "Enter a title.";
+    }
+    if (!date) {
+      next.date = "Choose a date.";
+    }
+    if (!start) {
+      next.start = "Choose a start time.";
+    }
+    if (!end) {
+      next.end = "Choose an end time.";
+    } else if (start && end === start) {
+      next.end = "End cannot be the same as start.";
+    }
+    if (recurrence === "weekdays" && recurrenceDays.length === 0) {
+      next.days = "Choose at least one day.";
+    }
+    return next;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedTitle = title.trim();
-    if (!normalizedTitle || !date) {
+    const nextErrors = fieldErrors();
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
-    if (end === start) {
-      setFormError("End cannot be the same as start.");
-      return;
-    }
-    if (recurrence === "weekdays" && recurrenceDays.length === 0) {
-      setFormError("Choose at least one day.");
-      return;
-    }
-    setFormError(null);
     setSaving(true);
     try {
       await onSubmit({
-        title: normalizedTitle,
+        title: title.trim(),
         description: description.trim(),
         date,
         start: toTimePayload(start),
@@ -141,22 +163,27 @@ export function BlockForm({
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label
-        className="block text-sm font-medium text-ink"
-        htmlFor={`${formId}-title`}
-      >
+    <form noValidate onSubmit={handleSubmit}>
+      <FieldLabel htmlFor={`${formId}-title`} required>
         Title
-      </label>
+      </FieldLabel>
       <input
-        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        aria-describedby={errors.title ? `${formId}-title-error` : undefined}
+        aria-invalid={errors.title !== undefined || undefined}
+        aria-required="true"
+        className={fieldClass(errors.title !== undefined)}
         id={`${formId}-title`}
         maxLength={255}
-        onChange={(event) => setTitle(event.target.value)}
+        onChange={(event) => {
+          setTitle(event.target.value);
+          setErrors((current) => ({ ...current, title: undefined }));
+        }}
         placeholder="What are you protecting?"
-        required
         value={title}
       />
+      {errors.title ? (
+        <FieldError id={`${formId}-title-error`} message={errors.title} />
+      ) : null}
 
       <label
         className="mt-4 block text-sm font-medium text-ink"
@@ -165,7 +192,7 @@ export function BlockForm({
         Description
       </label>
       <textarea
-        className="mt-1 min-h-20 w-full resize-y rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        className={fieldClass(false, "min-h-20 resize-y")}
         id={`${formId}-description`}
         maxLength={10000}
         onChange={(event) => setDescription(event.target.value)}
@@ -175,54 +202,67 @@ export function BlockForm({
 
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         <div>
-          <label
-            className="block text-sm font-medium text-ink"
-            htmlFor={`${formId}-date`}
-          >
+          <FieldLabel htmlFor={`${formId}-date`} required>
             {repeating ? "Starts on" : "Date"}
-          </label>
+          </FieldLabel>
           <input
-            className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+            aria-describedby={errors.date ? `${formId}-date-error` : undefined}
+            aria-invalid={errors.date !== undefined || undefined}
+            aria-required="true"
+            className={fieldClass(errors.date !== undefined)}
             id={`${formId}-date`}
-            onChange={(event) => setDate(event.target.value)}
-            required
+            onChange={(event) => {
+              setDate(event.target.value);
+              setErrors((current) => ({ ...current, date: undefined }));
+            }}
             type="date"
             value={date}
           />
+          {errors.date ? (
+            <FieldError id={`${formId}-date-error`} message={errors.date} />
+          ) : null}
         </div>
         <div>
-          <label
-            className="block text-sm font-medium text-ink"
-            htmlFor={`${formId}-start`}
-          >
+          <FieldLabel htmlFor={`${formId}-start`} required>
             Start
-          </label>
+          </FieldLabel>
           <input
-            className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+            aria-describedby={errors.start ? `${formId}-start-error` : undefined}
+            aria-invalid={errors.start !== undefined || undefined}
+            aria-required="true"
+            className={fieldClass(errors.start !== undefined)}
             id={`${formId}-start`}
-            onChange={(event) => setStart(event.target.value)}
-            required
+            onChange={(event) => {
+              setStart(event.target.value);
+              setErrors((current) => ({ ...current, start: undefined }));
+            }}
             type="time"
             value={start}
           />
+          {errors.start ? (
+            <FieldError id={`${formId}-start-error`} message={errors.start} />
+          ) : null}
         </div>
         <div>
-          <label
-            className="block text-sm font-medium text-ink"
-            htmlFor={`${formId}-end`}
-          >
+          <FieldLabel htmlFor={`${formId}-end`} required>
             End
-          </label>
+          </FieldLabel>
           <input
-            aria-describedby={formError && end === start ? errorId : undefined}
-            aria-invalid={formError !== null && end === start}
-            className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+            aria-describedby={errors.end ? `${formId}-end-error` : undefined}
+            aria-invalid={errors.end !== undefined || undefined}
+            aria-required="true"
+            className={fieldClass(errors.end !== undefined)}
             id={`${formId}-end`}
-            onChange={(event) => setEnd(event.target.value)}
-            required
+            onChange={(event) => {
+              setEnd(event.target.value);
+              setErrors((current) => ({ ...current, end: undefined }));
+            }}
             type="time"
             value={end}
           />
+          {errors.end ? (
+            <FieldError id={`${formId}-end-error`} message={errors.end} />
+          ) : null}
         </div>
       </div>
 
@@ -233,13 +273,14 @@ export function BlockForm({
         Repeat
       </label>
       <select
-        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        className={fieldClass(false)}
         id={`${formId}-recurrence`}
         onChange={(event) => {
           const next = event.target.value as Recurrence;
           setRecurrence(next);
           if (next !== "weekdays") {
             setRecurrenceDays([]);
+            setErrors((current) => ({ ...current, days: undefined }));
           }
         }}
         value={recurrence}
@@ -251,8 +292,18 @@ export function BlockForm({
       </select>
 
       {recurrence === "weekdays" ? (
-        <fieldset className="mt-3">
-          <legend className="text-sm font-medium text-ink">Days</legend>
+        <fieldset
+          aria-describedby={errors.days ? daysErrorId : undefined}
+          aria-invalid={errors.days !== undefined || undefined}
+          className={[
+            "mt-3",
+            errors.days ? "rounded-md border border-rust p-2" : "",
+          ].join(" ")}
+        >
+          <legend className="text-sm font-medium text-ink">
+            Days
+            <RequiredMark />
+          </legend>
           <div className="mt-2 flex flex-wrap gap-2">
             {WEEKDAYS.map((weekday) => (
               <label
@@ -269,6 +320,9 @@ export function BlockForm({
               </label>
             ))}
           </div>
+          {errors.days ? (
+            <FieldError id={daysErrorId} message={errors.days} />
+          ) : null}
         </fieldset>
       ) : null}
 
@@ -339,12 +393,6 @@ export function BlockForm({
       {end !== "" && start !== "" && end < start ? (
         <p className="mt-3 text-sm text-ink-soft">
           This block continues into the next day.
-        </p>
-      ) : null}
-
-      {formError ? (
-        <p className="mt-3 text-sm text-rust" id={errorId} role="alert">
-          {formError}
         </p>
       ) : null}
 
@@ -434,16 +482,16 @@ export function BlockForm({
 
       {onDelete && confirmingDelete ? (
         <ConfirmDelete
-          confirmLabel="Delete block"
+          confirmLabel="Delete event"
           description={
             repeating
-              ? "This removes the block from every day it repeats."
+              ? "This removes the event from every day it repeats."
               : "This cannot be undone."
           }
           onCancel={() => setConfirmingDelete(false)}
           onConfirm={() => void handleDelete()}
           pending={saving}
-          title="Delete this block?"
+          title="Delete this event?"
         />
       ) : null}
 

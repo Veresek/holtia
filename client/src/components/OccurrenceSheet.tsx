@@ -213,7 +213,7 @@ export function OccurrenceSheet({
             onClick={onEditBlock}
             type="button"
           >
-            Edit block
+            Edit event
           </button>
         ) : null}
       </div>

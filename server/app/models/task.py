@@ -29,6 +29,7 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str] = mapped_column(Text, default="")
     done: Mapped[bool] = mapped_column(Boolean, default=False)
+    priority: Mapped[str] = mapped_column(String(16), default="medium")
     date: Mapped[date | None] = mapped_column(Date, index=True, nullable=True)
     time_block_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("time_blocks.id", ondelete="SET NULL"),

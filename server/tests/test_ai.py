@@ -343,6 +343,7 @@ def test_plan_returns_proposals_and_keeps_the_key_off_the_wire(
             "title": "Buy milk",
             "description": "",
             "date": "2026-09-05",
+            "priority": "medium",
         }
     ]
     assert SECRET_KEY not in json.dumps(body)

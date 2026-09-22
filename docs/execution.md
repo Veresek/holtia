@@ -14,7 +14,7 @@ The four-week build is done in code. What remains is using the app, a private de
 | 4   | Tasks: title, done, description, optional day; CRUD                                                  | Done                                        |
 | 5   | Home: **today’s open** tasks (at most 4) + chevron to expand the rest + empty state                  | Done                                        |
 | 6   | Tasks panel: all of them, including undated                                                          | Done                                        |
-| 7   | Blocks: one row = one id; 24 h week on desktop; one day + week strip on a phone; overnight spans     | Done                                        |
+| 7   | Blocks: one row = one id; day, week, or month (desktop week is 24 h columns; a phone week is one day plus a week strip; day is one 24 h column; month is a Monday-first grid); overnight spans | Done                                        |
 | 8   | Home: nearby-block preview around now (1 h back, ≥3 h forward; desktop matches today’s tasks height) | Done                                        |
 | 9   | Repeat: the same block shows on many days; edit/delete everywhere                                    | Done                                        |
 | 10  | Notes: markdown cards; optional day pin; panel = collection; Home = 4 recent                          | Done                                        |

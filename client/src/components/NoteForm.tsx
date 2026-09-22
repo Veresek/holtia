@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 
 import { blockOptionLabel } from "../time";
 import type { NoteCreate, Task, TimeBlock } from "../types";
+import { FieldError, FieldLabel, fieldClass } from "./fields";
 
 interface NoteFormProps {
   initial?: {
@@ -32,13 +33,17 @@ export function NoteForm({
   const [taskId, setTaskId] = useState(initial?.taskId ?? "");
   const [timeBlockId, setTimeBlockId] = useState(initial?.timeBlockId ?? "");
   const [saving, setSaving] = useState(false);
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const titleErrorId = useId();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedTitle = title.trim();
     if (!normalizedTitle) {
+      setTitleError("Enter a title.");
       return;
     }
+    setTitleError(null);
     setSaving(true);
     try {
       await onSubmit({
@@ -63,19 +68,27 @@ export function NoteForm({
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label className="block text-sm font-medium text-ink" htmlFor="note-title">
+    <form noValidate onSubmit={handleSubmit}>
+      <FieldLabel htmlFor="note-title" required>
         Title
-      </label>
+      </FieldLabel>
       <input
-        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        aria-describedby={titleError ? titleErrorId : undefined}
+        aria-invalid={titleError !== null || undefined}
+        aria-required="true"
+        className={fieldClass(titleError !== null)}
         id="note-title"
         maxLength={255}
-        onChange={(event) => setTitle(event.target.value)}
+        onChange={(event) => {
+          setTitle(event.target.value);
+          if (titleError) {
+            setTitleError(null);
+          }
+        }}
         placeholder="Name this note"
-        required
         value={title}
       />
+      {titleError ? <FieldError id={titleErrorId} message={titleError} /> : null}
 
       <label
         className="mt-4 block text-sm font-medium text-ink"
@@ -84,7 +97,10 @@ export function NoteForm({
         Markdown
       </label>
       <textarea
-        className="mt-1 min-h-52 w-full resize-y rounded-md border border-line bg-paper px-3 py-2 font-mono text-sm leading-6 text-ink focus:border-lichen"
+        className={fieldClass(
+          false,
+          "min-h-40 resize-y font-mono leading-6",
+        )}
         id="note-markdown"
         maxLength={100000}
         onChange={(event) => setMarkdown(event.target.value)}
@@ -99,7 +115,7 @@ export function NoteForm({
         Date
       </label>
       <input
-        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        className={fieldClass(false)}
         id="note-date"
         onChange={(event) => setDate(event.target.value)}
         type="date"
@@ -116,7 +132,7 @@ export function NoteForm({
         Task
       </label>
       <select
-        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        className={fieldClass(false)}
         id="note-task"
         onChange={(event) => setTaskId(event.target.value)}
         value={taskId}
@@ -139,7 +155,7 @@ export function NoteForm({
         Time block
       </label>
       <select
-        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        className={fieldClass(false)}
         id="note-time-block"
         onChange={(event) => setTimeBlockId(event.target.value)}
         value={timeBlockId}

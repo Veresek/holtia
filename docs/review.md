@@ -13,8 +13,9 @@ app, not another round of product questions. Locked decisions stay in
 - Tasks: title + done + description + day; undated only in Tasks; pin to a
   block occurrence (`date` + `timeBlockId`).
 - Block = one id. Repeat = the same row on many days. No occurrence exceptions.
-  Overnight: `end < start`. Desktop Calendar is seven 24 h columns; a phone
-  shows one day plus a week strip.
+  Overnight: `end < start`. Calendar is day, week, or month. Desktop week is
+  seven 24 h columns; a phone week shows one day plus a week strip. Day is one
+  24 h column. Month is a Monday-first grid.
 - Notes may hang on a day (`date`), a block **series** (`timeBlockId`) and
   optionally a task (`taskId`) from the note form.
 - Auth: email/password; verify and reset = one `INSTANCE_CODE`. Delete account

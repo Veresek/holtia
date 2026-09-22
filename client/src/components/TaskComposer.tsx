@@ -1,10 +1,12 @@
-import { useEffect, useId, useRef, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { useTaskDraft } from "../hooks/useTaskDraft";
 import { useTimeZone } from "../hooks/useTimeZone";
 import { blockOptionLabel } from "../time";
 import type { TaskCreate, TimeBlock } from "../types";
 import { Icon } from "./Icon";
+import { FieldError, FieldLabel, fieldClass } from "./fields";
+import { PriorityField } from "./PriorityField";
 
 interface TaskComposerProps {
   blocks: TimeBlock[];
@@ -60,12 +62,14 @@ function TaskComposerForm({
   onSubmit,
 }: TaskComposerFormProps) {
   const titleId = useId();
+  const titleErrorId = useId();
   const descriptionId = useId();
   const dateId = useId();
   const blockId = useId();
   const titleRef = useRef<HTMLInputElement>(null);
   const timeZone = useTimeZone();
   const draft = useTaskDraft(blocks, undefined, defaultDate, timeZone);
+  const [titleError, setTitleError] = useState<string | null>(null);
 
   useEffect(() => {
     titleRef.current?.focus();
@@ -85,8 +89,10 @@ function TaskComposerForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!draft.payload().title) {
+      setTitleError("Enter a title.");
       return;
     }
+    setTitleError(null);
     draft.setSaving(true);
     try {
       await onSubmit(draft.payload());
@@ -101,21 +107,30 @@ function TaskComposerForm({
   return (
     <form
       className="rounded-lg border border-line bg-paper-raised p-3"
+      noValidate
       onSubmit={handleSubmit}
     >
-      <label className="block text-sm font-medium text-ink" htmlFor={titleId}>
+      <FieldLabel htmlFor={titleId} required>
         Title
-      </label>
+      </FieldLabel>
       <input
-        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        aria-describedby={titleError ? titleErrorId : undefined}
+        aria-invalid={titleError !== null || undefined}
+        aria-required="true"
+        className={fieldClass(titleError !== null)}
         id={titleId}
         maxLength={255}
-        onChange={(event) => draft.setTitle(event.target.value)}
+        onChange={(event) => {
+          draft.setTitle(event.target.value);
+          if (titleError) {
+            setTitleError(null);
+          }
+        }}
         placeholder="What needs doing?"
         ref={titleRef}
-        required
         value={draft.title}
       />
+      {titleError ? <FieldError id={titleErrorId} message={titleError} /> : null}
 
       <label
         className="mt-3 block text-sm font-medium text-ink"
@@ -124,7 +139,7 @@ function TaskComposerForm({
         Description
       </label>
       <textarea
-        className="mt-1 min-h-16 w-full resize-y rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        className={fieldClass(false, "min-h-16 resize-y")}
         id={descriptionId}
         maxLength={10000}
         onChange={(event) => draft.setDescription(event.target.value)}
@@ -138,7 +153,7 @@ function TaskComposerForm({
             Date
           </label>
           <input
-            className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+            className={fieldClass(false)}
             id={dateId}
             onChange={(event) => draft.handleDateChange(event.target.value)}
             type="date"
@@ -153,7 +168,7 @@ function TaskComposerForm({
             Time block
           </label>
           <select
-            className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+            className={fieldClass(false)}
             id={blockId}
             onChange={(event) => draft.handleBlockChange(event.target.value)}
             value={draft.timeBlockId}
@@ -166,6 +181,10 @@ function TaskComposerForm({
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="mt-3">
+        <PriorityField onChange={draft.setPriority} value={draft.priority} />
       </div>
 
       <div className="mt-3 flex justify-end gap-2">

@@ -61,6 +61,7 @@ describe("TaskComposer", () => {
         description: "",
         date: "2026-09-19",
         timeBlockId: null,
+        priority: "medium",
       }),
     );
     expect(screen.getByLabelText("Title")).toHaveValue("");
@@ -114,5 +115,28 @@ describe("TaskComposer", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onCollapse).toHaveBeenCalledTimes(2);
+  });
+
+  it("marks an empty title instead of submitting", async () => {
+    stubSignedIn();
+    const onSubmit = vi.fn(async () => undefined);
+    renderPage(
+      <TaskComposer
+        blocks={[]}
+        defaultDate="2026-09-19"
+        expanded
+        onCollapse={() => undefined}
+        onExpand={() => undefined}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    const title = await screen.findByLabelText("Title");
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Enter a title.");
+    expect(title).toHaveAttribute("aria-invalid", "true");
+    expect(title).toHaveClass("border-rust");
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });

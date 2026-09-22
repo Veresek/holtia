@@ -270,6 +270,7 @@ describe("NotesPage", () => {
       title: "Write report",
       description: "",
       done: false,
+      priority: "medium",
       date: null,
       timeBlockId: null,
       order: 0,

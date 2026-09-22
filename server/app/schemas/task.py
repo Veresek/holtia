@@ -1,6 +1,7 @@
 import uuid
 from datetime import date as DateType
 from datetime import datetime
+from typing import Literal
 
 from pydantic import Field, field_validator
 
@@ -15,11 +16,15 @@ from app.schemas.base import (
     normalize_required_title,
 )
 
+TaskPriority = Literal["high", "medium", "low"]
+TASK_PRIORITIES: tuple[TaskPriority, ...] = ("high", "medium", "low")
+
 
 class TaskCreate(ApiModel):
     title: str = Field(min_length=1, max_length=TITLE_MAX_LENGTH)
     description: str = Field(default="", max_length=DESCRIPTION_MAX_LENGTH)
     done: bool = False
+    priority: TaskPriority = "medium"
     date: DateType | None = None
     time_block_id: uuid.UUID | None = None
     order: int = Field(default=0, ge=0)
@@ -39,6 +44,7 @@ class TaskUpdate(ApiModel):
     title: str | None = None
     description: str | None = None
     done: bool | None = None
+    priority: TaskPriority | None = None
     date: DateType | None = None
     time_block_id: uuid.UUID | None = None
     order: int | None = None
@@ -60,6 +66,13 @@ class TaskUpdate(ApiModel):
             raise ValueError("Done cannot be null.")
         return value
 
+    @field_validator("priority")
+    @classmethod
+    def validate_priority(cls, value: TaskPriority | None) -> TaskPriority:
+        if value is None:
+            raise ValueError("Priority cannot be null.")
+        return value
+
     @field_validator("order")
     @classmethod
     def validate_order(cls, value: int | None) -> int:
@@ -75,6 +88,7 @@ class TaskRead(ApiReadModel):
     title: str
     description: str
     done: bool
+    priority: TaskPriority
     date: DateType | None
     time_block_id: uuid.UUID | None
     order: int = Field(validation_alias="sort_order")

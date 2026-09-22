@@ -17,11 +17,16 @@ export interface User {
   createdAt: string;
 }
 
+export type TaskPriority = "high" | "medium" | "low";
+
+export const TASK_PRIORITIES: TaskPriority[] = ["high", "medium", "low"];
+
 export interface Task {
   id: string;
   title: string;
   description: string;
   done: boolean;
+  priority: TaskPriority;
   date: string | null;
   timeBlockId: string | null;
   order: number;
@@ -33,6 +38,7 @@ export interface TaskCreate {
   title: string;
   description?: string;
   done?: boolean;
+  priority?: TaskPriority;
   date?: string | null;
   timeBlockId?: string | null;
   order?: number;
@@ -144,6 +150,7 @@ export type AiProposal =
       title: string;
       description: string;
       date: string | null;
+      priority?: TaskPriority;
     }
   | {
       kind: "note";

@@ -10,17 +10,20 @@ import { useNow } from "../hooks/useNow";
 import { useTasks } from "../hooks/useTasks";
 import { useTimeZone } from "../hooks/useTimeZone";
 import { isArchivedTask } from "../taskArchive";
+import { compareByPriority, priorityLabel, TASK_PRIORITIES } from "../taskPriority";
 import {
   addCalendarDays,
   dateValue,
   nextOccurrenceOnOrAfter,
 } from "../time";
-import type { Task } from "../types";
+import type { Task, TaskPriority } from "../types";
 
 type ComposerSection = "today" | "upcoming" | "none";
+type PriorityFilter = "all" | TaskPriority;
 
 function compareByOrder(left: Task, right: Task) {
   return (
+    compareByPriority(left, right) ||
     Number(left.done) - Number(right.done) ||
     left.order - right.order ||
     left.createdAt.localeCompare(right.createdAt) ||
@@ -30,8 +33,12 @@ function compareByOrder(left: Task, right: Task) {
 
 function compareByDate(left: Task, right: Task) {
   return (
+    compareByPriority(left, right) ||
     (left.date ?? "").localeCompare(right.date ?? "") ||
-    compareByOrder(left, right)
+    Number(left.done) - Number(right.done) ||
+    left.order - right.order ||
+    left.createdAt.localeCompare(right.createdAt) ||
+    left.id.localeCompare(right.id)
   );
 }
 
@@ -66,9 +73,16 @@ interface TaskSectionProps {
   tasks: Task[];
   renderTask: (task: Task) => ReactNode;
   composer?: ReactNode;
+  hint?: string;
 }
 
-function TaskSection({ title, tasks, renderTask, composer }: TaskSectionProps) {
+function TaskSection({
+  title,
+  tasks,
+  renderTask,
+  composer,
+  hint,
+}: TaskSectionProps) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className="mt-8">
@@ -80,11 +94,58 @@ function TaskSection({ title, tasks, renderTask, composer }: TaskSectionProps) {
           {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
         </p>
       </div>
+      {hint ? (
+        <p className="mt-2 text-sm leading-6 text-ink-soft">{hint}</p>
+      ) : null}
       <div className="mt-1">
         {tasks.map(renderTask)}
         {composer}
       </div>
     </section>
+  );
+}
+
+function PriorityFilterBar({
+  value,
+  onChange,
+}: {
+  value: PriorityFilter;
+  onChange: (value: PriorityFilter) => void;
+}) {
+  const options: { id: PriorityFilter; label: string }[] = [
+    { id: "all", label: "All" },
+    ...TASK_PRIORITIES.map((priority) => ({
+      id: priority,
+      label: priorityLabel(priority),
+    })),
+  ];
+
+  return (
+    <div
+      aria-label="Filter by priority"
+      className="mt-6 flex flex-wrap gap-1 rounded-md border border-line bg-paper-raised p-1"
+      role="group"
+    >
+      {options.map((option) => {
+        const selected = value === option.id;
+        return (
+          <button
+            aria-pressed={selected}
+            className={[
+              "rounded-md px-3 py-1.5 text-sm transition-colors",
+              selected
+                ? "bg-moss text-paper-raised"
+                : "text-ink-soft hover:text-ink",
+            ].join(" ")}
+            key={option.id}
+            onClick={() => onChange(option.id)}
+            type="button"
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -105,15 +166,26 @@ export function TasksPage() {
   const pinOverlays = usePinOverlays();
   const [composer, setComposer] = useState<ComposerSection | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
   const editing = tasks.find((task) => task.id === editingId);
-  const archivedTasks = tasks.filter((task) =>
+  const visibleTasks =
+    priorityFilter === "all"
+      ? tasks
+      : tasks.filter((task) => task.priority === priorityFilter);
+  const archivedTasks = visibleTasks.filter((task) =>
     isArchivedTask(task, today, timeZone),
   );
   const { overdue, todayTasks, upcoming, noDate } = activeGroups(
-    tasks,
+    visibleTasks,
     today,
     timeZone,
   );
+  const activeCount =
+    overdue.length + todayTasks.length + upcoming.length + noDate.length;
+  const todayHint =
+    todayTasks.length === 0 && noDate.length > 0
+      ? "Set a date on a No date task to move it here."
+      : undefined;
 
   function renderTask(task: Task) {
     const block = task.timeBlockId
@@ -173,6 +245,11 @@ export function TasksPage() {
         <h1 className="mt-2 font-serif text-3xl text-ink md:text-4xl">Tasks</h1>
       </header>
 
+      <PriorityFilterBar
+        onChange={setPriorityFilter}
+        value={priorityFilter}
+      />
+
       {pinOverlays.overlay}
 
       {error ? (
@@ -192,7 +269,7 @@ export function TasksPage() {
       ) : null}
 
       {editing ? (
-        <Dialog onClose={() => setEditingId(null)} title="Edit task">
+        <Dialog onClose={() => setEditingId(null)} title="Edit task" wide>
           <TaskForm
             blocks={blocks}
             initial={editing}
@@ -212,6 +289,11 @@ export function TasksPage() {
         </p>
       ) : (
         <>
+          {priorityFilter !== "all" && activeCount === 0 ? (
+            <p className="mt-6 text-sm text-ink-soft">
+              No tasks with this priority.
+            </p>
+          ) : null}
           {overdue.length > 0 ? (
             <TaskSection
               renderTask={renderTask}
@@ -221,6 +303,7 @@ export function TasksPage() {
           ) : null}
           <TaskSection
             composer={sectionComposer("today", today)}
+            hint={todayHint}
             renderTask={renderTask}
             tasks={todayTasks}
             title="Today"

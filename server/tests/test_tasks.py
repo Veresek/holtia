@@ -53,12 +53,14 @@ def test_task_crud_trims_content_and_allows_clearing_date(
         "title",
         "description",
         "done",
+        "priority",
         "date",
         "timeBlockId",
         "order",
         "createdAt",
         "completedAt",
     }
+    assert task["priority"] == "medium"
     assert task["completedAt"] is None
 
     fetched = client.get(f"/api/tasks/{task['id']}")
@@ -71,6 +73,7 @@ def test_task_crud_trims_content_and_allows_clearing_date(
             "title": "  Finish the plan ",
             "description": " ",
             "done": True,
+            "priority": "high",
             "date": None,
             "timeBlockId": None,
             "order": 1,
@@ -84,6 +87,7 @@ def test_task_crud_trims_content_and_allows_clearing_date(
         "title": "Finish the plan",
         "description": "",
         "done": True,
+        "priority": "high",
         "date": None,
         "timeBlockId": None,
         "order": 1,
@@ -102,6 +106,7 @@ def test_task_crud_trims_content_and_allows_clearing_date(
         {"title": "   "},
         {"title": "x" * 256},
         {"title": "Valid", "order": -1},
+        {"title": "Valid", "priority": "urgent"},
     ],
 )
 def test_create_validates_task_fields(
@@ -121,6 +126,8 @@ def test_create_validates_task_fields(
         {"title": None},
         {"description": None},
         {"done": None},
+        {"priority": None},
+        {"priority": "urgent"},
         {"order": None},
         {"order": -1},
     ],
@@ -457,3 +464,26 @@ def test_creating_a_done_task_stamps_completed_at(client: TestClient) -> None:
     assert created.status_code == 201
     assert created.json()["done"] is True
     assert created.json()["completedAt"] is not None
+
+
+def test_task_priority_defaults_and_updates(client: TestClient) -> None:
+    register_verified(client)
+
+    created = client.post("/api/tasks", json={"title": "Default priority"})
+    assert created.status_code == 201
+    task = created.json()
+    assert task["priority"] == "medium"
+
+    high = client.post(
+        "/api/tasks",
+        json={"title": "Urgent", "priority": "high"},
+    )
+    assert high.status_code == 201
+    assert high.json()["priority"] == "high"
+
+    updated = client.patch(
+        f"/api/tasks/{task['id']}",
+        json={"priority": "low"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["priority"] == "low"

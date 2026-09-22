@@ -73,7 +73,7 @@ export function NotesPage() {
       ) : null}
 
       {creating ? (
-        <Dialog onClose={() => setCreating(false)} title="Add note">
+        <Dialog onClose={() => setCreating(false)} title="Add note" wide>
           <NoteForm
             blocks={blocks}
             onCancel={() => setCreating(false)}
@@ -88,7 +88,7 @@ export function NotesPage() {
       ) : null}
 
       {editing ? (
-        <Dialog onClose={() => setEditingId(null)} title="Edit note">
+        <Dialog onClose={() => setEditingId(null)} title="Edit note" wide>
           <NoteForm
             blocks={blocks}
             initial={editing}

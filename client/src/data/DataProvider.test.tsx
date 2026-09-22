@@ -37,6 +37,7 @@ const sampleTask: Task = {
   title: "Plan today",
   description: "",
   done: false,
+  priority: "medium",
   date: "2026-09-01",
   timeBlockId: null,
   order: 0,

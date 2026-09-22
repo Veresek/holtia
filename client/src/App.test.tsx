@@ -118,6 +118,6 @@ describe("App routes", () => {
     expect(
       await screen.findByRole("heading", { name: "Calendar" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add block" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add event" })).toBeInTheDocument();
   });
 });

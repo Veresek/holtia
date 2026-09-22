@@ -5,7 +5,9 @@ import { jsonResponse, stubSignedIn } from "../test/api";
 import { renderPage } from "../test/render";
 import {
   addCalendarDays,
+  addCalendarMonths,
   formatDayHeading,
+  formatMonthHeading,
   formatWeekHeading,
   startOfWeek,
   dateValue,
@@ -146,12 +148,12 @@ describe("CalendarPage", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: formatDayHeading(monday) }),
     );
-    expect(screen.getByRole("dialog", { name: "Add block" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Add event" })).toBeInTheDocument();
     expect(screen.getByLabelText("Date")).toHaveValue(monday);
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Writing" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create block" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create event" }));
 
     expect(await weekBlockButton("Writing, 09:00–11:00")).toBeInTheDocument();
     expect(submitted).toMatchObject({
@@ -177,12 +179,12 @@ describe("CalendarPage", () => {
       },
     });
     renderPage(<CalendarPage />);
-    fireEvent.click(await screen.findByRole("button", { name: "Add block" }));
-    expect(screen.getByRole("dialog", { name: "Add block" })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Add event" }));
+    expect(screen.getByRole("dialog", { name: "Add event" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Writing" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create block" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create event" }));
 
     expect(await weekBlockButton("Writing, 09:00–11:00")).toBeInTheDocument();
     expect(submitted).toMatchObject({
@@ -214,14 +216,16 @@ describe("CalendarPage", () => {
       },
     });
     renderPage(<CalendarPage />);
-    fireEvent.click(await screen.findByRole("button", { name: "Add block" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add event" }));
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Reading" },
     });
-    expect(screen.getAllByRole("radio")).toHaveLength(5);
     expect(screen.getByRole("group", { name: "Color" })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("group", { name: "Color" })).getAllByRole("radio"),
+    ).toHaveLength(5);
     fireEvent.click(screen.getByRole("radio", { name: "Lichen" }));
-    fireEvent.click(screen.getByRole("button", { name: "Create block" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create event" }));
 
     expect(submitted).toMatchObject({
       title: "Reading",
@@ -254,14 +258,14 @@ describe("CalendarPage", () => {
       },
     });
     renderPage(<CalendarPage />);
-    fireEvent.click(await screen.findByRole("button", { name: "Add block" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add event" }));
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Studio" },
     });
     fireEvent.change(screen.getByLabelText("Custom color"), {
       target: { value: "#1a3344" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create block" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create event" }));
 
     expect(submitted).toMatchObject({
       title: "Studio",
@@ -284,7 +288,7 @@ describe("CalendarPage", () => {
       },
     });
     renderPage(<CalendarPage />);
-    fireEvent.click(await screen.findByRole("button", { name: "Add block" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add event" }));
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Studio" },
     });
@@ -293,7 +297,7 @@ describe("CalendarPage", () => {
     });
     fireEvent.click(screen.getByRole("checkbox", { name: "Monday" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Wednesday" }));
-    fireEvent.click(screen.getByRole("button", { name: "Create block" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create event" }));
 
     await waitFor(() =>
       expect(submitted).toMatchObject({
@@ -321,7 +325,7 @@ describe("CalendarPage", () => {
     });
     renderPage(<CalendarPage />);
     fireEvent.click(await weekBlockButton("Weekly review, 09:00–11:00"));
-    expect(screen.getByRole("dialog", { name: "Edit block" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Edit event" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Monday review" },
     });
@@ -361,10 +365,10 @@ describe("CalendarPage", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(
-      screen.getByRole("dialog", { name: "Delete this block?" }),
+      screen.getByRole("dialog", { name: "Delete this event?" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Edit block" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Delete block" }));
+    expect(screen.getByRole("dialog", { name: "Edit event" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Delete event" }));
 
     await waitFor(() =>
       expect(
@@ -411,7 +415,7 @@ describe("CalendarPage", () => {
         name: "Night shift, 22:00–06:00",
       }),
     );
-    expect(screen.getByRole("dialog", { name: "Edit block" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Edit event" })).toBeInTheDocument();
     expect(screen.getByLabelText("Title")).toHaveValue("Night shift");
     expect(screen.getByLabelText("Start")).toHaveValue("22:00");
     expect(screen.getByLabelText("End")).toHaveValue("06:00");
@@ -488,6 +492,7 @@ describe("CalendarPage", () => {
             title: "Write the intro",
             description: "",
             done: false,
+            priority: "medium",
             date: todayValue(),
             timeBlockId: block.id,
             order: 0,
@@ -538,6 +543,7 @@ describe("CalendarPage", () => {
             title: `Task ${index}`,
             description: "",
             done: false,
+            priority: "medium",
             date: todayValue(),
             timeBlockId: block.id,
             order: index,
@@ -565,7 +571,7 @@ describe("CalendarPage", () => {
     expect(screen.getByRole("dialog", { name: "Deep work" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New task" })).toBeInTheDocument();
     expect(
-      screen.queryByRole("dialog", { name: "Edit block" }),
+      screen.queryByRole("dialog", { name: "Edit event" }),
     ).not.toBeInTheDocument();
   });
 
@@ -606,5 +612,140 @@ describe("CalendarPage", () => {
         name: `Show ${formatDayHeading(todayValue())}`,
       }),
     ).toHaveAttribute("aria-current", "date");
+  });
+
+  it("shows one day and opens add event from an empty hour", async () => {
+    stubSignedIn(stubBlocks([sampleBlock()]));
+    renderPage(<CalendarPage />);
+    await screen.findByRole("group", { name: /Week of/ });
+
+    fireEvent.click(screen.getByRole("radio", { name: "Day" }));
+
+    expect(screen.queryByRole("group", { name: /Week of/ })).not.toBeInTheDocument();
+    const day = screen.getByRole("group", { name: formatDayHeading(todayValue()) });
+    expect(
+      within(day).getByRole("button", { name: "Deep work, 09:00–11:00" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next day" }));
+    expect(
+      screen.getByRole("group", {
+        name: formatDayHeading(addCalendarDays(todayValue(), 1)),
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Today" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Today" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Add event, ${formatDayHeading(todayValue())}`,
+      }),
+    );
+    expect(screen.getByRole("dialog", { name: "Add event" })).toBeInTheDocument();
+  });
+
+  it("shows the month, edits an event, and opens a day from the grid", async () => {
+    stubSignedIn(stubBlocks([sampleBlock()]));
+    renderPage(<CalendarPage />);
+    await screen.findByRole("group", { name: /Week of/ });
+
+    fireEvent.click(screen.getByRole("radio", { name: "Month" }));
+
+    const month = screen.getByRole("group", {
+      name: `Month of ${formatMonthHeading(todayValue())}`,
+    });
+    fireEvent.click(
+      within(month).getByRole("button", { name: "Deep work, 09:00" }),
+    );
+    expect(screen.getByRole("dialog", { name: "Edit event" })).toBeInTheDocument();
+
+    fireEvent.click(
+      within(month).getByRole("button", { name: formatDayHeading(todayValue()) }),
+    );
+    expect(screen.getByRole("radio", { name: "Day" })).toBeChecked();
+    expect(
+      screen.getByRole("group", { name: formatDayHeading(todayValue()) }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides events past the third and opens that day", async () => {
+    stubSignedIn(
+      stubBlocks(
+        [0, 1, 2, 3].map((index) =>
+          sampleBlock({
+            id: `11111111-1111-1111-1111-11111111111${index}`,
+            title: `Block ${index}`,
+            start: `${String(9 + index).padStart(2, "0")}:00:00`,
+            end: `${String(10 + index).padStart(2, "0")}:00:00`,
+          }),
+        ),
+      ),
+    );
+    renderPage(<CalendarPage />);
+    await screen.findByRole("group", { name: /Week of/ });
+    fireEvent.click(screen.getByRole("radio", { name: "Month" }));
+
+    const month = screen.getByRole("group", { name: /Month of/ });
+    expect(
+      within(month).getByRole("button", { name: "Block 0, 09:00" }),
+    ).toBeInTheDocument();
+    expect(
+      within(month).queryByRole("button", { name: "Block 3, 12:00" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(within(month).getByRole("button", { name: "+1 more" }));
+
+    expect(screen.getByRole("radio", { name: "Day" })).toBeChecked();
+    expect(
+      screen.getByRole("button", { name: "Block 3, 12:00–13:00" }),
+    ).toBeInTheDocument();
+  });
+
+  it("moves the month without fetching blocks again", async () => {
+    const nextMonth = addCalendarMonths(todayValue(), 1);
+    stubSignedIn(stubBlocks());
+    renderPage(<CalendarPage />);
+    await screen.findByRole("group", { name: /Week of/ });
+    const blockLoads = vi
+      .mocked(fetch)
+      .mock.calls.filter(([input]) => String(input).endsWith("/blocks")).length;
+
+    fireEvent.click(screen.getByRole("radio", { name: "Month" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next month" }));
+
+    expect(screen.getByText(formatMonthHeading(nextMonth))).toBeInTheDocument();
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.filter(([input]) => String(input).endsWith("/blocks")),
+    ).toHaveLength(blockLoads);
+  });
+
+  it("shows field errors when an event is incomplete", async () => {
+    stubSignedIn(stubBlocks());
+    renderPage(<CalendarPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add event" }));
+
+    fireEvent.change(screen.getByLabelText("End"), { target: { value: "09:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create event" }));
+
+    expect(screen.getByText("Enter a title.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Title")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Title")).toHaveClass("border-rust");
+    expect(screen.getByLabelText("End")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("End cannot be the same as start.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Writing" },
+    });
+    fireEvent.change(screen.getByLabelText("Repeat"), {
+      target: { value: "weekdays" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create event" }));
+
+    expect(screen.getByText("Choose at least one day.")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Days" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
   });
 });

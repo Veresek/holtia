@@ -142,6 +142,48 @@ export function weekDates(weekStart: string) {
 	);
 }
 
+export function startOfMonth(isoDate: string) {
+	return `${isoDate.slice(0, 8)}01`;
+}
+
+export function addCalendarMonths(isoDate: string, months: number) {
+	const [year, month, day] = isoDate.split('-').map(Number);
+	const firstOfTarget = new Date(Date.UTC(year, month - 1 + months, 1));
+	const lastDay = new Date(
+		Date.UTC(
+			firstOfTarget.getUTCFullYear(),
+			firstOfTarget.getUTCMonth() + 1,
+			0,
+		),
+	).getUTCDate();
+	return new Date(
+		Date.UTC(
+			firstOfTarget.getUTCFullYear(),
+			firstOfTarget.getUTCMonth(),
+			Math.min(day, lastDay),
+		),
+	)
+		.toISOString()
+		.slice(0, 10);
+}
+
+export function monthGridDates(isoDate: string) {
+	const first = startOfMonth(isoDate);
+	const [year, month] = first.split('-').map(Number);
+	const last = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+	const gridStart = startOfWeek(first);
+	const gridEnd = addCalendarDays(startOfWeek(last), 6);
+	const dates: string[] = [];
+	for (
+		let cursor = gridStart;
+		cursor <= gridEnd;
+		cursor = addCalendarDays(cursor, 1)
+	) {
+		dates.push(cursor);
+	}
+	return dates;
+}
+
 function utcCalendarDate(isoDate: string) {
 	const [year, month, day] = isoDate.split('-').map(Number);
 	return new Date(Date.UTC(year, month - 1, day));
@@ -167,6 +209,14 @@ export function formatWeekHeading(weekStart: string) {
 		return `${startMonth} ${startDay} – ${endMonth} ${endDay}, ${endYear}`;
 	}
 	return `${startMonth} ${startDay}, ${startYear} – ${endMonth} ${endDay}, ${endYear}`;
+}
+
+export function formatMonthHeading(isoDate: string) {
+	return new Intl.DateTimeFormat('en', {
+		month: 'long',
+		year: 'numeric',
+		timeZone: 'UTC',
+	}).format(utcCalendarDate(startOfMonth(isoDate)));
 }
 
 export function formatDayHeading(isoDate: string) {
@@ -336,11 +386,14 @@ export function blockSegmentsOnDay(
 	return segments;
 }
 
-export function formatTimeLabel(value: string) {
-	const minutes = parseTimeMinutes(value);
+export function formatMinutesLabel(minutes: number) {
 	const hour = Math.floor(minutes / 60);
 	const minute = minutes % 60;
 	return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+export function formatTimeLabel(value: string) {
+	return formatMinutesLabel(parseTimeMinutes(value));
 }
 
 export function formatHourLabel(hourIndex: number) {

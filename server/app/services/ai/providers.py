@@ -154,6 +154,7 @@ def parse_task_item(raw: object) -> AiTaskProposal | None:
                 "title": raw.get("title"),
                 "description": raw.get("description") or "",
                 "date": empty_date(raw.get("date")),
+                "priority": raw.get("priority") or "medium",
             }
         )
     except ValidationError:
@@ -162,6 +163,7 @@ def parse_task_item(raw: object) -> AiTaskProposal | None:
         title=payload.title,
         description=payload.description,
         date=payload.date,
+        priority=payload.priority,
     )
 
 

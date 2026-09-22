@@ -12,6 +12,7 @@ function sample(overrides: Partial<Task> = {}): Task {
     title: "Write",
     description: "",
     done: true,
+    priority: "medium",
     date: null,
     timeBlockId: null,
     order: 0,

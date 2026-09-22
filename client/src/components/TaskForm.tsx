@@ -1,9 +1,11 @@
-import { useId, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 
 import { useTaskDraft } from "../hooks/useTaskDraft";
 import { useTimeZone } from "../hooks/useTimeZone";
 import { blockOptionLabel } from "../time";
-import type { TaskCreate, TimeBlock } from "../types";
+import type { TaskCreate, TaskPriority, TimeBlock } from "../types";
+import { FieldError, FieldLabel, fieldClass } from "./fields";
+import { PriorityField } from "./PriorityField";
 
 interface TaskFormProps {
   initial?: {
@@ -11,6 +13,7 @@ interface TaskFormProps {
     description: string;
     date: string | null;
     timeBlockId?: string | null;
+    priority?: TaskPriority;
   };
   blocks?: TimeBlock[];
   submitLabel: string;
@@ -26,17 +29,21 @@ export function TaskForm({
   onCancel,
 }: TaskFormProps) {
   const titleId = useId();
+  const titleErrorId = useId();
   const descriptionId = useId();
   const dateId = useId();
   const blockId = useId();
   const timeZone = useTimeZone();
   const draft = useTaskDraft(blocks, initial, undefined, timeZone);
+  const [titleError, setTitleError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!draft.payload().title) {
+      setTitleError("Enter a title.");
       return;
     }
+    setTitleError(null);
     draft.setSaving(true);
     try {
       await onSubmit(draft.payload());
@@ -51,19 +58,27 @@ export function TaskForm({
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label className="block text-sm font-medium text-ink" htmlFor={titleId}>
+    <form noValidate onSubmit={handleSubmit}>
+      <FieldLabel htmlFor={titleId} required>
         Title
-      </label>
+      </FieldLabel>
       <input
-        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        aria-describedby={titleError ? titleErrorId : undefined}
+        aria-invalid={titleError !== null || undefined}
+        aria-required="true"
+        className={fieldClass(titleError !== null)}
         id={titleId}
         maxLength={255}
-        onChange={(event) => draft.setTitle(event.target.value)}
+        onChange={(event) => {
+          draft.setTitle(event.target.value);
+          if (titleError) {
+            setTitleError(null);
+          }
+        }}
         placeholder="What needs doing?"
-        required
         value={draft.title}
       />
+      {titleError ? <FieldError id={titleErrorId} message={titleError} /> : null}
 
       <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_11rem]">
         <div>
@@ -74,7 +89,7 @@ export function TaskForm({
             Description
           </label>
           <textarea
-            className="mt-1 min-h-24 w-full resize-y rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+            className={fieldClass(false, "min-h-24 resize-y")}
             id={descriptionId}
             maxLength={10000}
             onChange={(event) => draft.setDescription(event.target.value)}
@@ -82,19 +97,25 @@ export function TaskForm({
             value={draft.description}
           />
         </div>
-        <div>
-          <label
-            className="block text-sm font-medium text-ink"
-            htmlFor={dateId}
-          >
-            Date
-          </label>
-          <input
-            className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
-            id={dateId}
-            onChange={(event) => draft.handleDateChange(event.target.value)}
-            type="date"
-            value={draft.date}
+        <div className="flex flex-col gap-4">
+          <div>
+            <label
+              className="block text-sm font-medium text-ink"
+              htmlFor={dateId}
+            >
+              Date
+            </label>
+            <input
+              className={fieldClass(false)}
+              id={dateId}
+              onChange={(event) => draft.handleDateChange(event.target.value)}
+              type="date"
+              value={draft.date}
+            />
+          </div>
+          <PriorityField
+            onChange={draft.setPriority}
+            value={draft.priority}
           />
         </div>
       </div>
@@ -106,7 +127,7 @@ export function TaskForm({
         Time block
       </label>
       <select
-        className="mt-1 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-lichen"
+        className={fieldClass(false)}
         id={blockId}
         onChange={(event) => draft.handleBlockChange(event.target.value)}
         value={draft.timeBlockId}

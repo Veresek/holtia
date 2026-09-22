@@ -34,6 +34,7 @@ interface DayGridProps {
   showAxis?: boolean;
   framed?: boolean;
   className?: string;
+  onEmptySelect?: () => void;
   onSelect?: (id: string) => void;
   onSelectPins?: (id: string) => void;
   onSelectTask?: (id: string) => void;
@@ -220,6 +221,7 @@ export function DayGrid({
   showAxis = true,
   framed = true,
   className = "",
+  onEmptySelect,
   onSelect,
   onSelectPins,
   onSelectTask,
@@ -270,9 +272,17 @@ export function DayGrid({
           </div>
         ) : null}
         <div className="relative min-w-0 flex-1" style={{ height }}>
+          {onEmptySelect ? (
+            <button
+              aria-label={`Add event, ${label}`}
+              className="absolute inset-0 z-0"
+              onClick={onEmptySelect}
+              type="button"
+            />
+          ) : null}
           {ticks.map((tick) => (
             <div
-              className="absolute right-0 left-0 h-px bg-line/80"
+              className="pointer-events-none absolute right-0 left-0 h-px bg-line/80"
               key={`line-${tick}`}
               style={{
                 top: ((tick - rangeStartMinutes) / duration) * 100 + "%",
@@ -287,7 +297,7 @@ export function DayGrid({
             const width = `calc(${100 / block.columns}% - 0.25rem)`;
             const left = `calc(${(block.column / block.columns) * 100}% + 0.125rem)`;
             const className =
-              "absolute overflow-hidden rounded-md border border-l-4 px-2 py-1 text-left";
+              "absolute z-10 overflow-hidden rounded-md border border-l-4 px-2 py-1 text-left";
             const style = {
               top: `${top}%`,
               height: `${blockHeight}%`,

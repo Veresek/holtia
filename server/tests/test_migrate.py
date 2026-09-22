@@ -77,7 +77,7 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
 
     migrate(url)
 
-    assert current_revision(url) == "20260915_0013"
+    assert current_revision(url) == "20260921_0014"
     assert "session_version" in column_names(url, "users")
     assert "timezone" in column_names(url, "users")
     assert column_nullable(url, "users", "timezone") is False
@@ -145,7 +145,7 @@ def test_migrate_stamps_legacy_schema_and_preserves_data(tmp_path: Path) -> None
 
     migrate(url)
 
-    assert current_revision(url) == "20260915_0013"
+    assert current_revision(url) == "20260921_0014"
     assert column_nullable(url, "tasks", "date") is True
     assert column_nullable(url, "tasks", "updated_at") is False
     engine = create_engine(url)

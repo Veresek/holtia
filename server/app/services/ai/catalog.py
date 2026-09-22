@@ -83,6 +83,11 @@ PROPOSE_DAY_CHANGES_PARAMETERS: dict[str, object] = {
                         "type": "string",
                         "description": "YYYY-MM-DD. Omit for an undated task.",
                     },
+                    "priority": {
+                        "type": "string",
+                        "enum": ["high", "medium", "low"],
+                        "description": "Defaults to medium when omitted.",
+                    },
                 },
                 "required": ["title"],
             },

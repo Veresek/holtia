@@ -167,7 +167,7 @@ export function HomePage() {
 							className='shrink-0 rounded-md bg-moss px-3 py-1.5 text-sm font-medium text-paper-raised hover:bg-moss-hover'
 							onClick={() => setCreatingBlock(true)}
 							type='button'>
-							Add block
+							Add event
 						</button>
 					</div>
 					{blocksError ? (
@@ -186,7 +186,7 @@ export function HomePage() {
 					{creatingBlock ? (
 						<Dialog
 							onClose={() => setCreatingBlock(false)}
-							title='Add block'
+							title='Add event'
 							wide>
 							<BlockForm
 								defaultDate={dateValueToday}
@@ -195,7 +195,7 @@ export function HomePage() {
 									await createBlock(payload);
 									setCreatingBlock(false);
 								}}
-								submitLabel='Create block'
+								submitLabel='Create event'
 							/>
 						</Dialog>
 					) : null}
@@ -278,7 +278,7 @@ export function HomePage() {
 						</div>
 					) : null}
 					{creating ? (
-						<Dialog onClose={() => setCreating(false)} title='Add task'>
+						<Dialog onClose={() => setCreating(false)} title='Add task' wide>
 							<TaskForm
 								blocks={blocks}
 								onCancel={() => setCreating(false)}
@@ -291,7 +291,7 @@ export function HomePage() {
 						</Dialog>
 					) : null}
 					{editing ? (
-						<Dialog onClose={() => setEditingId(null)} title='Edit task'>
+						<Dialog onClose={() => setEditingId(null)} title='Edit task' wide>
 							<TaskForm
 								blocks={blocks}
 								initial={editing}
@@ -312,7 +312,7 @@ export function HomePage() {
 								</p>
 							) : openTasks.length === 0 ? (
 								<EmptyCta
-									description='Give today a clear starting point.'
+									description='For example, plan today’s dinner or name the one thing that has to happen.'
 									onClick={() => setCreating(true)}
 									title='Add your first task'
 								/>
@@ -417,7 +417,7 @@ export function HomePage() {
 						</div>
 					) : null}
 					{creatingNote ? (
-						<Dialog onClose={() => setCreatingNote(false)} title='Add note'>
+						<Dialog onClose={() => setCreatingNote(false)} title='Add note' wide>
 							<NoteForm
 								blocks={blocks}
 								onCancel={() => setCreatingNote(false)}
@@ -431,7 +431,7 @@ export function HomePage() {
 						</Dialog>
 					) : null}
 					{editingNote ? (
-						<Dialog onClose={() => setEditingNoteId(null)} title='Edit note'>
+						<Dialog onClose={() => setEditingNoteId(null)} title='Edit note' wide>
 							<NoteForm
 								blocks={blocks}
 								initial={editingNote}
@@ -451,7 +451,7 @@ export function HomePage() {
 						</p>
 					) : notes.length === 0 ? (
 						<EmptyCta
-							description='Keep an idea close to the rest of your day.'
+							description='For example, jot a shopping list or a decision you do not want to lose.'
 							onClick={() => setCreatingNote(true)}
 							title='Add your first note'
 						/>

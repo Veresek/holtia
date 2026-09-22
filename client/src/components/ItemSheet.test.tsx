@@ -12,6 +12,7 @@ const task: Task = {
   title: "Write the intro",
   description: "Draft **one** paragraph.",
   done: false,
+  priority: "medium",
   date: "2026-09-15",
   timeBlockId: null,
   order: 0,

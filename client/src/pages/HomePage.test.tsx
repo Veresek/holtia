@@ -18,6 +18,7 @@ function todayTask(overrides: Partial<Task> = {}): Task {
 		title: 'Plan today',
 		description: '',
 		done: false,
+		priority: "medium",
 		date: todayValue(),
 		timeBlockId: null,
 		order: 0,
@@ -478,7 +479,7 @@ describe('HomePage around now', () => {
 		expect(within(preview).getByText('Now')).toBeInTheDocument();
 		expect(within(preview).queryByText('Deep work')).not.toBeInTheDocument();
 		expect(
-			screen.getByRole('button', { name: 'Add block' }),
+			screen.getByRole('button', { name: 'Add event' }),
 		).toBeInTheDocument();
 	});
 
@@ -550,15 +551,15 @@ describe('HomePage around now', () => {
 		});
 		renderPage(<HomePage />);
 
-		fireEvent.click(await screen.findByRole('button', { name: 'Add block' }));
+		fireEvent.click(await screen.findByRole('button', { name: 'Add event' }));
 		expect(
-			screen.getByRole('dialog', { name: 'Add block' }),
+			screen.getByRole('dialog', { name: 'Add event' }),
 		).toBeInTheDocument();
 		expect(screen.getByLabelText('Date')).toHaveValue(todayValue());
 		fireEvent.change(screen.getByLabelText('Title'), {
 			target: { value: 'Writing' },
 		});
-		fireEvent.click(screen.getByRole('button', { name: 'Create block' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Create event' }));
 
 		expect(await screen.findByText('Writing')).toBeInTheDocument();
 		expect(submitted).toMatchObject({

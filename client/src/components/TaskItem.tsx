@@ -6,6 +6,7 @@ import {
   formatTimeLabel,
   dateValue,
 } from "../time";
+import { priorityLabel, priorityToneClass } from "../taskPriority";
 import type { Note, Task, TimeBlock } from "../types";
 import { ConfirmDelete } from "./ConfirmDelete";
 import {
@@ -51,12 +52,14 @@ export function TaskItem({
   const todayValue = today ?? dateValue(new Date());
   const dateChip =
     showDate && task.date ? formatTaskDateChip(task.date, todayValue) : null;
+  const overdue = !task.done && dateChip?.tone === "overdue";
   const hasDateLine = row ? Boolean(dateChip) : showDate;
   const hasBody =
     Boolean(task.description) ||
     hasDateLine ||
     Boolean(block) ||
-    notes.length > 0;
+    notes.length > 0 ||
+    Boolean(task.priority && task.priority !== "medium");
 
   async function handleToggle() {
     setPending(true);
@@ -117,10 +120,12 @@ export function TaskItem({
         row
           ? [
               "min-w-0 border-b border-line py-3",
+              overdue ? "border-l-2 border-l-rust bg-rust/5 pl-3" : "",
               onEdit ? "cursor-pointer" : "",
             ].join(" ")
           : [
               "min-w-0 rounded-lg border border-line bg-paper-raised transition-colors duration-150 hover:border-lichen",
+              overdue ? "border-l-2 border-l-rust bg-rust/5" : "",
               dense ? "p-3" : "p-4",
               onEdit ? "cursor-pointer" : "",
             ].join(" ")
@@ -148,25 +153,37 @@ export function TaskItem({
           type="checkbox"
         />
         <div className="min-w-0 flex-1">
-          <h3
-            className={[
-              "wrap-break-word font-medium text-ink",
-              task.done ? "line-through opacity-60" : "",
-            ].join(" ")}
-          >
-            {onEdit ? (
-              <button
-                aria-label={`Edit ${task.title}`}
-                className="max-w-full text-left wrap-break-word"
-                onClick={onEdit}
-                type="button"
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <h3
+              className={[
+                "wrap-break-word font-medium text-ink",
+                task.done ? "line-through opacity-60" : "",
+              ].join(" ")}
+            >
+              {onEdit ? (
+                <button
+                  aria-label={`Edit ${task.title}`}
+                  className="max-w-full text-left wrap-break-word"
+                  onClick={onEdit}
+                  type="button"
+                >
+                  {task.title}
+                </button>
+              ) : (
+                task.title
+              )}
+            </h3>
+            {task.priority !== "medium" ? (
+              <span
+                className={[
+                  "text-xs font-medium",
+                  priorityToneClass(task.priority),
+                ].join(" ")}
               >
-                {task.title}
-              </button>
-            ) : (
-              task.title
-            )}
-          </h3>
+                {priorityLabel(task.priority)}
+              </span>
+            ) : null}
+          </div>
           {task.description ? (
             <ExpandableMarkdown
               className={
@@ -183,8 +200,9 @@ export function TaskItem({
           {row && dateChip ? (
             <p
               className={[
-                "mt-1 inline-flex items-center gap-1 text-xs",
+                "mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs",
                 dateToneClass,
+                overdue ? "border border-rust/30 bg-rust/10" : "",
               ].join(" ")}
             >
               <Icon className="size-3.5 shrink-0" name="calendar" />
@@ -192,7 +210,14 @@ export function TaskItem({
             </p>
           ) : null}
           {!row && showDate ? (
-            <p className="mt-2 wrap-break-word text-xs text-ink-faint">
+            <p
+              className={[
+                "mt-2 wrap-break-word text-xs",
+                overdue
+                  ? "inline-flex rounded-md border border-rust/30 bg-rust/10 px-1.5 py-0.5 text-rust"
+                  : "text-ink-faint",
+              ].join(" ")}
+            >
               {task.date ? formatDateLabel(task.date) : "No date"}
             </p>
           ) : null}

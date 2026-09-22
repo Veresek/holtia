@@ -38,8 +38,8 @@ Five panels (sidebar on desktop, bottom tabs on mobile):
 | Panel        | What is there                                                          |
 | ------------ | ---------------------------------------------------------------------- |
 | **Home**     | Morning review: today’s open tasks, nearby-block preview, recent notes |
-| **Calendar** | Week of 24 h columns on desktop; one day plus a week strip on a phone  |
-| **Tasks**    | Active tasks grouped by Overdue, Today, Upcoming, and No date; older completed work in Archive |
+| **Calendar** | Day, week, or month. Desktop week is 24 h columns; a phone week is one day plus a week strip. Day is one 24 h column. Month is a Monday-first grid |
+| **Tasks**    | Active tasks grouped by Overdue, Today, Upcoming, and No date; filter by priority; older completed work in Archive |
 | **Notes**    | Loose cards (Keep-style)                                               |
 | **Account**  | Email, timezone, verification status, AI key, log out, delete           |
 
@@ -57,7 +57,7 @@ blocks; nothing is written until the user confirms.
 
 **Mobile:** panels at the bottom; AI bar at the top; block preview under it; today’s open tasks below that; recent notes further down.
 
-The calendar preview is a **window around now**: 1 h back and at least 3 h forward. On desktop it grows with the today’s-tasks column and shows more hours ahead. The week grid lives in Calendar.
+The calendar preview is a **window around now**: 1 h back and at least 3 h forward. On desktop it grows with the today’s-tasks column and shows more hours ahead. Day, week, and month live in Calendar.
 
 Empty state: where tasks would be, a button in the app colors (dashed border, plus in the center) to add the first task; on the preview / grid — empty hours, no fake events; notes get a similar CTA or sit empty.
 
@@ -65,11 +65,12 @@ Undated tasks do not appear on Home — they live in Tasks under No date. Home�
 
 ## How the three pillars connect
 
-**Task** (title, done, description, optional day):
+**Task** (title, done, description, optional day, priority high/medium/low):
 
 - hang on a day with no time,
 - sit fully outside the calendar (visible in Tasks, not on Home),
 - pin to a **specific occurrence** of a time block (`date` + `timeBlockId`). The date must be a day the block occurs; if you pin without a date, the next occurrence is filled in.
+- Tasks lists sort by priority (high → low) within each group; the Tasks panel can filter by priority.
 
 **Note** is a loose markdown card. The Notes panel is the full collection. Home shows a few recent ones. A note may hang on a **day** (`date`), on a time block (`timeBlockId`) independently of any task — the block pin is to the series, so the note shows on every occurrence — and/or on a task (`taskId`) from the note form.
 

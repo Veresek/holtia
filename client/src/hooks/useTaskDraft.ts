@@ -6,13 +6,14 @@ import {
   DEFAULT_TIME_ZONE,
   nextOccurrenceOnOrAfter,
 } from "../time";
-import type { TaskCreate, TimeBlock } from "../types";
+import type { TaskCreate, TaskPriority, TimeBlock } from "../types";
 
 export interface TaskDraftValues {
   title: string;
   description: string;
   date: string | null;
   timeBlockId?: string | null;
+  priority?: TaskPriority;
 }
 
 export function useTaskDraft(
@@ -26,6 +27,9 @@ export function useTaskDraft(
   const [description, setDescription] = useState(initial?.description ?? "");
   const [date, setDate] = useState(startingDate);
   const [timeBlockId, setTimeBlockId] = useState(initial?.timeBlockId ?? "");
+  const [priority, setPriority] = useState<TaskPriority>(
+    initial?.priority ?? "medium",
+  );
   const [saving, setSaving] = useState(false);
   const availableBlocks = useMemo(
     () =>
@@ -67,6 +71,7 @@ export function useTaskDraft(
     setTitle(initial?.title ?? "");
     setDescription(initial?.description ?? "");
     setTimeBlockId(initial?.timeBlockId ?? "");
+    setPriority(initial?.priority ?? "medium");
     setDate(startingDate);
     setSaving(false);
   }
@@ -77,6 +82,7 @@ export function useTaskDraft(
       description: description.trim(),
       date: date || null,
       timeBlockId: timeBlockId || null,
+      priority,
     };
   }
 
@@ -87,6 +93,8 @@ export function useTaskDraft(
     setDescription,
     date,
     timeBlockId,
+    priority,
+    setPriority,
     saving,
     setSaving,
     availableBlocks,

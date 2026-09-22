@@ -7,12 +7,16 @@ import {
 	blockOccursOn,
 	blockSegmentsOnDay,
 	formatTaskDateChip,
+	addCalendarMonths,
+	formatMonthHeading,
 	formatWeekHeading,
 	hourTicks,
 	isOvernight,
+	monthGridDates,
 	nextOccurrenceOnOrAfter,
 	parseInstant,
 	parseTimeMinutes,
+	startOfMonth,
 	startOfWeek,
 	dateValue,
 	greeting,
@@ -44,6 +48,18 @@ describe('time helpers', () => {
 			'2026-09-05',
 			'2026-09-06',
 		]);
+	});
+
+	it('builds a Monday-first month grid and clamps short months', () => {
+		expect(startOfMonth('2026-09-22')).toBe('2026-09-01');
+		expect(addCalendarMonths('2026-09-22', 1)).toBe('2026-10-22');
+		expect(addCalendarMonths('2026-01-31', 1)).toBe('2026-02-28');
+		expect(addCalendarMonths('2026-03-31', -1)).toBe('2026-02-28');
+		const grid = monthGridDates('2026-09-15');
+		expect(grid[0]).toBe(startOfWeek('2026-09-01'));
+		expect(grid.at(-1)).toBe(addCalendarDays(startOfWeek('2026-09-30'), 6));
+		expect(grid.length % 7).toBe(0);
+		expect(formatMonthHeading('2026-09-15')).toBe('September 2026');
 	});
 
 	it('formats a week heading across a month boundary', () => {

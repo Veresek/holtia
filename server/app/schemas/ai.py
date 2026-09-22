@@ -105,6 +105,7 @@ class AiTaskProposal(ApiModel):
     title: str = Field(min_length=1, max_length=TITLE_MAX_LENGTH)
     description: str = Field(default="", max_length=DESCRIPTION_MAX_LENGTH)
     date: DateType | None = None
+    priority: Literal["high", "medium", "low"] = "medium"
 
     @field_validator("title")
     @classmethod

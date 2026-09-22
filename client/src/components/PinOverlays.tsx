@@ -138,6 +138,7 @@ function PinOverlays({
         <Dialog
           onClose={() => onCreatingChange(null)}
           title="Add task"
+          wide
         >
           <TaskForm
             blocks={blocks}
@@ -157,7 +158,7 @@ function PinOverlays({
         </Dialog>
       ) : null}
       {creating?.kind === "note" ? (
-        <Dialog onClose={() => onCreatingChange(null)} title="Add note">
+        <Dialog onClose={() => onCreatingChange(null)} title="Add note" wide>
           <NoteForm
             blocks={blocks}
             initial={{

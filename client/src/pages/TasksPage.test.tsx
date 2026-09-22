@@ -25,6 +25,7 @@ const task: Task = {
   title: "Write report",
   description: "Draft the opening.",
   done: false,
+  priority: "medium",
   date: null,
   timeBlockId: null,
   order: 0,
@@ -262,6 +263,7 @@ describe("TasksPage", () => {
             title: "Legacy done",
             description: "",
             done: true,
+            priority: "medium",
             date: null,
             timeBlockId: null,
             order: 0,
@@ -668,5 +670,107 @@ describe("TasksPage", () => {
     openComposer("Upcoming");
     expect(screen.getByLabelText("Date")).toHaveValue(tomorrow);
     expect(within(section("Today")).queryByLabelText("Title")).not.toBeInTheDocument();
+  });
+
+  it("hints when Today is empty and No date has tasks", async () => {
+    stubSignedIn({
+      "GET /tasks": () => jsonResponse([task]),
+    });
+    renderPage(<TasksPage />);
+
+    const todaySection = await screen.findByRole("region", { name: "Today" });
+    expect(
+      within(todaySection).getByText(
+        "Set a date on a No date task to move it here.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(section("No date")).getByText("Write report")).toBeInTheDocument();
+  });
+
+  it("filters the list by priority", async () => {
+    const today = todayValue();
+    stubSignedIn({
+      "GET /tasks": () =>
+        jsonResponse([
+          {
+            ...task,
+            id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            title: "High focus",
+            priority: "high",
+            date: today,
+          },
+          {
+            ...task,
+            id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            title: "Medium chore",
+            priority: "medium",
+            date: today,
+          },
+          {
+            ...task,
+            id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            title: "Low someday",
+            priority: "low",
+            date: null,
+          },
+        ]),
+    });
+    renderPage(<TasksPage />);
+
+    expect(await screen.findByText("High focus")).toBeInTheDocument();
+    expect(screen.getByText("Medium chore")).toBeInTheDocument();
+    expect(screen.getByText("Low someday")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "High" }));
+
+    expect(screen.getByText("High focus")).toBeInTheDocument();
+    expect(screen.queryByText("Medium chore")).not.toBeInTheDocument();
+    expect(screen.queryByText("Low someday")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+
+    expect(screen.getByText("High focus")).toBeInTheDocument();
+    expect(screen.getByText("Medium chore")).toBeInTheDocument();
+    expect(screen.getByText("Low someday")).toBeInTheDocument();
+  });
+
+  it("sorts each section high to low before order", async () => {
+    const today = todayValue();
+    stubSignedIn({
+      "GET /tasks": () =>
+        jsonResponse([
+          {
+            ...task,
+            id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            title: "Low first",
+            priority: "low",
+            date: today,
+            order: 0,
+          },
+          {
+            ...task,
+            id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            title: "High later",
+            priority: "high",
+            date: today,
+            order: 1,
+          },
+          {
+            ...task,
+            id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            title: "Medium mid",
+            priority: "medium",
+            date: today,
+            order: 2,
+          },
+        ]),
+    });
+    renderPage(<TasksPage />);
+
+    const todaySection = await screen.findByRole("region", { name: "Today" });
+    const titles = within(todaySection)
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent);
+    expect(titles).toEqual(["High later", "Medium mid", "Low first"]);
   });
 });

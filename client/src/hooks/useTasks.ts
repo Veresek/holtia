@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { useData } from "../data/DataProvider";
+import { compareByPriority } from "../taskPriority";
 import type { Task } from "../types";
 
 function compareText(left: string | undefined, right: string | undefined) {
@@ -9,6 +10,7 @@ function compareText(left: string | undefined, right: string | undefined) {
 
 function taskOrder(left: Task, right: Task) {
   return (
+    compareByPriority(left, right) ||
     Number(Boolean(left.done)) - Number(Boolean(right.done)) ||
     (left.order ?? 0) - (right.order ?? 0) ||
     compareText(left.createdAt, right.createdAt) ||
