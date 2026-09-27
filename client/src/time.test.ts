@@ -163,10 +163,18 @@ describe('time helpers', () => {
 		};
 		expect(isOvernight(overnight.start, overnight.end)).toBe(true);
 		expect(blockSegmentsOnDay(overnight, '2026-08-31')).toEqual([
-			{ startMinutes: 22 * 60, endMinutes: 1440 },
+			{
+				startMinutes: 22 * 60,
+				endMinutes: 1440,
+				occurrenceDate: '2026-08-31',
+			},
 		]);
 		expect(blockSegmentsOnDay(overnight, '2026-09-01')).toEqual([
-			{ startMinutes: 0, endMinutes: 6 * 60 },
+			{
+				startMinutes: 0,
+				endMinutes: 6 * 60,
+				occurrenceDate: '2026-08-31',
+			},
 		]);
 		expect(blockSegmentsOnDay(overnight, '2026-09-02')).toEqual([]);
 	});
@@ -180,8 +188,16 @@ describe('time helpers', () => {
 			recurrenceDays: [],
 		};
 		expect(blockSegmentsOnDay(overnight, '2026-09-01')).toEqual([
-			{ startMinutes: 22 * 60, endMinutes: 1440 },
-			{ startMinutes: 0, endMinutes: 6 * 60 },
+			{
+				startMinutes: 22 * 60,
+				endMinutes: 1440,
+				occurrenceDate: '2026-09-01',
+			},
+			{
+				startMinutes: 0,
+				endMinutes: 6 * 60,
+				occurrenceDate: '2026-08-31',
+			},
 		]);
 	});
 

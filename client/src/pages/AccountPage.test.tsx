@@ -33,7 +33,12 @@ describe("AccountPage", () => {
     const headings = screen
       .getAllByRole("heading")
       .map((heading) => heading.textContent);
-    expect(headings).toEqual(["Account", "AI assistant", "Delete account"]);
+    expect(headings).toEqual([
+      "Account",
+      "Keyboard shortcuts",
+      "AI assistant",
+      "Delete account",
+    ]);
   });
 
   it("shows the signed-in email without verification copy", async () => {
@@ -42,7 +47,9 @@ describe("AccountPage", () => {
 
     await screen.findByRole("heading", { name: "Account" });
     expect(screen.getByText(ada.email)).toBeInTheDocument();
-    expect(screen.getByText(/Europe\/Warsaw/)).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Timezone" })).toHaveValue(
+      "Europe/Warsaw",
+    );
     expect(
       screen.getByRole("button", { name: "Use this device" }),
     ).toBeInTheDocument();
@@ -78,6 +85,30 @@ describe("AccountPage", () => {
     );
   });
 
+  it("saves a timezone chosen from the list", async () => {
+    let saved = "";
+    stubApi(
+      {
+        "PATCH /users/me": (init) => {
+          const body = JSON.parse(String(init?.body)) as { timezone: string };
+          saved = body.timezone;
+          return jsonResponse({ ...ada, timezone: body.timezone });
+        },
+      },
+      { user: ada },
+    );
+    renderWithRouter(<App />, { route: "/account" });
+
+    fireEvent.change(await screen.findByRole("combobox", { name: "Timezone" }), {
+      target: { value: "Pacific/Auckland" },
+    });
+
+    await waitFor(() => expect(saved).toBe("Pacific/Auckland"));
+    expect(screen.getByRole("combobox", { name: "Timezone" })).toHaveValue(
+      "Pacific/Auckland",
+    );
+  });
+
   it("keeps account, assistant, then delete in document order", async () => {
     stubApi({}, { user: ada });
     renderWithRouter(<App />, { route: "/account" });
@@ -88,7 +119,26 @@ describe("AccountPage", () => {
       .filter((heading) => heading.closest("main"))
       .map((heading) => heading.textContent);
 
-    expect(headings).toEqual(["Account", "AI assistant", "Delete account"]);
+    expect(headings).toEqual([
+      "Account",
+      "Keyboard shortcuts",
+      "AI assistant",
+      "Delete account",
+    ]);
+  });
+
+  it("opens the keyboard shortcut list", async () => {
+    stubApi({}, { user: ada });
+    renderWithRouter(<App />, { route: "/account" });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Show shortcuts" }),
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Go to Home")).toBeInTheDocument();
   });
 
   it("cancels account deletion without sending a request", async () => {

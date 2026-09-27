@@ -94,6 +94,7 @@ export type NoteUpdate = Partial<NoteCreate>;
 export interface CollectionFingerprint {
   count: number;
   updatedAt: string | null;
+  pinned: number;
 }
 
 export interface AppState {

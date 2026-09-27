@@ -7,6 +7,7 @@ import { TaskItem } from "../components/TaskItem";
 import { usePinOverlays } from "../components/PinOverlays";
 import { useData } from "../data/DataProvider";
 import { useNow } from "../hooks/useNow";
+import { useShortcuts } from "../hooks/useShortcuts";
 import { useTasks } from "../hooks/useTasks";
 import { useTimeZone } from "../hooks/useTimeZone";
 import { isArchivedTask } from "../taskArchive";
@@ -168,6 +169,12 @@ export function TasksPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
   const editing = tasks.find((task) => task.id === editingId);
+  useShortcuts({
+    create: () => {
+      setEditingId(null);
+      setComposer("today");
+    },
+  });
   const visibleTasks =
     priorityFilter === "all"
       ? tasks

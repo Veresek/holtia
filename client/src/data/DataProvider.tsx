@@ -57,7 +57,8 @@ function fingerprintsEqual(
   return (
     left !== null &&
     left.count === right.count &&
-    left.updatedAt === right.updatedAt
+    left.updatedAt === right.updatedAt &&
+    left.pinned === right.pinned
   );
 }
 
@@ -109,7 +110,12 @@ export function DataProvider({ children }: DataProviderProps) {
   notesRef.current = notes;
   blocksRef.current = blocks;
   const generation = useRef(0);
+  const mutations = useRef({ tasks: 0, notes: 0, blocks: 0 });
   const revalidateInFlight = useRef<Promise<void> | null>(null);
+
+  const markMutated = useCallback((name: "tasks" | "notes" | "blocks") => {
+    mutations.current[name] += 1;
+  }, []);
 
   useEffect(() => {
     const current = ++generation.current;
@@ -233,8 +239,13 @@ export function DataProvider({ children }: DataProviderProps) {
         error: null,
       }));
     }
+    const seen = mutations.current.tasks;
     try {
       const items = await tasksApi.list();
+      if (mutations.current.tasks !== seen) {
+        setTasks((current) => ({ ...current, loading: false }));
+        return false;
+      }
       setTasks((current) => ({
         ...current,
         items,
@@ -263,8 +274,13 @@ export function DataProvider({ children }: DataProviderProps) {
         error: null,
       }));
     }
+    const seen = mutations.current.notes;
     try {
       const items = await notesApi.list();
+      if (mutations.current.notes !== seen) {
+        setNotes((current) => ({ ...current, loading: false }));
+        return false;
+      }
       setNotes((current) => ({
         ...current,
         items,
@@ -293,8 +309,13 @@ export function DataProvider({ children }: DataProviderProps) {
         error: null,
       }));
     }
+    const seen = mutations.current.blocks;
     try {
       const items = await blocksApi.list();
+      if (mutations.current.blocks !== seen) {
+        setBlocks((current) => ({ ...current, loading: false }));
+        return false;
+      }
       setBlocks((current) => ({
         ...current,
         items,
@@ -448,8 +469,10 @@ export function DataProvider({ children }: DataProviderProps) {
 
   const createTask = useCallback(async (payload: TaskCreate) => {
     setTasks((current) => ({ ...current, error: null }));
+    markMutated("tasks");
     try {
       const created = await tasksApi.create(payload);
+      markMutated("tasks");
       setTasks((current) => ({
         ...current,
         items: [...current.items, created],
@@ -462,12 +485,14 @@ export function DataProvider({ children }: DataProviderProps) {
       }));
       throw caught;
     }
-  }, []);
+  }, [markMutated]);
 
   const updateTask = useCallback(async (id: string, payload: TaskUpdate) => {
     setTasks((current) => ({ ...current, error: null }));
+    markMutated("tasks");
     try {
       const updated = await tasksApi.update(id, payload);
+      markMutated("tasks");
       setTasks((current) => ({
         ...current,
         items: current.items.map((task) => (task.id === id ? updated : task)),
@@ -480,15 +505,25 @@ export function DataProvider({ children }: DataProviderProps) {
       }));
       throw caught;
     }
-  }, []);
+  }, [markMutated]);
 
   const deleteTask = useCallback(async (id: string) => {
     setTasks((current) => ({ ...current, error: null }));
+    markMutated("tasks");
+    markMutated("notes");
     try {
       await tasksApi.remove(id);
+      markMutated("tasks");
+      markMutated("notes");
       setTasks((current) => ({
         ...current,
         items: current.items.filter((task) => task.id !== id),
+      }));
+      setNotes((current) => ({
+        ...current,
+        items: current.items.map((note) =>
+          note.taskId === id ? { ...note, taskId: null } : note,
+        ),
       }));
     } catch (caught) {
       setTasks((current) => ({
@@ -497,12 +532,14 @@ export function DataProvider({ children }: DataProviderProps) {
       }));
       throw caught;
     }
-  }, []);
+  }, [markMutated]);
 
   const createNote = useCallback(async (payload: NoteCreate) => {
     setNotes((current) => ({ ...current, error: null }));
+    markMutated("notes");
     try {
       const created = await notesApi.create(payload);
+      markMutated("notes");
       setNotes((current) => ({
         ...current,
         items: [...current.items, created],
@@ -515,12 +552,14 @@ export function DataProvider({ children }: DataProviderProps) {
       }));
       throw caught;
     }
-  }, []);
+  }, [markMutated]);
 
   const updateNote = useCallback(async (id: string, payload: NoteUpdate) => {
     setNotes((current) => ({ ...current, error: null }));
+    markMutated("notes");
     try {
       const updated = await notesApi.update(id, payload);
+      markMutated("notes");
       setNotes((current) => ({
         ...current,
         items: current.items.map((note) => (note.id === id ? updated : note)),
@@ -533,12 +572,14 @@ export function DataProvider({ children }: DataProviderProps) {
       }));
       throw caught;
     }
-  }, []);
+  }, [markMutated]);
 
   const deleteNote = useCallback(async (id: string) => {
     setNotes((current) => ({ ...current, error: null }));
+    markMutated("notes");
     try {
       await notesApi.remove(id);
+      markMutated("notes");
       setNotes((current) => ({
         ...current,
         items: current.items.filter((note) => note.id !== id),
@@ -550,12 +591,14 @@ export function DataProvider({ children }: DataProviderProps) {
       }));
       throw caught;
     }
-  }, []);
+  }, [markMutated]);
 
   const createBlock = useCallback(async (payload: TimeBlockCreate) => {
     setBlocks((current) => ({ ...current, error: null }));
+    markMutated("blocks");
     try {
       const created = await blocksApi.create(payload);
+      markMutated("blocks");
       setBlocks((current) => ({
         ...current,
         items: [...current.items, created],
@@ -568,13 +611,17 @@ export function DataProvider({ children }: DataProviderProps) {
       }));
       throw caught;
     }
-  }, []);
+  }, [markMutated]);
 
   const updateBlock = useCallback(
     async (id: string, payload: TimeBlockUpdate) => {
       setBlocks((current) => ({ ...current, error: null }));
+      markMutated("blocks");
+      markMutated("tasks");
       try {
         const updated = await blocksApi.update(id, payload);
+        markMutated("blocks");
+        markMutated("tasks");
         setBlocks((current) => {
           const next = current.items.map((block) =>
             block.id === id ? updated : block,
@@ -584,6 +631,7 @@ export function DataProvider({ children }: DataProviderProps) {
           }
           return { ...current, items: next };
         });
+        await revalidate();
         return updated;
       } catch (caught) {
         setBlocks((current) => ({
@@ -593,16 +641,34 @@ export function DataProvider({ children }: DataProviderProps) {
         throw caught;
       }
     },
-    [],
+    [markMutated, revalidate],
   );
 
   const deleteBlock = useCallback(async (id: string) => {
     setBlocks((current) => ({ ...current, error: null }));
+    markMutated("blocks");
+    markMutated("tasks");
+    markMutated("notes");
     try {
       await blocksApi.remove(id);
+      markMutated("blocks");
+      markMutated("tasks");
+      markMutated("notes");
       setBlocks((current) => ({
         ...current,
         items: current.items.filter((block) => block.id !== id),
+      }));
+      setTasks((current) => ({
+        ...current,
+        items: current.items.map((task) =>
+          task.timeBlockId === id ? { ...task, timeBlockId: null } : task,
+        ),
+      }));
+      setNotes((current) => ({
+        ...current,
+        items: current.items.map((note) =>
+          note.timeBlockId === id ? { ...note, timeBlockId: null } : note,
+        ),
       }));
     } catch (caught) {
       setBlocks((current) => ({
@@ -611,7 +677,7 @@ export function DataProvider({ children }: DataProviderProps) {
       }));
       throw caught;
     }
-  }, []);
+  }, [markMutated]);
 
   const value = useMemo<DataContextValue>(
     () => ({

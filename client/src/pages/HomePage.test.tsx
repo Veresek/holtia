@@ -709,4 +709,16 @@ describe('HomePage around now', () => {
 			screen.queryByRole('dialog', { name: 'Edit task' }),
 		).not.toBeInTheDocument();
 	});
+
+	it('opens add task from the n key', async () => {
+		stubSignedIn();
+		renderPage(<HomePage />);
+
+		await screen.findByRole('button', { name: 'Add your first task' });
+		fireEvent.keyDown(document.body, { key: 'n' });
+
+		expect(
+			screen.getByRole('dialog', { name: 'Add task' }),
+		).toBeInTheDocument();
+	});
 });

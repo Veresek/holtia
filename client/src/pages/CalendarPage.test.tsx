@@ -96,7 +96,9 @@ describe("CalendarPage", () => {
     });
     for (const date of thisWeek()) {
       expect(
-        within(grid).getByRole("button", { name: formatDayHeading(date) }),
+        within(grid).getByRole("button", {
+          name: `Add event, ${formatDayHeading(date)}`,
+        }),
       ).toBeInTheDocument();
     }
     expect(
@@ -146,7 +148,9 @@ describe("CalendarPage", () => {
     });
     renderPage(<CalendarPage />);
     fireEvent.click(
-      await screen.findByRole("button", { name: formatDayHeading(monday) }),
+      await screen.findByRole("button", {
+        name: `Add event, ${formatDayHeading(monday)}`,
+      }),
     );
     expect(screen.getByRole("dialog", { name: "Add event" })).toBeInTheDocument();
     expect(screen.getByLabelText("Date")).toHaveValue(monday);
@@ -421,6 +425,49 @@ describe("CalendarPage", () => {
     expect(screen.getByLabelText("End")).toHaveValue("06:00");
     expect(
       screen.getByText("This block continues into the next day."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a task pinned to the start day on the morning continuation", async () => {
+    const monday = startOfWeek(todayValue());
+    const tuesday = addCalendarDays(monday, 1);
+    const block = sampleBlock({
+      date: monday,
+      start: "23:00:00",
+      end: "01:00:00",
+      title: "Night shift",
+    });
+    stubSignedIn({
+      "GET /blocks": () => jsonResponse([block]),
+      "GET /tasks": () =>
+        jsonResponse([
+          {
+            id: "22222222-2222-2222-2222-222222222222",
+            title: "Write the intro",
+            description: "",
+            done: false,
+            priority: "medium",
+            date: monday,
+            timeBlockId: block.id,
+            order: 0,
+            createdAt: "2026-09-01T08:00:00Z",
+            completedAt: null,
+          },
+        ]),
+    });
+    renderPage(<CalendarPage />);
+
+    const grid = await screen.findByRole("group", { name: /Week of/ });
+    const tuesdayColumn = within(grid).getByRole("group", {
+      name: formatDayHeading(tuesday),
+    });
+    fireEvent.click(within(tuesdayColumn).getByRole("button", { name: "1 task" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Night shift" });
+    expect(dialog).toHaveTextContent(formatDayHeading(monday));
+    expect(dialog).not.toHaveTextContent(formatDayHeading(tuesday));
+    expect(
+      within(dialog).getByRole("button", { name: "Write the intro" }),
     ).toBeInTheDocument();
   });
 

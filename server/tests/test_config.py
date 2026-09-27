@@ -18,11 +18,23 @@ def test_development_allows_an_empty_instance_code() -> None:
 def test_production_rejects_an_empty_instance_code() -> None:
     with pytest.raises(
         ValidationError,
-        match="INSTANCE_CODE must not be empty in production",
+        match="INSTANCE_CODE must be at least 12 characters in production",
     ):
         Settings(
             environment="production",
             instance_code="",
+            secret_key=STRONG_SECRET,
+        )
+
+
+def test_production_rejects_a_short_instance_code() -> None:
+    with pytest.raises(
+        ValidationError,
+        match="INSTANCE_CODE must be at least 12 characters in production",
+    ):
+        Settings(
+            environment="production",
+            instance_code="short-code",
             secret_key=STRONG_SECRET,
         )
 

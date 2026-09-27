@@ -12,8 +12,9 @@ import { AiKeyItem, PROVIDER_ICONS, PROVIDER_LABELS } from "../components/AiKeyI
 import { ConfirmDelete } from "../components/ConfirmDelete";
 import { Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icon";
+import { useOpenShortcuts } from "../components/ShortcutList";
 import { useAiSettings } from "../hooks/useAiSettings";
-import { deviceTimeZone, formatTimeZoneLabel } from "../time";
+import { deviceTimeZone, formatTimeZoneLabel, timeZoneOptions } from "../time";
 import type { AiKey, AiProvider } from "../types";
 
 const PROVIDERS = Object.keys(PROVIDER_LABELS) as AiProvider[];
@@ -21,6 +22,7 @@ const PROVIDERS = Object.keys(PROVIDER_LABELS) as AiProvider[];
 export function AccountPage() {
   const { user, logout, deleteAccount, updateUser } = useAuth();
   const { settings, loading: settingsLoading, setSettings } = useAiSettings();
+  const openShortcuts = useOpenShortcuts();
   const [pendingAction, setPendingAction] = useState<
     | "logout"
     | "delete"
@@ -102,11 +104,14 @@ export function AccountPage() {
     }
   }
 
-  async function handleUseDeviceTimeZone() {
+  async function handleTimeZone(timezone: string) {
+    if (!timezone || timezone === user?.timezone) {
+      return;
+    }
     setError(null);
     setPendingAction("timezone");
     try {
-      await updateUser({ timezone: deviceTimeZone() });
+      await updateUser({ timezone });
     } catch (caught) {
       setError(
         caught instanceof ApiError
@@ -116,6 +121,10 @@ export function AccountPage() {
     } finally {
       setPendingAction(null);
     }
+  }
+
+  async function handleUseDeviceTimeZone() {
+    await handleTimeZone(deviceTimeZone());
   }
 
   async function handleDelete() {
@@ -215,9 +224,34 @@ export function AccountPage() {
           <h1 className="mt-2 font-serif text-3xl md:text-4xl">Account</h1>
           <p className="mt-6 text-sm text-ink">{user?.email}</p>
           {user?.timezone ? (
-            <p className="mt-2 text-sm text-ink-soft">
-              {formatTimeZoneLabel(user.timezone)}
-            </p>
+            <>
+              <label
+                className="mt-4 block text-sm font-medium text-ink"
+                htmlFor="account-timezone"
+              >
+                Timezone
+              </label>
+              <p className="mt-1 text-sm text-ink-soft">
+                {formatTimeZoneLabel(user.timezone)}
+              </p>
+              <select
+                className={fieldClassName}
+                disabled={pending}
+                id="account-timezone"
+                onChange={(event) => void handleTimeZone(event.target.value)}
+                value={user.timezone}
+              >
+                {timeZoneOptions(user.timezone).map(([region, zones]) => (
+                  <optgroup key={region} label={region}>
+                    {zones.map((zone) => (
+                      <option key={zone} value={zone}>
+                        {zone.replaceAll("_", " ")}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </>
           ) : null}
           {user?.verifiedAt ? null : (
             <p className="mt-2 text-sm text-ink-soft">
@@ -251,6 +285,24 @@ export function AccountPage() {
               {error}
             </p>
           ) : null}
+          <section
+            aria-labelledby="keyboard-shortcuts-title"
+            className="mt-8 hidden border-t border-line pt-6 md:block"
+          >
+            <h2 className="font-serif text-2xl" id="keyboard-shortcuts-title">
+              Keyboard shortcuts
+            </h2>
+            <p className="mt-2 text-sm text-ink-soft">
+              Press ? anywhere to open the list.
+            </p>
+            <button
+              className="mt-3 rounded-md border border-line px-4 py-2 text-sm font-medium text-ink hover:border-lichen"
+              onClick={openShortcuts}
+              type="button"
+            >
+              Show shortcuts
+            </button>
+          </section>
         </div>
         <section
           aria-labelledby="ai-assistant-title"

@@ -6,9 +6,11 @@ import { Masonry } from "../components/Masonry";
 import { NoteCard } from "../components/NoteCard";
 import { NoteForm } from "../components/NoteForm";
 import { usePinOverlays } from "../components/PinOverlays";
+import { fieldClass } from "../components/fields";
 import { useData } from "../data/DataProvider";
 import { useNotes } from "../hooks/useNotes";
 import { useNow } from "../hooks/useNow";
+import { PANEL_SHORTCUT_PRIORITY, useShortcuts } from "../hooks/useShortcuts";
 import { useTimeZone } from "../hooks/useTimeZone";
 import { nextOccurrenceOnOrAfter, dateValue } from "../time";
 
@@ -28,7 +30,26 @@ export function NotesPage() {
   const pinOverlays = usePinOverlays();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const editing = notes.find((note) => note.id === editingId);
+  useShortcuts(
+    {
+      create: () => {
+        setEditingId(null);
+        setCreating(true);
+      },
+      "search-notes": () => {
+        document.getElementById("notes-search")?.focus();
+      },
+    },
+    PANEL_SHORTCUT_PRIORITY,
+  );
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleNotes = normalizedQuery
+    ? notes.filter((note) =>
+        `${note.title}\n${note.markdown}`.toLowerCase().includes(normalizedQuery),
+      )
+    : notes;
 
   return (
     <section className="mx-auto w-full min-w-0 max-w-5xl px-4 py-8 md:px-8 md:py-12">
@@ -117,11 +138,34 @@ export function NotesPage() {
         </div>
       ) : (
         <div className="mt-8">
-          <p className="mb-3 text-xs text-ink-faint">
+          <label className="block text-sm font-medium text-ink" htmlFor="notes-search">
+            Search notes
+          </label>
+          <input
+            className={fieldClass(false)}
+            id="notes-search"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Title or text"
+            type="search"
+            value={query}
+          />
+          <p className="mt-4 mb-3 text-xs text-ink-faint">
             {notes.length} {notes.length === 1 ? "note" : "notes"}
           </p>
+          {visibleNotes.length === 0 ? (
+            <div className="rounded-md border border-line bg-paper-raised px-4 py-6">
+              <p className="text-sm text-ink-soft">No notes match that search.</p>
+              <button
+                className="mt-3 rounded-md border border-line px-3 py-1.5 text-sm text-ink hover:border-lichen"
+                onClick={() => setQuery("")}
+                type="button"
+              >
+                Clear search
+              </button>
+            </div>
+          ) : (
           <Masonry>
-            {notes.map((note) => {
+            {visibleNotes.map((note) => {
               const block = note.timeBlockId
                 ? blocks.find((item) => item.id === note.timeBlockId)
                 : undefined;
@@ -157,6 +201,7 @@ export function NotesPage() {
               );
             })}
           </Masonry>
+          )}
         </div>
       )}
     </section>

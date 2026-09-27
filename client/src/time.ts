@@ -18,6 +18,24 @@ export function deviceTimeZone(fallback = DEFAULT_TIME_ZONE) {
 	}
 }
 
+export function timeZoneOptions(current?: string) {
+	const zones = new Set(Intl.supportedValuesOf('timeZone'));
+	if (current) {
+		zones.add(current);
+	}
+	const groups = new Map<string, string[]>();
+	for (const zone of [...zones].sort((left, right) => left.localeCompare(right))) {
+		const slash = zone.indexOf('/');
+		const region = slash === -1 ? 'Other' : zone.slice(0, slash);
+		const list = groups.get(region) ?? [];
+		list.push(zone);
+		groups.set(region, list);
+	}
+	return [...groups.entries()].sort(([left], [right]) =>
+		left.localeCompare(right),
+	);
+}
+
 export function formatTimeZoneLabel(timeZone: string, now = new Date()) {
 	try {
 		const name = part(
@@ -295,6 +313,23 @@ export function formatTaskDateChip(isoDate: string, today: string) {
 	};
 }
 
+export function recurrenceLabel(block: {
+	date: string;
+	recurrence: Recurrence;
+	recurrenceDays: number[];
+}) {
+	if (block.recurrence === 'daily') {
+		return 'daily';
+	}
+	if (block.recurrence === 'weekly') {
+		return 'weekly';
+	}
+	if (block.recurrence === 'weekdays') {
+		return 'selected days';
+	}
+	return formatWeekdayDate(block.date);
+}
+
 export function blockOptionLabel(
 	block: {
 		title: string;
@@ -304,20 +339,14 @@ export function blockOptionLabel(
 		recurrence: Recurrence;
 		recurrenceDays: number[];
 	},
-	fromDate?: string,
+	fromDate: string,
 ) {
 	const times = `${formatTimeLabel(block.start)}–${formatTimeLabel(block.end)}`;
+	const rec = recurrenceLabel(block);
 	if (block.recurrence === 'none') {
-		return `${block.title} · ${times} · ${formatWeekdayDate(block.date)}`;
+		return `${block.title} · ${times} · ${rec}`;
 	}
-	const today = fromDate ?? dateValue(new Date());
-	const next = nextOccurrenceOnOrAfter(block, today);
-	const rec =
-		block.recurrence === 'daily'
-			? 'daily'
-			: block.recurrence === 'weekly'
-				? 'weekly'
-				: 'selected days';
+	const next = nextOccurrenceOnOrAfter(block, fromDate);
 	return `${block.title} · ${times} · ${rec} · next ${formatWeekdayDate(next)}`;
 }
 
@@ -370,17 +399,23 @@ export function blockSegmentsOnDay(
 	const start = parseTimeMinutes(block.start);
 	const end = parseTimeMinutes(block.end);
 	const overnight = end < start;
-	const segments: { startMinutes: number; endMinutes: number }[] = [];
+	const segments: {
+		startMinutes: number;
+		endMinutes: number;
+		occurrenceDate: string;
+	}[] = [];
 	if (blockOccursOn(block, day)) {
 		segments.push({
 			startMinutes: start,
 			endMinutes: overnight ? 1440 : end,
+			occurrenceDate: day,
 		});
 	}
 	if (overnight && blockOccursOn(block, addCalendarDays(day, -1))) {
 		segments.push({
 			startMinutes: 0,
 			endMinutes: end,
+			occurrenceDate: addCalendarDays(day, -1),
 		});
 	}
 	return segments;

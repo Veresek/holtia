@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { jsonResponse, stubSignedIn } from "../test/api";
 import { stubPreviewOverflow } from "../test/preview";
 import { renderPage } from "../test/render";
+import { formatWeekdayDate } from "../time";
 import type { Note, Task, TimeBlock } from "../types";
 import { NotesPage } from "./NotesPage";
 
@@ -261,7 +262,11 @@ describe("NotesPage", () => {
       title: "Session notes",
       timeBlockId: block.id,
     });
-    expect(screen.getByRole("button", { name: "On Deep work every day · 09:00–11:00" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: `On Deep work ${formatWeekdayDate(block.date)} · 09:00–11:00`,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("pins a note to a task and shows the assignment", async () => {
@@ -353,5 +358,33 @@ describe("NotesPage", () => {
     expect(
       screen.getByText("Pinned to Sep 15, 2026"),
     ).toBeInTheDocument();
+  });
+
+  it("filters notes by title or text and clears the search", async () => {
+    const other: Note = {
+      ...note,
+      id: "22222222-2222-2222-2222-222222222222",
+      title: "Grocery list",
+      markdown: "Milk and bread",
+    };
+    stubSignedIn({
+      "GET /notes": () => jsonResponse([note, other]),
+    });
+    renderPage(<NotesPage />);
+
+    expect(await screen.findByText("Launch notes")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search notes" }), {
+      target: { value: "milk" },
+    });
+    expect(screen.queryByText("Launch notes")).not.toBeInTheDocument();
+    expect(screen.getByText("Grocery list")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search notes" }), {
+      target: { value: "no such note" },
+    });
+    expect(screen.getByText("No notes match that search.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(screen.getByText("Launch notes")).toBeInTheDocument();
+    expect(screen.getByText("Grocery list")).toBeInTheDocument();
   });
 });

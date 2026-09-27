@@ -1,10 +1,11 @@
-import { useEffect, useId, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 
 import { aiApi } from "../api/ai";
 import { ApiError } from "../api/client";
 import { useData, type DataContextValue } from "../data/DataProvider";
 import { useAiSettings } from "../hooks/useAiSettings";
+import { useShortcuts } from "../hooks/useShortcuts";
 import { toTimePayload } from "../time";
 import type { AiProposal } from "../types";
 import { AiPanel, type AiChatMessage, type AiExecutionResult } from "./AiPanel";
@@ -91,6 +92,17 @@ export function AiBar() {
 
   const enabled = settings?.enabled === true;
   const configured = settings?.configured === true;
+  const inputRef = useRef<HTMLInputElement>(null);
+  useShortcuts(
+    enabled && configured
+      ? {
+          "focus-assistant": () => {
+            setOpen(true);
+            inputRef.current?.focus();
+          },
+        }
+      : {},
+  );
 
   async function submitPrompt(event: FormEvent) {
     event.preventDefault();
@@ -146,6 +158,7 @@ export function AiBar() {
     setExecuting(true);
     setError(null);
     const result: AiExecutionResult = { created: [], failed: [] };
+    const remaining: AiProposal[] = [];
     for (const item of pendingItems) {
       try {
         await createProposal(item, createTask, createNote, createBlock);
@@ -159,6 +172,7 @@ export function AiBar() {
               ? caught.message
               : "The item could not be created.",
         });
+        remaining.push(item);
       }
     }
     await revalidate();
@@ -172,7 +186,7 @@ export function AiBar() {
       }
       return next;
     });
-    setPendingItems(null);
+    setPendingItems(remaining.length > 0 ? remaining : null);
     setExecuting(false);
   }
 
@@ -244,6 +258,7 @@ export function AiBar() {
             onFocus={() => setOpen(true)}
             onKeyDown={onInputKeyDown}
             placeholder="Ask Holtia to help plan your day…"
+            ref={inputRef}
             type="text"
             value={draft}
           />

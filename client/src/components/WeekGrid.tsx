@@ -78,7 +78,7 @@ export function WeekGrid({
             return (
               <button
                 aria-current={day.isToday ? "date" : undefined}
-                aria-label={day.label}
+                aria-label={`Add event, ${day.label}`}
                 className={`${headingClass} hover:bg-paper-deep`}
                 key={day.date}
                 onClick={() => onSelectDay(day.date)}
@@ -157,11 +157,9 @@ export function WeekGrid({
             label={day.label}
             notesByBlock={day.notesByBlock}
             nowMinutes={day.isToday ? nowMinutes : undefined}
-            onSelect={onSelect ? (id) => onSelect(id, day.date) : undefined}
+            onSelect={onSelect}
             onSelectNote={onSelectNote}
-            onSelectPins={
-              onSelectPins ? (id) => onSelectPins(id, day.date) : undefined
-            }
+            onSelectPins={onSelectPins}
             onSelectTask={onSelectTask}
             pixelsPerHour={pixelsPerHour}
             rangeEndMinutes={rangeEndMinutes}

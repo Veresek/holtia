@@ -10,7 +10,7 @@ from app.models.task import Task
 from app.models.time_block import TimeBlock
 from tests.conftest import login, register_verified
 
-EMPTY_FINGERPRINT = {"count": 0, "updatedAt": None}
+EMPTY_FINGERPRINT = {"count": 0, "updatedAt": None, "pinned": 0}
 
 
 def get_state(client: TestClient) -> dict[str, object]:
@@ -151,3 +151,70 @@ def test_state_is_isolated_between_users(client: TestClient) -> None:
 
     login(client)
     assert get_state(client) == ada_state
+
+
+def test_deleting_a_block_changes_pin_fingerprints_without_editing(
+    client: TestClient,
+) -> None:
+    register_verified(client)
+    block = client.post(
+        "/api/blocks",
+        json={
+            "title": "Deep work",
+            "date": "2026-08-31",
+            "start": "09:00:00",
+            "end": "11:00:00",
+        },
+    ).json()
+    task = client.post(
+        "/api/tasks",
+        json={
+            "title": "Write",
+            "date": "2026-08-31",
+            "timeBlockId": block["id"],
+        },
+    ).json()
+    note = client.post(
+        "/api/notes",
+        json={"title": "Session notes", "timeBlockId": block["id"]},
+    ).json()
+
+    before = get_state(client)
+    assert before["tasks"]["pinned"] == 1
+    assert before["notes"]["pinned"] == 1
+    assert before["blocks"]["pinned"] == 0
+
+    assert client.delete(f"/api/blocks/{block['id']}").status_code == 204
+
+    after = get_state(client)
+    assert after["tasks"]["count"] == 1
+    assert after["notes"]["count"] == 1
+    assert after["blocks"]["count"] == 0
+    assert after["tasks"]["pinned"] == 0
+    assert after["notes"]["pinned"] == 0
+    assert after["tasks"]["updatedAt"] == before["tasks"]["updatedAt"]
+    assert after["notes"]["updatedAt"] == before["notes"]["updatedAt"]
+    assert client.get(f"/api/tasks/{task['id']}").json()["timeBlockId"] is None
+    assert client.get(f"/api/notes/{note['id']}").json()["timeBlockId"] is None
+
+
+def test_deleting_a_task_changes_the_note_pin_fingerprint(
+    client: TestClient,
+) -> None:
+    register_verified(client)
+    task = client.post("/api/tasks", json={"title": "Write"}).json()
+    note = client.post(
+        "/api/notes",
+        json={"title": "Session notes", "taskId": task["id"]},
+    ).json()
+
+    before = get_state(client)
+    assert before["notes"]["pinned"] == 1
+
+    assert client.delete(f"/api/tasks/{task['id']}").status_code == 204
+
+    after = get_state(client)
+    assert after["notes"]["count"] == 1
+    assert after["notes"]["pinned"] == 0
+    assert after["notes"]["updatedAt"] == before["notes"]["updatedAt"]
+    assert client.get(f"/api/notes/{note['id']}").json()["taskId"] is None

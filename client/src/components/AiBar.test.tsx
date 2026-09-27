@@ -43,6 +43,7 @@ const groceryPlan: AiPlanResponse = {
       title: "Buy milk",
       description: "",
       date: "2026-09-05",
+      priority: "high",
     },
     {
       kind: "note",
@@ -118,6 +119,7 @@ describe("AiBar", () => {
     renderWithRouter(<App />);
 
     await ask("Plan groceries");
+    expect(await screen.findByText("High · 2026-09-05")).toBeInTheDocument();
     await screen.findByRole("button", { name: "Create items" });
     fireEvent.click(screen.getByRole("button", { name: "Discard" }));
 
@@ -232,6 +234,9 @@ describe("AiBar", () => {
     expect(await screen.findByText(/Created Buy milk/)).toBeInTheDocument();
     expect(
       await screen.findByText(/Could not create Shopping list/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create items" }),
     ).toBeInTheDocument();
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
       "/api/blocks",

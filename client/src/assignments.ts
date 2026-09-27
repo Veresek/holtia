@@ -38,6 +38,29 @@ export function notePinsByBlock(notes: Note[]) {
   return grouped;
 }
 
+export function pinKey(blockId: string, occurrenceDate: string) {
+  return `${blockId}:${occurrenceDate}`;
+}
+
+export function pinsForOccurrences(
+  tasks: Task[],
+  notes: Note[],
+  occurrences: { blockId: string; occurrenceDate: string }[],
+) {
+  const seriesNotes = notePinsByBlock(notes);
+  const tasksByBlock: Record<string, BlockPin[]> = {};
+  const notesByBlock: Record<string, BlockPin[]> = {};
+  for (const occurrence of occurrences) {
+    const key = pinKey(occurrence.blockId, occurrence.occurrenceDate);
+    tasksByBlock[key] =
+      taskPinsByBlockOnDate(tasks, occurrence.occurrenceDate)[
+        occurrence.blockId
+      ] ?? [];
+    notesByBlock[key] = seriesNotes[occurrence.blockId] ?? [];
+  }
+  return { tasksByBlock, notesByBlock };
+}
+
 export function notesOnDate(notes: Note[], date: string) {
   return notes.filter((note) => note.date === date);
 }

@@ -117,8 +117,10 @@ Revoked refresh-token rows can be cleaned with
 
 Create `.env` from `.env.example` and replace every production placeholder.
 `DOMAIN`, `INSTANCE_CODE`, `SECRET_KEY`, and `POSTGRES_PASSWORD` are required.
-Production validation rejects an empty instance code or a weak secret key.
-Treat `INSTANCE_CODE` as an operator secret, not a public invite.
+Production validation rejects an instance code shorter than 12 characters, or
+a weak secret key. Treat `INSTANCE_CODE` as an operator secret, not a public
+invite. Generate one with
+`python -c "import secrets; print(secrets.token_urlsafe(12))"`.
 
 Point `holtia.xyz` at the VPS. Port 80/443 stay on the host nginx. Compose
 publishes the API on `127.0.0.1:8001` only.
@@ -139,6 +141,7 @@ Back up the `postgres_data` volume before upgrades. Full runbook:
 | [`docs/operations.md`](docs/operations.md) | Deploy, CD, backup, secrets |
 | [`docs/review.md`](docs/review.md) | Current risks, prioritized |
 | [`docs/ai-tools.md`](docs/ai-tools.md) | Assistant contract (preview, then REST creates) |
+| [`docs/roadmap-v2.md`](docs/roadmap-v2.md) | v2: public registration, habits, AI, export |
 | [`AGENTS.md`](AGENTS.md) | Conventions for people and agents |
 
 License: [GNU GPL v3](LICENSE).

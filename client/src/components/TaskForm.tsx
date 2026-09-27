@@ -1,8 +1,9 @@
 import { useId, useState, type FormEvent } from "react";
 
+import { useNow } from "../hooks/useNow";
 import { useTaskDraft } from "../hooks/useTaskDraft";
 import { useTimeZone } from "../hooks/useTimeZone";
-import { blockOptionLabel } from "../time";
+import { blockOptionLabel, dateValue } from "../time";
 import type { TaskCreate, TaskPriority, TimeBlock } from "../types";
 import { FieldError, FieldLabel, fieldClass } from "./fields";
 import { PriorityField } from "./PriorityField";
@@ -34,6 +35,7 @@ export function TaskForm({
   const dateId = useId();
   const blockId = useId();
   const timeZone = useTimeZone();
+  const today = dateValue(useNow(), timeZone);
   const draft = useTaskDraft(blocks, initial, undefined, timeZone);
   const [titleError, setTitleError] = useState<string | null>(null);
 
@@ -138,7 +140,7 @@ export function TaskForm({
         <option value="">No time block</option>
         {draft.availableBlocks.map((block) => (
           <option key={block.id} value={block.id}>
-            {blockOptionLabel(block, draft.date || undefined)}
+            {blockOptionLabel(block, draft.date || today)}
           </option>
         ))}
       </select>

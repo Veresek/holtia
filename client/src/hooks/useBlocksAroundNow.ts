@@ -44,7 +44,7 @@ export function useBlocksAroundNow(
           }
           next.push({
             block,
-            occurrenceDate: date,
+            occurrenceDate: segment.occurrenceDate,
             startMinutes,
             endMinutes,
           });

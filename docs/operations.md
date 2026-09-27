@@ -12,7 +12,7 @@ Required for `docker-compose.prod.yml`:
 | Variable | Notes |
 |----------|--------|
 | `DOMAIN` | Public hostname (`holtia.xyz`). DNS must already point at the VPS |
-| `INSTANCE_CODE` | Operator secret. Anyone with the code and an email can reset that password. |
+| `INSTANCE_CODE` | Operator secret, at least 12 characters. Anyone with the code and an email can reset that password. Generate with `python -c "import secrets; print(secrets.token_urlsafe(12))"`. A shorter code stops the API from starting, so check the VPS `.env` before the next deploy. |
 | `SECRET_KEY` | ≥32 characters, not a known default |
 | `POSTGRES_PASSWORD` | Alphanumeric so it is safe inside `DATABASE_URL` |
 
@@ -27,10 +27,14 @@ Point DNS at the VPS. Port 80/443 stay on the host nginx. Compose does not
 bind them.
 
 Fill `.env`, add the nginx site below, then run GitHub Actions Deploy (or
-Actions → Deploy → Run workflow). The workflow migrates before the API starts,
-publishes FastAPI on `127.0.0.1:8001`, and builds the SPA to
-`client/dist/index.html`. Postgres stays on the internal Docker network. Point
-nginx `root` at that `dist/` directory and proxy `/api` to `127.0.0.1:8001`.
+Actions → Deploy → Run workflow). The workflow migrates before the API starts.
+The API command then runs `scripts/purge_revoked_tokens.py`, which deletes
+refresh tokens revoked more than 30 days ago. That does not touch the short
+grace window used when a session refreshes, and a purge failure does not stop
+the API. Compose publishes FastAPI on `127.0.0.1:8001` and the workflow builds
+the SPA to `client/dist/index.html`. Postgres stays on the internal Docker
+network. Point nginx `root` at that `dist/` directory and proxy `/api` to
+`127.0.0.1:8001`.
 
 Health:
 
@@ -99,7 +103,7 @@ pull needs no GitHub credentials. The deploy user needs passwordless
 ```bash
 sudo mkdir -p /opt/holtia
 sudo chown "$USER:$USER" /opt/holtia
-git clone https://github.com/Veresek/trium.git /opt/holtia
+git clone https://github.com/Veresek/holtia.git /opt/holtia
 cd /opt/holtia
 cp .env.example .env
 # fill DOMAIN=holtia.xyz, INSTANCE_CODE, SECRET_KEY, POSTGRES_PASSWORD
@@ -136,7 +140,7 @@ Optional repository variables (Settings → Secrets and variables → Actions �
 
 | Variable | Default | Notes |
 |----------|---------|--------|
-| `DEPLOY_PATH` | `~/holtia` | Clone directory |
+| `DEPLOY_PATH` | `~/holtia` | Clone directory. Nginx and the bootstrap above use `/opt/holtia`, so set the repository variable `DEPLOY_PATH=/opt/holtia`. The workflow default is `~/holtia`. |
 | `DEPLOY_PORT` | `22` | SSH port, if not set as a secret |
 
 A deploy keeps the ten newest files under `backups/holtia-*.sql.gz` on the
@@ -145,10 +149,21 @@ upgrade by hand, run the Deploy workflow (Actions → Deploy → Run workflow).
 
 ## Backup
 
-CD dumps Postgres into `backups/` before it recreates containers. Still copy
-those files off the VPS, and back up the `postgres_data` volume before any
-manual upgrade. That volume holds accounts, tasks, blocks, notes, sessions,
-and encrypted AI keys.
+CD dumps Postgres into `backups/` before it recreates containers. Those files
+stay on the VPS until something copies them off. On another machine, a daily
+cron can pull them with `scp` or `rclone` (the path follows `DEPLOY_PATH`;
+this instance uses `/opt/holtia`):
+
+```bash
+scp user@holtia.xyz:/opt/holtia/backups/*.sql.gz /path/to/offbox/holtia/
+```
+
+```bash
+rclone copy holtia-vps:/opt/holtia/backups /path/to/offbox/holtia --include "*.sql.gz"
+```
+
+Also back up the `postgres_data` volume before any manual upgrade. That
+volume holds accounts, tasks, blocks, notes, sessions, and encrypted AI keys.
 
 Losing the database is losing the instance. Losing **only**
 `AI_ENCRYPTION_KEY` while the database survives means stored provider keys

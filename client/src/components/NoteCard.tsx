@@ -1,6 +1,6 @@
 import { useState, type MouseEvent } from "react";
 
-import { formatDateLabel, formatTimeLabel } from "../time";
+import { formatDateLabel, formatTimeLabel, recurrenceLabel } from "../time";
 import type { Note, Task, TimeBlock } from "../types";
 import { ConfirmDelete } from "./ConfirmDelete";
 import {
@@ -155,7 +155,7 @@ export function NoteCard({
           {block ? (
             <PinChip
               icon="notes"
-              label={`On ${block.title} every day · ${formatTimeLabel(block.start)}–${formatTimeLabel(block.end)}`}
+              label={`On ${block.title} ${recurrenceLabel(block)} · ${formatTimeLabel(block.start)}–${formatTimeLabel(block.end)}`}
               onClick={onOpenBlock}
             />
           ) : null}

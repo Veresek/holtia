@@ -37,15 +37,12 @@ Publishing the code to make signup “open” is therefore a takeover primitive.
 Hiding the code means strangers cannot verify — so registration is not actually
 open.
 
-**Target (v2, not this chore):** SMTP plus a random, hashed, short-lived,
-single-use token per user and purpose (`verify` vs `reset`). Request/confirm
-endpoints that do not leak whether the email exists. Rate limit per IP and per
-email. Consume atomically. Keep codes out of logs. Reset still bumps
-`session_version`. Until that exists, **do not publish `INSTANCE_CODE`** and do
-not treat the VPS as a public instance.
+**Target (v2, not this chore):** see [roadmap-v2.md](roadmap-v2.md). Until that
+exists, **do not publish `INSTANCE_CODE`** and do not treat the VPS as a public
+instance.
 
-Production only checks that the code is non-empty. A one-character code boots.
-Development still skips verify when the code is empty.
+Production requires the code to be at least 12 characters. Development still
+skips verify when the code is empty.
 
 ### 2. Register enumerates emails — addressed
 
@@ -83,6 +80,15 @@ Not blockers for a private deploy; shipped so the snapshot stays true.
 - Host reverse proxy: CSP, `Cache-Control` split (`no-cache` HTML vs immutable `/assets`); see `docs/operations.md`.
 - `PATCH /api/users/me` saves `timezone`; sending `email` still returns 501 (“Changing email is not available yet.”).
 
+## Addressed (27 September 2026)
+
+- `/state` fingerprints include a pin count, so deleting a block or task reaches other devices without changing `updated_at`. The same device also clears those pins locally.
+- An overnight block’s morning segment keeps the occurrence date it started on, on Home and in Calendar.
+- A collection list fetched before a local edit no longer overwrites that edit.
+- A note’s block chip names the real recurrence, and “today” in pin labels uses the account timezone.
+- Notes can be searched. Account picks a timezone from the IANA list. AI task proposals show priority. Desktop keyboard shortcuts are listed with `?` and on Account.
+- Production `INSTANCE_CODE` must be at least 12 characters. API startup purges refresh tokens revoked more than 30 days ago, and a purge failure does not stop the process.
+
 ## Safety, privacy, performance
 
 | Item                                                                                                                | Severity     | Notes                                                                    |
@@ -95,11 +101,7 @@ Not blockers for a private deploy; shipped so the snapshot stays true.
 
 ## What can wait
 
-- Captcha, admin roles, export, Google, Expo.
-- Streaming, conversation history, OpenRouter, AI pins/edits.
-- Benchmarks for N01.
-- Redis (or shared) rate limits.
-- `userApi.update` on the client until the server implements it.
+Everything after the MVP, including public registration, is in [roadmap-v2.md](roadmap-v2.md).
 
 ## Next
 

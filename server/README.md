@@ -50,7 +50,7 @@ Revoked refresh-token rows left behind by rotation can be cleaned with
 
 The application never creates tables at runtime. Alembic reads
 `Settings.database_url`, so configuration comes from `DATABASE_URL` or the
-server `.env` file. Current head: `20260915_0013` (`notes.date`).
+server `.env` file. Current head: `20260921_0014` (`tasks.priority`).
 
 ```powershell
 python scripts/migrate.py
@@ -70,8 +70,12 @@ Already versioned databases receive the normal Alembic upgrade. Tests
 intentionally create and drop their isolated SQLite schema in
 `tests/conftest.py`.
 
-In production use `ENVIRONMENT=production`, an HTTPS `CLIENT_ORIGIN`, a
-non-empty `INSTANCE_CODE`, and a unique `SECRET_KEY` of at least 32 characters.
+In production use `ENVIRONMENT=production`, an HTTPS `CLIENT_ORIGIN`, an
+`INSTANCE_CODE` of at least 12 characters, and a unique `SECRET_KEY` of at
+least 32 characters. A shorter instance code refuses to start. The production
+Compose command also runs `scripts/purge_revoked_tokens.py` after migrations;
+that step deletes tokens revoked more than 30 days ago, and a failure there
+does not stop the API.
 The production Compose stack publishes this service on `127.0.0.1:8001`. The
 host reverse proxy should expose it at `/api` on the same origin as the SPA.
 Do not publish `INSTANCE_CODE`; see [`docs/operations.md`](../docs/operations.md).

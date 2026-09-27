@@ -11,7 +11,7 @@ The four-week build is done in code. What remains is using the app, a private de
 | 1   | Register and log in with email + password; one account = one user                                    | Done                                        |
 | 2   | Verify and reset with a shared **instance code** (env), zero SMTP                                    | Done — private instance only                |
 | 3   | Shell: 5 panels + AI bar (off until `AI_ENABLED`)                                                    | Done                                        |
-| 4   | Tasks: title, done, description, optional day; CRUD                                                  | Done                                        |
+| 4   | Tasks: title, done, description, priority, optional day; CRUD                                        | Done                                        |
 | 5   | Home: **today’s open** tasks (at most 4) + chevron to expand the rest + empty state                  | Done                                        |
 | 6   | Tasks panel: all of them, including undated                                                          | Done                                        |
 | 7   | Blocks: one row = one id; day, week, or month (desktop week is 24 h columns; a phone week is one day plus a week strip; day is one 24 h column; month is a Monday-first grid); overnight spans | Done                                        |
@@ -34,33 +34,15 @@ Pin a task to a block: `date` + `timeBlockId`; the date is a day the block occur
 
 **Do not publish the instance code.** Anyone with the code and an email can reset that account.
 
-**v2 (blocker for public open registration):** SMTP plus a stored token per user and purpose (`verify` or `reset`):
+**v2 (blocker for public open registration):** SMTP and per-user single-use tokens. Requirements and acceptance criteria are in [roadmap-v2.md](roadmap-v2.md).
 
-- cryptographically random value, hash only in the database;
-- short TTL, single use, consumed atomically;
-- request/confirm endpoints that do not reveal whether the email exists;
-- rate limits per IP and per normalized email, plus a resend cooldown;
-- no codes in logs;
-- password reset still invalidates every session.
-
-Until that ships, treat production as a trusted instance you operate for yourself (and people you hand the code to on purpose).
+Until that ships, treat production as a trusted instance you operate for yourself (and people you hand the code to on purpose). In production the code must be at least 12 characters or the API will not start.
 
 Refresh reuse within a short grace window no longer signs out a second tab as a replay. A real server-side refresh-token expiry is still later.
 
 ## Later (v2)
 
-| Idea                                           | Condition                                                   |
-| ---------------------------------------------- | ----------------------------------------------------------- |
-| SMTP + per-user verify/reset tokens            | replaces `INSTANCE_CODE`; **required before public signup** |
-| Draw / queue of activities in a block (habits) | optional; stable blocks                                     |
-| AI assistant — live bar                        | `AI_ENABLED`; BYOK on Account; preview then REST create     |
-| Suggest times from title/description           | do not guess; ask instead                                   |
-| Google login                                   | after own email/password                                    |
-| Expo / native app                              | after web                                                   |
-| Notifications                                  | maybe never                                                 |
-| Data export                                    | unsure; does not block MVP                                  |
-| Tasks from GitHub                              | does not block the day                                      |
-| Edit a single occurrence in a series           | deliberately not this model                                 |
+Public registration, habits and a draw inside a block, further AI tools, export, and everything after that are specified in [roadmap-v2.md](roadmap-v2.md). The assistant’s first version (BYOK, preview, then REST create) is already in this MVP.
 
 ## Out of MVP scope
 
@@ -90,7 +72,7 @@ Refresh reuse within a short grace window no longer signs out a second tab as a 
 | -------- | -------------------------------------------------------------------------------- |
 | Frontend | React 19, Vite, TypeScript, Tailwind v4 (phone in the browser)                   |
 | Backend  | FastAPI, Python 3.13                                                             |
-| Database | PostgreSQL 18, Alembic (head `20260915_0013`)                                    |
+| Database | PostgreSQL 18, Alembic (head `20260921_0014`)                                    |
 | Auth     | email + password (bcrypt) + `INSTANCE_CODE`; cookies; Google and SMTP not in MVP |
 | Hosting  | VPS, `docker compose` / `docker-compose.prod.yml`                                |
 | CI       | GitHub Actions: ruff + pytest; client lint / test / build                        |
@@ -105,7 +87,7 @@ UserAiSettings id, user_id, provider, model, key_ciphertext, key_nonce, key_hint
                is_active, timestamps
                — many keys per user; one is_active at a time
 RefreshToken  id, user_id, token_hash, session_version, created_at, revoked_at?, replaced_by_id?
-Task          id, user_id, title, description, done,
+Task          id, user_id, title, description, done, priority (high | medium | low),
               date?          — null = Tasks panel only; required when pinned
               time_block_id? — pin to a block occurrence; null = not pinned
               order, created_at, updated_at, completed_at?

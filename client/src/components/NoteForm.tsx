@@ -1,6 +1,8 @@
 import { useId, useState, type FormEvent } from "react";
 
-import { blockOptionLabel } from "../time";
+import { useNow } from "../hooks/useNow";
+import { useTimeZone } from "../hooks/useTimeZone";
+import { blockOptionLabel, dateValue } from "../time";
 import type { NoteCreate, Task, TimeBlock } from "../types";
 import { FieldError, FieldLabel, fieldClass } from "./fields";
 
@@ -35,6 +37,8 @@ export function NoteForm({
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
   const titleErrorId = useId();
+  const timeZone = useTimeZone();
+  const today = dateValue(useNow(), timeZone);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -163,7 +167,7 @@ export function NoteForm({
         <option value="">No time block</option>
         {blocks.map((block) => (
           <option key={block.id} value={block.id}>
-            {blockOptionLabel(block)}
+            {blockOptionLabel(block, today)}
           </option>
         ))}
       </select>

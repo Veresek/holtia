@@ -1,5 +1,5 @@
 import type { BlockPin } from "../assignments";
-import { mixPins, pinCountLabel } from "../assignments";
+import { mixPins, pinCountLabel, pinKey } from "../assignments";
 import { blockColorFill } from "../blockColor";
 import { formatHourLabel, hourTicks } from "../time";
 import { Icon } from "./Icon";
@@ -13,6 +13,7 @@ export interface DayGridBlock {
   endLabel: string;
   startMinutes: number;
   endMinutes: number;
+  occurrenceDate: string;
   color?: string;
 }
 
@@ -35,8 +36,8 @@ interface DayGridProps {
   framed?: boolean;
   className?: string;
   onEmptySelect?: () => void;
-  onSelect?: (id: string) => void;
-  onSelectPins?: (id: string) => void;
+  onSelect?: (id: string, occurrenceDate: string) => void;
+  onSelectPins?: (id: string, occurrenceDate: string) => void;
   onSelectTask?: (id: string) => void;
   onSelectNote?: (id: string) => void;
   tasksByBlock?: Record<string, BlockPin[]>;
@@ -102,6 +103,7 @@ const COMPACT_PIN_HEIGHT_PX = 72;
 
 function BlockPins({
   blockId,
+  occurrenceDate,
   compact,
   notes,
   onSelectPins,
@@ -110,9 +112,10 @@ function BlockPins({
   tasks,
 }: {
   blockId: string;
+  occurrenceDate: string;
   compact: boolean;
   notes: BlockPin[];
-  onSelectPins?: (id: string) => void;
+  onSelectPins?: (id: string, occurrenceDate: string) => void;
   onSelectNote?: (id: string) => void;
   onSelectTask?: (id: string) => void;
   tasks: BlockPin[];
@@ -128,7 +131,7 @@ function BlockPins({
       className="relative z-10 mt-0.5 block w-full truncate text-left text-[0.7rem] text-ink-faint hover:text-ink"
       onClick={(event) => {
         event.stopPropagation();
-        onSelectPins(blockId);
+        onSelectPins(blockId, occurrenceDate);
       }}
       type="button"
     >
@@ -194,7 +197,7 @@ function BlockPins({
             className="relative z-10 block w-full truncate text-left text-[0.7rem] text-ink-faint hover:text-ink"
             onClick={(event) => {
               event.stopPropagation();
-              onSelectPins(blockId);
+              onSelectPins(blockId, occurrenceDate);
             }}
             type="button"
           >
@@ -320,7 +323,7 @@ export function DayGrid({
               <button
                 aria-label={`${block.title}, ${block.startLabel}–${block.endLabel}`}
                 className="block w-full text-left"
-                onClick={() => onSelect?.(block.id)}
+                onClick={() => onSelect?.(block.id, block.occurrenceDate)}
                 type="button"
               >
                 <span className="block truncate text-sm font-medium text-ink">
@@ -342,11 +345,12 @@ export function DayGrid({
                 <BlockPins
                   blockId={block.id}
                   compact={heightPx < COMPACT_PIN_HEIGHT_PX}
-                  notes={notesByBlock?.[block.id] ?? []}
+                  notes={notesByBlock?.[pinKey(block.id, block.occurrenceDate)] ?? []}
+                  occurrenceDate={block.occurrenceDate}
                   onSelectNote={onSelectNote}
                   onSelectPins={onSelectPins}
                   onSelectTask={onSelectTask}
-                  tasks={tasksByBlock?.[block.id] ?? []}
+                  tasks={tasksByBlock?.[pinKey(block.id, block.occurrenceDate)] ?? []}
                 />
                 {block.description ? (
                   <MarkdownBody

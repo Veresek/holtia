@@ -63,9 +63,9 @@ export function jsonResponse(body: unknown, status = 200): Response {
 type Handler = (init?: RequestInit) => Response | Promise<Response>;
 
 export const emptyAppState = {
-  tasks: { count: 0, updatedAt: null },
-  notes: { count: 0, updatedAt: null },
-  blocks: { count: 0, updatedAt: null },
+  tasks: { count: 0, updatedAt: null, pinned: 0 },
+  notes: { count: 0, updatedAt: null, pinned: 0 },
+  blocks: { count: 0, updatedAt: null, pinned: 0 },
 };
 
 export function stubApi(

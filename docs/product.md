@@ -33,7 +33,7 @@ Primary goal: **personal development**. More hours of work = more time for what 
 
 ## Navigation
 
-Five panels (sidebar on desktop, bottom tabs on mobile):
+The five panels sit in a sidebar on desktop and in bottom tabs on a phone. On a keyboard, shortcuts move between them and add the current panel’s item; press ? or open Account to see the full list.
 
 | Panel        | What is there                                                          |
 | ------------ | ---------------------------------------------------------------------- |
@@ -90,6 +90,8 @@ A block may **show** pinned tasks and notes on its tile. It is still not a list 
 - **AI later:** pin to existing blocks, edit/delete, repeating blocks, conversation history, streaming, OpenRouter as another provider. Suggest times from title/description like Todoist when the model is not guessing.
 - Email: per-user, single-use codes for verify and reset (replaces the shared `INSTANCE_CODE`). Google login, notifications, native app (Expo), GitHub, export.
 - Separate occurrences in a series (like Calendar) — deliberately out.
+
+Detail and acceptance criteria: [roadmap-v2.md](roadmap-v2.md).
 
 ## Success and failure
 

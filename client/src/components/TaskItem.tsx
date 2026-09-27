@@ -4,7 +4,6 @@ import {
   formatDateLabel,
   formatTaskDateChip,
   formatTimeLabel,
-  dateValue,
 } from "../time";
 import { priorityLabel, priorityToneClass } from "../taskPriority";
 import type { Note, Task, TimeBlock } from "../types";
@@ -25,7 +24,7 @@ interface TaskItemProps {
   showDate?: boolean;
   dense?: boolean;
   variant?: "card" | "row";
-  today?: string;
+  today: string;
   block?: TimeBlock;
   notes?: Note[];
   onOpenBlock?: () => void;
@@ -49,7 +48,7 @@ export function TaskItem({
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
   const row = variant === "row";
-  const todayValue = today ?? dateValue(new Date());
+  const todayValue = today;
   const dateChip =
     showDate && task.date ? formatTaskDateChip(task.date, todayValue) : null;
   const overdue = !task.done && dateChip?.tone === "overdue";

@@ -11,11 +11,12 @@ import { NoteForm } from '../components/NoteForm';
 import { usePinOverlays } from '../components/PinOverlays';
 import { TaskForm } from '../components/TaskForm';
 import { TaskItem } from '../components/TaskItem';
-import { notePinsByBlock, taskPinsByBlockOnDate } from '../assignments';
+import { pinsForOccurrences } from '../assignments';
 import { useData } from '../data/DataProvider';
 import { useBlocksAroundNow } from '../hooks/useBlocksAroundNow';
 import { useNotes } from '../hooks/useNotes';
 import { useNow } from '../hooks/useNow';
+import { useShortcuts } from '../hooks/useShortcuts';
 import { useTasks } from '../hooks/useTasks';
 import { useTimeZone } from '../hooks/useTimeZone';
 import {
@@ -121,16 +122,21 @@ export function HomePage() {
 	const { tasks: allTasks, blocks, notes: allNotes } = useData();
 	const pinOverlays = usePinOverlays();
 	const editing = allTasks.find(task => task.id === editingId);
-	const aroundNowTasksByBlock = Object.fromEntries(
-		occurrences.map(occurrence => [
-			occurrence.block.id,
-			taskPinsByBlockOnDate(allTasks, occurrence.occurrenceDate)[
-				occurrence.block.id
-			] ?? [],
-		]),
+	const aroundNowPins = pinsForOccurrences(
+		allTasks,
+		allNotes,
+		occurrences.map(occurrence => ({
+			blockId: occurrence.block.id,
+			occurrenceDate: occurrence.occurrenceDate,
+		})),
 	);
-	const aroundNowNotesByBlock = notePinsByBlock(allNotes);
 	const [creatingBlock, setCreatingBlock] = useState(false);
+	useShortcuts({
+		create: () => {
+			setEditingId(null);
+			setCreating(true);
+		},
+	});
 	const dateAndTime = new Intl.DateTimeFormat('en', {
 		weekday: 'long',
 		month: 'long',
@@ -214,26 +220,22 @@ export function HomePage() {
 									endLabel: formatTimeLabel(occurrence.block.end),
 									startMinutes: occurrence.startMinutes,
 									endMinutes: occurrence.endMinutes,
+									occurrenceDate: occurrence.occurrenceDate,
 									color: occurrence.block.color,
 								}))}
 								label='Around now'
-								notesByBlock={aroundNowNotesByBlock}
+								notesByBlock={aroundNowPins.notesByBlock}
 								nowMinutes={nowMinutes}
 								onSelectNote={id => pinOverlays.openNote(id)}
-								onSelectPins={id => {
-									const occurrence = occurrences.find(
-										item => item.block.id === id,
-									);
-									if (occurrence) {
-										pinOverlays.openPins(id, occurrence.occurrenceDate);
-									}
-								}}
+								onSelectPins={(id, occurrenceDate) =>
+									pinOverlays.openPins(id, occurrenceDate)
+								}
 								onSelectTask={id => pinOverlays.openTask(id)}
 								pixelsPerHour={AROUND_NOW_PIXELS_PER_HOUR}
 								rangeEndMinutes={rangeEndMinutes}
 								rangeStartMinutes={rangeStartMinutes}
 								readOnly
-								tasksByBlock={aroundNowTasksByBlock}
+								tasksByBlock={aroundNowPins.tasksByBlock}
 							/>
 						)}
 					</div>
@@ -349,6 +351,7 @@ export function HomePage() {
 											}
 											showDate={false}
 											task={task}
+											today={dateValueToday}
 										/>
 										);
 									})}

@@ -52,8 +52,10 @@ class Settings(BaseSettings):
     def validate_production_security(self) -> "Settings":
         if self.environment != "production":
             return self
-        if not self.instance_code.strip():
-            raise ValueError("INSTANCE_CODE must not be empty in production.")
+        if len(self.instance_code.strip()) < 12:
+            raise ValueError(
+                "INSTANCE_CODE must be at least 12 characters in production."
+            )
         if (
             len(self.secret_key) < 32
             or len(set(self.secret_key)) < 8

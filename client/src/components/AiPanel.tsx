@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 
 import { Icon } from "./Icon";
+import { priorityLabel } from "../taskPriority";
 import type { AiProposal } from "../types";
 import { formatTimeLabel } from "../time";
 
@@ -40,7 +41,8 @@ function kindLabel(kind: AiProposal["kind"]) {
 
 function proposalDetail(item: AiProposal) {
   if (item.kind === "task") {
-    return item.date ?? "undated";
+    const when = item.date ?? "undated";
+    return `${priorityLabel(item.priority ?? "medium")} · ${when}`;
   }
   if (item.kind === "note") {
     return "markdown note";

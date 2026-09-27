@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
+import { useNow } from "../hooks/useNow";
 import { useTaskDraft } from "../hooks/useTaskDraft";
 import { useTimeZone } from "../hooks/useTimeZone";
-import { blockOptionLabel } from "../time";
+import { blockOptionLabel, dateValue } from "../time";
 import type { TaskCreate, TimeBlock } from "../types";
 import { Icon } from "./Icon";
 import { FieldError, FieldLabel, fieldClass } from "./fields";
@@ -68,6 +69,7 @@ function TaskComposerForm({
   const blockId = useId();
   const titleRef = useRef<HTMLInputElement>(null);
   const timeZone = useTimeZone();
+  const today = dateValue(useNow(), timeZone);
   const draft = useTaskDraft(blocks, undefined, defaultDate, timeZone);
   const [titleError, setTitleError] = useState<string | null>(null);
 
@@ -176,7 +178,7 @@ function TaskComposerForm({
             <option value="">No time block</option>
             {draft.availableBlocks.map((block) => (
               <option key={block.id} value={block.id}>
-                {blockOptionLabel(block, draft.date || undefined)}
+                {blockOptionLabel(block, draft.date || today)}
               </option>
             ))}
           </select>

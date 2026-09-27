@@ -14,7 +14,7 @@ import {
   stubSignedIn,
 } from "../test/api";
 import { renderWithRouter } from "../test/render";
-import type { AppState, Note, Task } from "../types";
+import type { AppState, Note, Task, TimeBlock } from "../types";
 import { DataProvider, REVALIDATE_INTERVAL_MS, useData } from "./DataProvider";
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -53,6 +53,18 @@ const sampleNote: Note = {
   taskId: null,
   timeBlockId: null,
   updatedAt: "2026-09-01T10:00:00Z",
+};
+
+const sampleBlock: TimeBlock = {
+  id: "11111111-1111-1111-1111-111111111111",
+  title: "Deep work",
+  description: "",
+  date: "2026-09-01",
+  start: "09:00:00",
+  end: "11:00:00",
+  recurrence: "none",
+  recurrenceDays: [],
+  color: "#3e513c",
 };
 
 describe("DataProvider", () => {
@@ -123,7 +135,7 @@ describe("DataProvider", () => {
 
     state = {
       ...emptyAppState,
-      tasks: { count: 1, updatedAt: "2026-09-02T21:14:03Z" },
+      tasks: { count: 1, updatedAt: "2026-09-02T21:14:03Z", pinned: 0 },
     };
     await act(async () => {
       document.dispatchEvent(new Event("visibilitychange"));
@@ -204,5 +216,79 @@ describe("DataProvider", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Launch notes")).toBeInTheDocument();
     expect(getCount("/notes")).toBe(1);
+  });
+
+  it("clears local pins when a block or task is deleted", async () => {
+    const task: Task = { ...sampleTask, timeBlockId: sampleBlock.id };
+    const note: Note = {
+      ...sampleNote,
+      taskId: task.id,
+      timeBlockId: sampleBlock.id,
+    };
+    stubSignedIn({
+      "GET /tasks": () => jsonResponse([task]),
+      "GET /notes": () => jsonResponse([note]),
+      "GET /blocks": () => jsonResponse([sampleBlock]),
+      [`DELETE /blocks/${sampleBlock.id}`]: () =>
+        new Response(null, { status: 204 }),
+      [`DELETE /tasks/${task.id}`]: () => new Response(null, { status: 204 }),
+    });
+    const { result } = renderHook(() => useData(), { wrapper });
+    await settled(result);
+
+    await act(async () => {
+      await result.current.deleteBlock(sampleBlock.id);
+    });
+    expect(result.current.blocks).toEqual([]);
+    expect(result.current.tasks[0]?.timeBlockId).toBeNull();
+    expect(result.current.notes[0]?.timeBlockId).toBeNull();
+    expect(result.current.notes[0]?.taskId).toBe(task.id);
+
+    await act(async () => {
+      await result.current.deleteTask(task.id);
+    });
+    expect(result.current.tasks).toEqual([]);
+    expect(result.current.notes[0]?.taskId).toBeNull();
+  });
+
+  it("keeps a mutation when an older list arrives later", async () => {
+    let state: AppState = emptyAppState;
+    let releaseList: ((response: Response) => void) | undefined;
+    let taskLoads = 0;
+    stubSignedIn({
+      "GET /state": () => jsonResponse(state),
+      "GET /tasks": () => {
+        taskLoads += 1;
+        if (taskLoads === 1) {
+          return jsonResponse([]);
+        }
+        return new Promise((resolve) => {
+          releaseList = resolve;
+        });
+      },
+      "POST /tasks": () => jsonResponse(sampleTask, 201),
+    });
+    const { result } = renderHook(() => useData(), { wrapper });
+    await settled(result);
+
+    state = {
+      ...emptyAppState,
+      tasks: { count: 1, updatedAt: "2026-09-02T21:14:03Z", pinned: 0 },
+    };
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await waitFor(() => expect(taskLoads).toBe(2));
+
+    await act(async () => {
+      await result.current.createTask({ title: "Plan today" });
+    });
+    expect(result.current.tasks).toEqual([sampleTask]);
+
+    await act(async () => {
+      releaseList?.(jsonResponse([]));
+      await Promise.resolve();
+    });
+    expect(result.current.tasks).toEqual([sampleTask]);
   });
 });

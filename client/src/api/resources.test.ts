@@ -56,9 +56,9 @@ describe("stateApi", () => {
       Promise.resolve(
         new Response(
           JSON.stringify({
-            tasks: { count: 0, updatedAt: null },
-            notes: { count: 1, updatedAt: "2026-09-01T08:02:11Z" },
-            blocks: { count: 31, updatedAt: "2026-09-02T19:40:00Z" },
+            tasks: { count: 0, updatedAt: null, pinned: 0 },
+            notes: { count: 1, updatedAt: "2026-09-01T08:02:11Z", pinned: 0 },
+            blocks: { count: 31, updatedAt: "2026-09-02T19:40:00Z", pinned: 0 },
           }),
           {
             status: 200,
@@ -70,9 +70,9 @@ describe("stateApi", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(stateApi.get()).resolves.toEqual({
-      tasks: { count: 0, updatedAt: null },
-      notes: { count: 1, updatedAt: "2026-09-01T08:02:11Z" },
-      blocks: { count: 31, updatedAt: "2026-09-02T19:40:00Z" },
+      tasks: { count: 0, updatedAt: null, pinned: 0 },
+      notes: { count: 1, updatedAt: "2026-09-01T08:02:11Z", pinned: 0 },
+      blocks: { count: 31, updatedAt: "2026-09-02T19:40:00Z", pinned: 0 },
     });
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("/api/state");
   });

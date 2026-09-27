@@ -7,7 +7,9 @@ top of every signed-in screen opens a panel; the model returns a plan; **nothing
 is written until the user confirms**.
 
 Confirmed creates use the same REST API the SPA already uses, as the signed-in
-user. OpenAPI at `/docs` is the live schema. Field names on the wire are
+user. OpenAPI at `/docs` is the live schema in development. Production nginx
+forwards only `/api/` to the API, and the API listens on `127.0.0.1`, so
+`/docs` is not on the public site. Field names on the wire are
 camelCase (`timeBlockId`, `recurrenceDays`).
 
 ## Rules
@@ -36,7 +38,7 @@ configured provider with `propose_day_changes`. The response is:
 
 | kind | Fields | Becomes |
 |------|--------|---------|
-| `task` | `title`, `description`, optional `date` | `POST /api/tasks` |
+| `task` | `title`, `description`, optional `date`, optional `priority` (`high`, `medium`, or `low`; default `medium`) | `POST /api/tasks` |
 | `note` | `title`, `markdown` | `POST /api/notes` |
 | `block` | `title`, `description`, `date`, `start`, `end` | `POST /api/blocks` (`recurrence: "none"`) |
 

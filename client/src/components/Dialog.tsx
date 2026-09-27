@@ -16,6 +16,10 @@ const FOCUSABLE =
 
 const mountedLayers = new Set<number>();
 
+export function isDialogOpen() {
+  return mountedLayers.size > 0;
+}
+
 let lockCount = 0;
 let savedOverflow: string | null = null;
 let nextLayer = 0;

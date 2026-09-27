@@ -1,11 +1,14 @@
 import { useState } from "react";
 
 import { useData } from "../data/DataProvider";
+import { useNow } from "../hooks/useNow";
+import { useTimeZone } from "../hooks/useTimeZone";
 import {
+  dateValue,
   formatDateLabel,
   formatTimeLabel,
   nextOccurrenceOnOrAfter,
-  dateValue,
+  recurrenceLabel,
 } from "../time";
 import { Dialog } from "./Dialog";
 import { MarkdownBody } from "./MarkdownBody";
@@ -32,6 +35,8 @@ export function ItemSheet({
   onOpenBlock,
   onOpenTask,
 }: ItemSheetProps) {
+  const timeZone = useTimeZone();
+  const today = dateValue(useNow(), timeZone);
   const {
     tasks,
     notes,
@@ -187,16 +192,13 @@ export function ItemSheet({
             {block ? (
               <PinChip
                 icon="notes"
-                label={`On ${block.title} every day · ${formatTimeLabel(block.start)}–${formatTimeLabel(block.end)}`}
+                label={`On ${block.title} ${recurrenceLabel(block)} · ${formatTimeLabel(block.start)}–${formatTimeLabel(block.end)}`}
                 onClick={
                   onOpenBlock
                     ? () =>
                         onOpenBlock(
                           block.id,
-                          nextOccurrenceOnOrAfter(
-                            block,
-                            dateValue(new Date()),
-                          ),
+                          nextOccurrenceOnOrAfter(block, today),
                         )
                     : undefined
                 }

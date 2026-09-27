@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { notesOnDate, notePinsByBlock, taskPinsByBlockOnDate } from "../assignments";
+import { notesOnDate, pinsForOccurrences } from "../assignments";
 import { BlockForm } from "../components/BlockForm";
 import { DayGrid } from "../components/DayGrid";
 import { Dialog } from "../components/Dialog";
@@ -11,6 +11,7 @@ import { WeekGrid } from "../components/WeekGrid";
 import { useData } from "../data/DataProvider";
 import { useBlocks } from "../hooks/useBlocks";
 import { useNow } from "../hooks/useNow";
+import { useShortcuts } from "../hooks/useShortcuts";
 import { useTimeZone } from "../hooks/useTimeZone";
 import {
   addCalendarDays,
@@ -69,7 +70,6 @@ export function CalendarPage() {
     updateTask,
     updateNote,
   } = useData();
-  const notesByBlock = notePinsByBlock(notes);
   const [creatingDate, setCreatingDate] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingDate, setEditingDate] = useState<string | null>(null);
@@ -114,15 +114,26 @@ export function CalendarPage() {
     setSelectedDate(today);
   }
 
-  const dayModel = (date: string) => ({
-    date,
-    weekday: formatWeekdayShort(date),
-    day: String(Number(date.slice(8))),
-    label: formatDayHeading(date),
-    inMonth: date.slice(0, 7) === selectedDate.slice(0, 7),
-    isToday: date === today,
-    blocks: blocks.flatMap((block) =>
-      blockSegmentsOnDay(block, date).map((segment) => ({
+  const dayModel = (date: string) => {
+    const segments = blocks.flatMap((block) =>
+      blockSegmentsOnDay(block, date).map((segment) => ({ block, segment })),
+    );
+    const pins = pinsForOccurrences(
+      tasks,
+      notes,
+      segments.map(({ block, segment }) => ({
+        blockId: block.id,
+        occurrenceDate: segment.occurrenceDate,
+      })),
+    );
+    return {
+      date,
+      weekday: formatWeekdayShort(date),
+      day: String(Number(date.slice(8))),
+      label: formatDayHeading(date),
+      inMonth: date.slice(0, 7) === selectedDate.slice(0, 7),
+      isToday: date === today,
+      blocks: segments.map(({ block, segment }) => ({
         id: block.id,
         title: block.title,
         description: block.description,
@@ -130,32 +141,31 @@ export function CalendarPage() {
         endLabel: formatTimeLabel(block.end),
         startMinutes: segment.startMinutes,
         endMinutes: segment.endMinutes,
+        occurrenceDate: segment.occurrenceDate,
         color: block.color,
       })),
-    ),
-    events: blocks
-      .flatMap((block) =>
-        blockSegmentsOnDay(block, date).map((segment) => ({
+      events: segments
+        .map(({ block, segment }) => ({
           id: block.id,
           title: block.title,
           timeLabel: formatMinutesLabel(segment.startMinutes),
           color: block.color,
           startMinutes: segment.startMinutes,
-        })),
-      )
-      .sort(
-        (left, right) =>
-          left.startMinutes - right.startMinutes ||
-          left.title.localeCompare(right.title) ||
-          left.id.localeCompare(right.id),
-      ),
-    tasksByBlock: taskPinsByBlockOnDate(tasks, date),
-    notesByBlock,
-    dayNotes: notesOnDate(notes, date).map((note) => ({
-      id: note.id,
-      title: note.title,
-    })),
-  });
+        }))
+        .sort(
+          (left, right) =>
+            left.startMinutes - right.startMinutes ||
+            left.title.localeCompare(right.title) ||
+            left.id.localeCompare(right.id),
+        ),
+      tasksByBlock: pins.tasksByBlock,
+      notesByBlock: pins.notesByBlock,
+      dayNotes: notesOnDate(notes, date).map((note) => ({
+        id: note.id,
+        title: note.title,
+      })),
+    };
+  };
 
   const weekDays = weekDates(weekStart).map(dayModel);
   const selectedDay =
@@ -181,6 +191,25 @@ export function CalendarPage() {
     closeEditors();
     setCreatingDate(date);
   }
+
+  useShortcuts({
+    create: () => openCreate(selectedDate),
+    "calendar-today": showToday,
+    "calendar-previous": () => move(-1),
+    "calendar-next": () => move(1),
+    "calendar-day": () => {
+      closeEditors();
+      setView("day");
+    },
+    "calendar-week": () => {
+      closeEditors();
+      setView("week");
+    },
+    "calendar-month": () => {
+      closeEditors();
+      setView("month");
+    },
+  });
 
   function openEdit(id: string, date: string) {
     closeEditors();
@@ -210,9 +239,11 @@ export function CalendarPage() {
         notesByBlock={day.notesByBlock}
         nowMinutes={day.isToday ? nowMinutes : undefined}
         onEmptySelect={emptyCreates ? () => openCreate(day.date) : undefined}
-        onSelect={(id) => openEdit(id, day.date)}
+        onSelect={(id, occurrenceDate) => openEdit(id, occurrenceDate)}
         onSelectNote={(id) => pinOverlays.openNote(id)}
-        onSelectPins={(id) => pinOverlays.openPins(id, day.date)}
+        onSelectPins={(id, occurrenceDate) =>
+          pinOverlays.openPins(id, occurrenceDate)
+        }
         onSelectTask={(id) => pinOverlays.openTask(id)}
         pixelsPerHour={40}
         rangeEndMinutes={1440}

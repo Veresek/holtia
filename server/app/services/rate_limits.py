@@ -1,4 +1,4 @@
-from collections import defaultdict, deque
+from collections import deque
 from threading import Lock
 from time import monotonic
 
@@ -13,8 +13,18 @@ RATE_LIMITED = "Too many requests. Try again later."
 
 class InMemoryRateLimiter:
     def __init__(self) -> None:
-        self._attempts: dict[tuple[str, str], deque[float]] = defaultdict(deque)
+        self._attempts: dict[tuple[str, str], deque[float]] = {}
         self._lock = Lock()
+
+    def _drop_expired(self, cutoff: float) -> None:
+        empty: list[tuple[str, str]] = []
+        for key, attempts in self._attempts.items():
+            while attempts and attempts[0] <= cutoff:
+                attempts.popleft()
+            if not attempts:
+                empty.append(key)
+        for key in empty:
+            del self._attempts[key]
 
     def retry_after(
         self,
@@ -29,9 +39,11 @@ class InMemoryRateLimiter:
         cutoff = current - window_seconds
         key = (scope, client_key)
         with self._lock:
-            attempts = self._attempts[key]
-            while attempts and attempts[0] <= cutoff:
-                attempts.popleft()
+            self._drop_expired(cutoff)
+            attempts = self._attempts.get(key)
+            if attempts is None:
+                attempts = deque()
+                self._attempts[key] = attempts
             if len(attempts) >= limit:
                 return max(1, int(attempts[0] + window_seconds - current) + 1)
             attempts.append(current)
