@@ -7,7 +7,7 @@ app, not another round of product questions. Locked decisions stay in
 ## Locked (and shipped)
 
 - Web, not Expo. React 19 + FastAPI + Postgres 18. No SMTP or Google in MVP.
-- Five panels: Home, Calendar, Tasks, Notes, Account. AI bar off until `AI_ENABLED`.
+- Five panels: Home, Calendar, Tasks, Notes, Account. Assistant sheet off until `AI_ENABLED`.
 - Home = around-now (1 h back, ≥3 h forward; desktop matches today’s tasks) + today’s **open** tasks (max 4,
   with a chevron to expand the rest) + **four** recent notes.
 - Tasks: title + done + description + day; undated only in Tasks; pin to a
@@ -86,7 +86,7 @@ Not blockers for a private deploy; shipped so the snapshot stays true.
 - An overnight block’s morning segment keeps the occurrence date it started on, on Home and in Calendar.
 - A collection list fetched before a local edit no longer overwrites that edit.
 - A note’s block chip names the real recurrence, and “today” in pin labels uses the account timezone.
-- Notes can be searched. Account picks a timezone from the IANA list. AI task proposals show priority. Desktop keyboard shortcuts are listed with `?` and on Account.
+- Notes can be searched. Account picks a timezone from the IANA list. AI task proposals show priority. Desktop keyboard shortcuts are listed with `?` and the button beside Account.
 - Production `INSTANCE_CODE` must be at least 12 characters. API startup purges refresh tokens revoked more than 30 days ago, and a purge failure does not stop the process.
 
 ## Safety, privacy, performance

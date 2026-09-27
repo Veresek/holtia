@@ -21,7 +21,7 @@ client/                 Vite + React 19 + TypeScript SPA
     components/         shared UI (forms, grids, Dialog, EmptyCta, …)
     data/DataProvider   signed-in collections + /state revalidation
     hooks/              useTasks / useNotes / useBlocks / around-now
-    layouts/AppShell    sidebar + AI bar + routed outlet
+    layouts/AppShell    sidebar + assistant sheet + routed outlet
     pages/              one file per route
     styles/globals.css  Tailwind v4 theme tokens
     test/               render helper + jest-dom setup
@@ -72,6 +72,8 @@ Run the checks for whatever you touched: `npm run lint`, `npm test`, and
 not report work as done on an unverified change.
 
 ## Design language
+
+When adding or changing UI, follow `.cursor/skills/holtia-design/SKILL.md`.
 
 The app should feel **forest-like and calm**, like a well-set book page — never
 like a generic AI-generated dashboard. Concretely that means:
@@ -146,7 +148,7 @@ markup into components and do not add icon dependencies.
 ## Scope and safety
 
 - MVP is web-only and ends September 2026. Google login, Expo, and SMTP are v2.
-  The AI bar stays off until `AI_ENABLED`; users then bring their own provider
+  The assistant stays off until `AI_ENABLED`; users then bring their own provider
   key. See [docs/ai-tools.md](docs/ai-tools.md).
 - Verification and password reset currently use one `INSTANCE_CODE` from env.
   That is a private-instance stand-in. Do not publish the code. v2 replaces it

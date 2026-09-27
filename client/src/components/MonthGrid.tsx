@@ -79,7 +79,7 @@ export function MonthGrid({
               {shown.map((event) => (
                 <button
                   aria-label={`${event.title}, ${event.timeLabel}`}
-                  className="block w-full truncate border-l-2 pl-1 text-left text-[0.7rem] text-ink-soft hover:text-ink"
+                  className="block w-full truncate rounded-sm border-l-2 pl-1 text-left text-[0.7rem] text-ink-soft transition-colors duration-150 hover:bg-paper-deep hover:text-ink"
                   key={`${event.id}-${event.timeLabel}`}
                   onClick={() => onSelectEvent(event.id, day.date)}
                   style={{ borderLeftColor: normalizeBlockColor(event.color) }}

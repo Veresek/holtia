@@ -80,7 +80,7 @@ export function NoteCard({
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <article
       className={[
-        "min-w-0 rounded-lg border border-line bg-paper-raised p-4 transition-colors duration-150 hover:border-lichen",
+        "min-w-0 rounded-lg border border-line bg-paper-raised p-4 transition-colors duration-150 hover:bg-paper-deep",
         onEdit ? "cursor-pointer" : "",
       ].join(" ")}
       onClick={handleCardClick}

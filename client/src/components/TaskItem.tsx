@@ -118,13 +118,17 @@ export function TaskItem({
       className={
         row
           ? [
-              "min-w-0 border-b border-line py-3",
-              overdue ? "border-l-2 border-l-rust bg-rust/5 pl-3" : "",
+              "min-w-0 border-b border-line py-3 transition-colors duration-150",
+              overdue
+                ? "border-l-2 border-l-rust bg-rust/5 pl-3 hover:bg-rust/10"
+                : "hover:bg-paper-deep",
               onEdit ? "cursor-pointer" : "",
             ].join(" ")
           : [
-              "min-w-0 rounded-lg border border-line bg-paper-raised transition-colors duration-150 hover:border-lichen",
-              overdue ? "border-l-2 border-l-rust bg-rust/5" : "",
+              "min-w-0 rounded-lg border border-line bg-paper-raised transition-colors duration-150",
+              overdue
+                ? "border-l-2 border-l-rust bg-rust/5 hover:bg-rust/10"
+                : "hover:bg-paper-deep",
               dense ? "p-3" : "p-4",
               onEdit ? "cursor-pointer" : "",
             ].join(" ")

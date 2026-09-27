@@ -18,7 +18,7 @@ The September MVP is feature-complete in code:
 - Home’s morning review: today’s open tasks, a window around now, and recent
   notes.
 - Responsive web shell (sidebar on desktop, bottom tabs on the phone) with an
-  AI bar. The assistant stays off until `AI_ENABLED`; users then bring their
+  assistant sheet. The assistant stays off until `AI_ENABLED`; users then bring their
   own OpenAI, Anthropic, Gemini, DeepSeek, or xAI key.
 - Docker Compose for development and for production (API on localhost:8001,
   SPA built to `client/dist` for the host reverse proxy).

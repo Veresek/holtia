@@ -1,4 +1,12 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { Link } from "react-router-dom";
 
 import { aiApi } from "../api/ai";
@@ -61,6 +69,9 @@ export function AiBar() {
   const [offline, setOffline] = useState(
     () => typeof navigator !== "undefined" && navigator.onLine === false,
   );
+  const inputRef = useRef<HTMLInputElement>(null);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
 
   useEffect(() => {
     function goOnline() {
@@ -77,12 +88,21 @@ export function AiBar() {
     };
   }, []);
 
+  const enabled = settings?.enabled === true;
+  const configured = settings?.configured === true;
+
+  function closePanel() {
+    restoreFocus.current = true;
+    setOpen(false);
+  }
+
   useEffect(() => {
     if (!open) {
       return;
     }
     function onKey(event: globalThis.KeyboardEvent) {
       if (event.key === "Escape") {
+        restoreFocus.current = true;
         setOpen(false);
       }
     }
@@ -90,9 +110,24 @@ export function AiBar() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const enabled = settings?.enabled === true;
-  const configured = settings?.configured === true;
-  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (open) {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        return;
+      }
+      document
+        .getElementById("ai-panel")
+        ?.querySelector<HTMLElement>("button, a, input")
+        ?.focus();
+      return;
+    }
+    if (restoreFocus.current) {
+      restoreFocus.current = false;
+      launcherRef.current?.focus();
+    }
+  }, [open]);
+
   useShortcuts(
     enabled && configured
       ? {
@@ -193,97 +228,86 @@ export function AiBar() {
   function onInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Escape" && open) {
       event.preventDefault();
-      setOpen(false);
+      closePanel();
     }
   }
 
   if (loading && !settings) {
-    return (
-      <div className="border-b border-line bg-paper px-4 py-3 md:px-8">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 rounded-md border border-line bg-paper-raised px-3 py-2.5 text-ink-faint">
-          <Icon name="leaf" className="size-5 shrink-0 text-lichen" />
-          <p className="text-sm">Loading assistant…</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   if (!enabled) {
-    return (
-      <div className="border-b border-line bg-paper px-4 py-3 md:px-8">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 rounded-md border border-line bg-paper-raised px-3 py-2.5 text-ink-faint">
-          <Icon name="leaf" className="size-5 shrink-0 text-lichen" />
-          <input
-            aria-label="AI assistant (coming later)"
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ink-faint"
-            disabled
-            placeholder="Ask Holtia to help plan your day…"
-            type="text"
-          />
-          <span className="text-xs text-ink-faint">Coming later</span>
-        </div>
-      </div>
-    );
+    return null;
   }
 
-  if (!configured) {
-    return (
-      <div className="border-b border-line bg-paper px-4 py-3 md:px-8">
-        <Link
-          className="mx-auto flex max-w-6xl items-center gap-3 rounded-md border border-line bg-paper-raised px-3 py-2.5 text-ink-soft hover:border-lichen"
-          to="/account"
+  const composer: ReactNode = configured ? (
+    <form className="border-t border-line p-3" onSubmit={(event) => void submitPrompt(event)}>
+      <div className="flex items-center gap-2">
+        <input
+          aria-label="AI assistant"
+          className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-faint"
+          id={inputId}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={onInputKeyDown}
+          placeholder="Ask Holtia to help plan your day…"
+          ref={inputRef}
+          type="text"
+          value={draft}
+        />
+        <button
+          aria-label="Send"
+          className="rounded-md p-1 text-moss hover:text-moss-hover disabled:cursor-not-allowed disabled:text-ink-faint"
+          disabled={sending || executing || draft.trim().length === 0}
+          type="submit"
         >
-          <Icon name="leaf" className="size-5 shrink-0 text-lichen" />
-          <span className="min-w-0 flex-1 text-sm">
-            Set an API key on Account to use the assistant.
-          </span>
-        </Link>
+          <Icon name="send" className="size-5" />
+        </button>
       </div>
-    );
-  }
+    </form>
+  ) : (
+    <div className="border-t border-line p-3">
+      <Link
+        className="text-sm text-moss hover:text-moss-hover"
+        to="/account"
+      >
+        Set an API key on Account to use the assistant.
+      </Link>
+    </div>
+  );
 
   return (
-    <div className="border-b border-line bg-paper">
-      <form
-        className="px-4 py-3 md:px-8"
-        onSubmit={(event) => void submitPrompt(event)}
-      >
-        <div className="mx-auto flex max-w-6xl items-center gap-3 rounded-md border border-line bg-paper-raised px-3 py-2.5">
-          <Icon name="leaf" className="size-5 shrink-0 text-lichen" />
-          <input
-            aria-label="AI assistant"
-            className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-faint"
-            id={inputId}
-            onChange={(event) => setDraft(event.target.value)}
-            onFocus={() => setOpen(true)}
-            onKeyDown={onInputKeyDown}
-            placeholder="Ask Holtia to help plan your day…"
-            ref={inputRef}
-            type="text"
-            value={draft}
-          />
-          <button
-            aria-label="Send"
-            className="rounded-md p-1 text-moss hover:text-moss-hover disabled:cursor-not-allowed disabled:text-ink-faint"
-            disabled={sending || executing || draft.trim().length === 0}
-            type="submit"
-          >
-            <Icon name="send" className="size-5" />
-          </button>
-        </div>
-      </form>
+    <>
       {open ? (
-        <AiPanel
-          error={error}
-          executing={executing}
-          messages={messages}
-          onClose={() => setOpen(false)}
-          onCreate={() => void createItems()}
-          onDiscard={discardPlan}
-          pendingItems={pendingItems}
-          sending={sending}
-        />
-      ) : null}
-    </div>
+        <>
+          <button
+            aria-label="Dismiss assistant"
+            className="fixed inset-x-0 top-0 z-30 h-12 md:hidden"
+            onClick={closePanel}
+            type="button"
+          />
+          <AiPanel
+            error={error}
+            executing={executing}
+            footer={composer}
+            messages={messages}
+            onClose={closePanel}
+            onCreate={() => void createItems()}
+            onDiscard={discardPlan}
+            pendingItems={pendingItems}
+            sending={sending}
+          />
+        </>
+      ) : (
+        <button
+          aria-label="Open assistant"
+          className="fixed right-4 bottom-[calc(4rem+env(safe-area-inset-bottom)+0.75rem)] z-30 flex size-11 items-center justify-center rounded-lg border border-line bg-paper-raised text-moss hover:bg-paper-deep md:right-6 md:bottom-6"
+          onClick={() => setOpen(true)}
+          ref={launcherRef}
+          type="button"
+        >
+          <Icon name="leaf" className="size-5" />
+        </button>
+      )}
+    </>
   );
 }

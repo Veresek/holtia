@@ -2,7 +2,7 @@
 
 Responsive React 19 SPA: Vite, TypeScript, React Router, Tailwind CSS v4, and
 react-markdown. Authentication, account deletion, Tasks, Calendar, Notes, and
-Home’s day review are live. The AI bar is off until the instance sets
+Home’s day review are live. The assistant is off until the instance sets
 `AI_ENABLED`; users then save a provider key on Account.
 
 ```powershell

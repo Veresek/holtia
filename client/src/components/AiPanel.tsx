@@ -24,6 +24,7 @@ interface AiPanelProps {
   executing: boolean;
   error: string | null;
   pendingItems: AiProposal[] | null;
+  footer: ReactNode;
   onCreate: () => void;
   onDiscard: () => void;
   onClose: () => void;
@@ -64,9 +65,7 @@ function ProposalList({
           key={`${item.kind}-${item.title}-${index}`}
           className="rounded-md border border-line bg-paper px-3 py-2"
         >
-          <p className="text-xs uppercase tracking-wide text-ink-faint">
-            {kindLabel(item.kind)}
-          </p>
+          <p className="text-xs text-ink-faint">{kindLabel(item.kind)}</p>
           <p className="mt-1 text-sm text-ink">{item.title}</p>
           <p className="mt-0.5 text-xs text-ink-soft">{proposalDetail(item)}</p>
         </li>
@@ -81,6 +80,7 @@ export function AiPanel({
   executing,
   error,
   pendingItems,
+  footer,
   onCreate,
   onDiscard,
   onClose,
@@ -94,6 +94,18 @@ export function AiPanel({
       log.scrollTop = log.scrollHeight;
     }
   }, [messages, sending, error]);
+
+  const pendingMessageId =
+    pendingItems && pendingItems.length > 0
+      ? [...messages]
+          .reverse()
+          .find(
+            (message) =>
+              message.role === "assistant" &&
+              message.items &&
+              message.items.length > 0,
+          )?.id
+      : undefined;
 
   let status: ReactNode = null;
   if (sending) {
@@ -113,46 +125,50 @@ export function AiPanel({
   return (
     <section
       aria-labelledby={headingId}
-      className="border-b border-line bg-paper-raised"
+      className="fixed z-30 flex flex-col overflow-hidden rounded-lg border border-line bg-paper-raised animate-rise-in top-12 right-3 bottom-[calc(4rem+env(safe-area-inset-bottom))] left-3 md:top-4 md:right-4 md:bottom-4 md:left-auto md:w-96"
       id="ai-panel"
     >
-      <div className="mx-auto max-w-6xl px-4 py-3 md:px-8">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="font-serif text-lg text-ink" id={headingId}>
-            Assistant
-          </h2>
-          <button
-            aria-label="Close assistant"
-            className="rounded-md p-1 text-ink-soft hover:text-ink"
-            onClick={onClose}
-            type="button"
-          >
-            <Icon name="close" className="size-5" />
-          </button>
-        </div>
-        <div
-          className="mt-3 max-h-[40vh] space-y-3 overflow-y-auto"
-          ref={logRef}
+      <div className="flex items-start justify-between gap-3 px-4 pt-4">
+        <h2 className="font-serif text-lg text-ink" id={headingId}>
+          Assistant
+        </h2>
+        <button
+          aria-label="Close assistant"
+          className="rounded-md p-1 text-ink-soft hover:text-ink"
+          onClick={onClose}
+          type="button"
         >
-          {messages.length === 0 && !sending ? (
-            <p className="text-sm text-ink-soft">
-              Ask for tasks, notes, or a one-off block. You will preview
-              everything before it is created.
-            </p>
-          ) : null}
-          {messages.map((message) => (
-            <article key={message.id}>
-              <p className="text-xs uppercase tracking-wide text-ink-faint">
-                {message.role === "user" ? "You" : "Holtia"}
+          <Icon name="close" className="size-5" />
+        </button>
+      </div>
+      <div
+        className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4"
+        ref={logRef}
+      >
+        {messages.length === 0 && !sending ? (
+          <p className="text-sm text-ink-soft">
+            Ask for tasks, notes, or a one-off block. You will preview
+            everything before it is created.
+          </p>
+        ) : null}
+        {messages.map((message) =>
+          message.role === "user" ? (
+            <div className="flex justify-end" key={message.id}>
+              <p className="max-w-[85%] rounded-lg bg-paper px-3 py-2 text-sm whitespace-pre-wrap text-ink">
+                {message.text}
               </p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-ink">
+            </div>
+          ) : (
+            <article
+              className="max-w-[85%] border-l-2 border-moss pl-3"
+              key={message.id}
+            >
+              <p className="font-serif text-sm text-ink-soft">Holtia</p>
+              <p className="mt-1 text-sm whitespace-pre-wrap text-ink">
                 {message.text}
               </p>
               {message.items && message.items.length > 0 ? (
-                <ProposalList
-                  items={message.items}
-                  labelledBy={headingId}
-                />
+                <ProposalList items={message.items} labelledBy={headingId} />
               ) : null}
               {message.execution ? (
                 <div className="mt-2 space-y-1 text-sm">
@@ -176,36 +192,37 @@ export function AiPanel({
                   ) : null}
                 </div>
               ) : null}
+              {message.id === pendingMessageId ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    className="rounded-md bg-moss px-4 py-2 text-sm font-medium text-paper-raised hover:bg-moss-hover disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={executing}
+                    onClick={onCreate}
+                    type="button"
+                  >
+                    {executing ? "Creating items…" : "Create items"}
+                  </button>
+                  <button
+                    className="rounded-md border border-line px-4 py-2 text-sm text-ink hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={executing}
+                    onClick={onDiscard}
+                    type="button"
+                  >
+                    Discard
+                  </button>
+                </div>
+              ) : null}
             </article>
-          ))}
-          {status}
-          {error ? (
-            <p className="text-sm text-rust" role="alert">
-              {error}
-            </p>
-          ) : null}
-        </div>
-        {pendingItems && pendingItems.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              className="rounded-md bg-moss px-4 py-2 text-sm font-medium text-paper-raised hover:bg-moss-hover disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={executing}
-              onClick={onCreate}
-              type="button"
-            >
-              {executing ? "Creating items…" : "Create items"}
-            </button>
-            <button
-              className="rounded-md border border-line px-4 py-2 text-sm text-ink hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={executing}
-              onClick={onDiscard}
-              type="button"
-            >
-              Discard
-            </button>
-          </div>
+          ),
+        )}
+        {status}
+        {error ? (
+          <p className="text-sm text-rust" role="alert">
+            {error}
+          </p>
         ) : null}
       </div>
+      {footer}
     </section>
   );
 }

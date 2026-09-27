@@ -2,9 +2,10 @@
 
 The assistant is **off by default** (`AI_ENABLED=false`). When an operator
 enables it, each user can save one or more OpenAI, Anthropic, Google Gemini,
-DeepSeek, or xAI keys on Account and choose which one is in use. The bar at the
-top of every signed-in screen opens a panel; the model returns a plan; **nothing
-is written until the user confirms**.
+DeepSeek, or xAI keys on Account and choose which one is in use. A leaf button
+at the bottom-right of every signed-in screen opens a sheet; the model returns a plan; **nothing
+is written until the user confirms**. The sheet overlays the page, so a long
+thread scrolls inside it.
 
 Confirmed creates use the same REST API the SPA already uses, as the signed-in
 user. OpenAPI at `/docs` is the live schema in development. Production nginx

@@ -12,7 +12,6 @@ import { AiKeyItem, PROVIDER_ICONS, PROVIDER_LABELS } from "../components/AiKeyI
 import { ConfirmDelete } from "../components/ConfirmDelete";
 import { Dialog } from "../components/Dialog";
 import { Icon } from "../components/Icon";
-import { useOpenShortcuts } from "../components/ShortcutList";
 import { useAiSettings } from "../hooks/useAiSettings";
 import { deviceTimeZone, formatTimeZoneLabel, timeZoneOptions } from "../time";
 import type { AiKey, AiProvider } from "../types";
@@ -22,7 +21,6 @@ const PROVIDERS = Object.keys(PROVIDER_LABELS) as AiProvider[];
 export function AccountPage() {
   const { user, logout, deleteAccount, updateUser } = useAuth();
   const { settings, loading: settingsLoading, setSettings } = useAiSettings();
-  const openShortcuts = useOpenShortcuts();
   const [pendingAction, setPendingAction] = useState<
     | "logout"
     | "delete"
@@ -285,24 +283,6 @@ export function AccountPage() {
               {error}
             </p>
           ) : null}
-          <section
-            aria-labelledby="keyboard-shortcuts-title"
-            className="mt-8 hidden border-t border-line pt-6 md:block"
-          >
-            <h2 className="font-serif text-2xl" id="keyboard-shortcuts-title">
-              Keyboard shortcuts
-            </h2>
-            <p className="mt-2 text-sm text-ink-soft">
-              Press ? anywhere to open the list.
-            </p>
-            <button
-              className="mt-3 rounded-md border border-line px-4 py-2 text-sm font-medium text-ink hover:border-lichen"
-              onClick={openShortcuts}
-              type="button"
-            >
-              Show shortcuts
-            </button>
-          </section>
         </div>
         <section
           aria-labelledby="ai-assistant-title"

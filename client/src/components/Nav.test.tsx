@@ -1,13 +1,21 @@
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { Nav } from "./Nav";
+import { ShortcutListProvider } from "./ShortcutList";
 import { renderWithRouter } from "../test/render";
+
+function renderNav(ui: ReactElement, route = "/") {
+  return renderWithRouter(
+    <ShortcutListProvider>{ui}</ShortcutListProvider>,
+    { route },
+  );
+}
 
 describe("Nav", () => {
   it("puts Account after the main panels on the desktop sidebar", () => {
-    renderWithRouter(<Nav />);
+    renderNav(<Nav />);
 
     const navigation = screen.getByRole("navigation", { name: "Primary navigation" });
     const labels = [...navigation.querySelectorAll("a")]
@@ -18,7 +26,7 @@ describe("Nav", () => {
   });
 
   it("labels mobile navigation and marks the active panel clearly", () => {
-    renderWithRouter(<Nav mobile />, { route: "/tasks" });
+    renderNav(<Nav mobile />, "/tasks");
 
     const navigation = screen.getByRole("navigation", {
       name: "Mobile navigation",
@@ -28,6 +36,9 @@ describe("Nav", () => {
     expect(navigation).toBeInTheDocument();
     expect(active).toHaveAttribute("aria-current", "page");
     expect(active).toHaveClass("bg-paper", "text-moss");
+    expect(
+      screen.queryByRole("button", { name: "Keyboard shortcuts" }),
+    ).not.toBeInTheDocument();
   });
 
   it("collapses the desktop sidebar to an icon rail", () => {
@@ -38,7 +49,7 @@ describe("Nav", () => {
       );
     }
 
-    renderWithRouter(<Harness />);
+    renderNav(<Harness />);
 
     const navigation = screen.getByRole("navigation", {
       name: "Primary navigation",
@@ -65,5 +76,21 @@ describe("Nav", () => {
     expect(
       screen.getByRole("button", { name: "Expand sidebar" }),
     ).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.getByRole("button", { name: "Keyboard shortcuts" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the shortcut list from the desktop sidebar", async () => {
+    renderNav(<Nav />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Keyboard shortcuts" }),
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Go to Home")).toBeInTheDocument();
   });
 });

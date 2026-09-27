@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 import type { BlockPin } from "../assignments";
 import { mixPins, pinCountLabel, pinKey } from "../assignments";
 import { blockColorFill } from "../blockColor";
@@ -299,15 +301,19 @@ export function DayGrid({
               ((block.clippedEnd - block.clippedStart) / duration) * 100;
             const width = `calc(${100 / block.columns}% - 0.25rem)`;
             const left = `calc(${(block.column / block.columns) * 100}% + 0.125rem)`;
+            const fill = blockColorFill(block.color);
             const className =
-              "absolute z-10 overflow-hidden rounded-md border border-l-4 px-2 py-1 text-left";
+              "absolute z-10 overflow-hidden rounded-md border border-l-4 bg-[var(--block-bg)] px-2 py-1 text-left transition-colors duration-150 hover:bg-[var(--block-bg-hover)]";
             const style = {
               top: `${top}%`,
               height: `${blockHeight}%`,
               left,
               width,
-              ...blockColorFill(block.color),
-            };
+              borderColor: fill.borderColor,
+              borderLeftColor: fill.borderLeftColor,
+              "--block-bg": fill.backgroundColor,
+              "--block-bg-hover": fill.backgroundColorHover,
+            } as CSSProperties;
             const heightPx =
               ((block.clippedEnd - block.clippedStart) / 60) * pixelsPerHour;
             const heading = readOnly ? (

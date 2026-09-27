@@ -21,12 +21,11 @@ function stateCount() {
 }
 
 async function openAssistant() {
-  const input = await screen.findByRole("textbox", { name: "AI assistant" });
-  fireEvent.focus(input);
+  fireEvent.click(await screen.findByRole("button", { name: "Open assistant" }));
   expect(
     await screen.findByRole("heading", { name: "Assistant" }),
   ).toBeInTheDocument();
-  return input;
+  return screen.getByRole("textbox", { name: "AI assistant" });
 }
 
 async function ask(prompt: string) {
@@ -62,14 +61,23 @@ const groceryPlan: AiPlanResponse = {
 };
 
 describe("AiBar", () => {
-  it("keeps the placeholder disabled when AI is off", async () => {
+  it("stays hidden when AI is off", async () => {
     stubSignedIn();
     renderWithRouter(<App />);
 
+    await waitFor(() => {
+      expect(
+        vi.mocked(fetch).mock.calls.some(([input]) =>
+          String(input).includes("/ai/settings"),
+        ),
+      ).toBe(true);
+    });
     expect(
-      await screen.findByRole("textbox", { name: "AI assistant (coming later)" }),
-    ).toBeDisabled();
-    expect(screen.getByText("Coming later")).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Open assistant" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "AI assistant" }),
+    ).not.toBeInTheDocument();
   });
 
   it("sends an unconfigured bar to Account", async () => {
@@ -78,6 +86,9 @@ describe("AiBar", () => {
     });
     renderWithRouter(<App />);
 
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Open assistant" }),
+    );
     fireEvent.click(
       await screen.findByRole("link", {
         name: "Set an API key on Account to use the assistant.",

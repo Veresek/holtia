@@ -203,7 +203,7 @@ If you change the key while rows still exist, `POST /api/ai/plan` returns
 
 ## Assistant behaviour
 
-- Default is off. The bar shows “Coming later”.
+- Default is off. Nothing is reserved on the page until an operator sets `AI_ENABLED`. When it is on, a leaf button opens the assistant sheet.
 - When enabled, users pick OpenAI, Anthropic, Google Gemini, DeepSeek, or xAI
   and paste a key.
 - Prompts go to that provider from the API container (outbound HTTPS). The

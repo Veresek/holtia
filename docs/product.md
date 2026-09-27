@@ -33,7 +33,7 @@ Primary goal: **personal development**. More hours of work = more time for what 
 
 ## Navigation
 
-The five panels sit in a sidebar on desktop and in bottom tabs on a phone. On a keyboard, shortcuts move between them and add the current panel’s item; press ? or open Account to see the full list.
+The five panels sit in a sidebar on desktop and in bottom tabs on a phone. On a keyboard, shortcuts move between them and add the current panel’s item; press ? or the question mark beside Account to see the full list.
 
 | Panel        | What is there                                                          |
 | ------------ | ---------------------------------------------------------------------- |
@@ -45,17 +45,17 @@ The five panels sit in a sidebar on desktop and in bottom tabs on a phone. On a 
 
 Verify and password reset are **guest pages** (`/verify`, `/reset`), reached from login. Account is the signed-in panel.
 
-An AI bar sits at the top of every screen. Off by default (`AI_ENABLED`). When
+An assistant sheet opens from a leaf button at the bottom-right of every signed-in screen. Off by default (`AI_ENABLED`). When
 the instance turns it on, Account holds one or more of the user’s own provider
 keys (OpenAI, Anthropic, Google Gemini, DeepSeek, or xAI), each with a model.
 One key is in use at a time. The assistant proposes tasks, notes, and one-off
-blocks; nothing is written until the user confirms.
+blocks; nothing is written until the user confirms. The sheet overlays the page, so a long thread scrolls inside it and the day stays where it was.
 
 ## Home (morning review)
 
-**Desktop:** panels on the left; AI bar at the top; in the middle, today’s open tasks (left) and calendar preview (right); recent notes below.
+**Desktop:** panels on the left; in the middle, today’s open tasks (left) and calendar preview (right); recent notes below. When the assistant is enabled, its sheet opens over the right side and does not move the page.
 
-**Mobile:** panels at the bottom; AI bar at the top; block preview under it; today’s open tasks below that; recent notes further down.
+**Mobile:** panels at the bottom; block preview under the greeting; today’s open tasks below that; recent notes further down. The assistant opens as a sheet above the tabs.
 
 The calendar preview is a **window around now**: 1 h back and at least 3 h forward. On desktop it grows with the today’s-tasks column and shows more hours ahead. Day, week, and month live in Calendar.
 
@@ -82,7 +82,7 @@ A block may **show** pinned tasks and notes on its tile. It is still not a list 
 
 1. **New stage of life** — too little time; Holtia should stay light to plan with. Habits and _randomness in a block_ are v2.
 2. **Own / small project** — notes for yourself only. This is not a shared planner with a friend.
-3. **Morning review** — you wake up, Home shows the day, you leave with the day laid out. The AI bar can draft that plan when it is enabled.
+3. **Morning review** — you wake up, Home shows the day, you leave with the day laid out. The assistant can draft that plan when it is enabled.
 
 ## v2 (do not promise this for September)
 

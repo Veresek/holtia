@@ -40,12 +40,14 @@ export function hexToRgba(hex: string, alpha: number): string {
 
 export function blockColorFill(color: string | undefined): {
   backgroundColor: string;
+  backgroundColorHover: string;
   borderColor: string;
   borderLeftColor: string;
 } {
   const hex = normalizeBlockColor(color);
   return {
     backgroundColor: hexToRgba(hex, 0.22),
+    backgroundColorHover: hexToRgba(hex, 0.36),
     borderColor: hexToRgba(hex, 0.4),
     borderLeftColor: hex,
   };

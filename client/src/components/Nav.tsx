@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 
 import { Brand } from "./Brand";
 import { Icon, type IconName } from "./Icon";
+import { useOpenShortcuts } from "./ShortcutList";
 
 const items: { to: string; label: string; icon: IconName; end?: boolean }[] = [
   { to: "/", label: "Home", icon: "home", end: true },
@@ -98,6 +99,7 @@ export function Nav({
   collapsed = false,
   onCollapsedChange,
 }: NavProps) {
+  const openShortcuts = useOpenShortcuts();
   const allItems = [...items, accountItem];
 
   return (
@@ -169,12 +171,24 @@ export function Nav({
       </div>
 
       {!mobile && (
-        <div className="mt-auto">
-          <NavItem
-            collapsed={collapsed}
-            item={accountItem}
-            mobile={false}
-          />
+        <div
+          className={[
+            "mt-auto flex gap-1",
+            collapsed ? "flex-col items-center" : "items-center",
+          ].join(" ")}
+        >
+          <div className={collapsed ? "w-full" : "min-w-0 flex-1"}>
+            <NavItem collapsed={collapsed} item={accountItem} mobile={false} />
+          </div>
+          <button
+            aria-label="Keyboard shortcuts"
+            className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line text-sm text-ink-soft hover:text-ink"
+            onClick={openShortcuts}
+            title="Keyboard shortcuts"
+            type="button"
+          >
+            ?
+          </button>
         </div>
       )}
     </nav>
