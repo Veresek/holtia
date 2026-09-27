@@ -41,8 +41,6 @@ export function AccountPage() {
 
   const models = settings?.models[provider] ?? [];
   const keys = settings?.keys ?? [];
-  const activeKey =
-    keys.find((item) => item.id === settings?.activeKeyId) ?? null;
   const editingExisting =
     editingKeyId && editingKeyId !== "new"
       ? (keys.find((item) => item.id === editingKeyId) ?? null)
@@ -278,18 +276,9 @@ export function AccountPage() {
                 xAI keys. Holtia stores them encrypted on this instance and
                 never shows them again.
               </p>
-              <h3 className="mt-6 text-sm font-medium text-ink">In use</h3>
-              {activeKey ? (
-                <div className="mt-2">
-                  <AiKeyItem
-                    active
-                    item={activeKey}
-                    modelLabel={modelLabel(activeKey)}
-                  />
-                </div>
-              ) : (
+              {keys.length === 0 ? (
                 <p className="mt-2 text-sm text-ink-soft">No API key in use.</p>
-              )}
+              ) : null}
               <button
                 className="mt-5 w-full rounded-md bg-moss px-4 py-2.5 text-sm font-medium text-paper-raised hover:bg-moss-hover disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={pending}
@@ -446,7 +435,7 @@ export function AccountPage() {
         </section>
         <section
           aria-labelledby="danger-zone-title"
-          className="border-t border-line pt-8 md:col-start-2 md:row-start-2 md:mt-8"
+          className="mt-8 rounded-lg border border-rust/40 bg-rust/10 px-4 py-5 md:col-start-2 md:row-start-2"
         >
           <h2 className="font-serif text-2xl text-rust" id="danger-zone-title">
             Delete account

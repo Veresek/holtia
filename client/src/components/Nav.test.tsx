@@ -44,7 +44,10 @@ describe("Nav", () => {
       name: "Primary navigation",
     });
     expect(navigation).toHaveClass("w-64");
-    expect(screen.getByText("Holtia")).toBeInTheDocument();
+    const wordmark = screen.getByText("Holtia");
+    expect(wordmark).toHaveClass("opacity-100");
+    expect(wordmark).not.toHaveAttribute("aria-hidden");
+    expect(screen.queryByText("Collapse")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tasks" })).toHaveTextContent(
       "Tasks",
     );
@@ -54,10 +57,11 @@ describe("Nav", () => {
     expect(
       screen.getByRole("navigation", { name: "Primary navigation" }),
     ).toHaveClass("w-16");
-    expect(screen.queryByText("Holtia")).not.toBeInTheDocument();
+    expect(wordmark).toHaveClass("opacity-0", "max-w-0");
+    expect(wordmark).toHaveAttribute("aria-hidden", "true");
     const tasksLink = screen.getByRole("link", { name: "Tasks" });
-    expect(tasksLink.querySelector(".sr-only")).toHaveTextContent("Tasks");
-    expect(tasksLink.querySelector(".truncate")).toBeNull();
+    expect(tasksLink).toHaveTextContent("Tasks");
+    expect(tasksLink.querySelector(".sr-only")).toBeNull();
     expect(
       screen.getByRole("button", { name: "Expand sidebar" }),
     ).toHaveAttribute("aria-expanded", "false");

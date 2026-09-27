@@ -17,6 +17,8 @@ const accountItem = {
 };
 
 const NAV_COLLAPSED_KEY = "holtia.navCollapsed";
+const navEase = "duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]";
+const labelEase = "duration-200 ease-out";
 
 export function readNavCollapsed(): boolean {
   try {
@@ -56,24 +58,37 @@ function NavItem({
       title={collapsed && !mobile ? item.label : undefined}
       className={({ isActive }) =>
         [
-          "transition-colors",
           mobile
-            ? "mx-0.5 my-1 flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-md px-1 text-xs font-medium"
-            : collapsed
-              ? "flex items-center justify-center rounded-md px-2 py-3"
-              : "flex items-center gap-3 rounded-md px-3.5 py-3 text-base",
+            ? "mx-0.5 my-1 flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-md px-1 text-xs font-medium transition-colors"
+            : [
+                "flex items-center rounded-md py-3 transition-[padding,gap,color,background-color]",
+                navEase,
+                collapsed
+                  ? "justify-center gap-0 px-2"
+                  : "gap-3 px-3.5 text-base",
+              ].join(" "),
           isActive
             ? "bg-paper text-moss"
             : "text-ink-soft hover:text-ink",
         ].join(" ")
       }
     >
-      <Icon name={item.icon} className="size-5" />
-      {collapsed && !mobile ? (
-        <span className="sr-only">{item.label}</span>
-      ) : (
-        <span className="truncate">{item.label}</span>
-      )}
+      <Icon name={item.icon} className="size-5 shrink-0" />
+      <span
+        className={
+          mobile
+            ? "truncate"
+            : [
+                "overflow-hidden whitespace-nowrap transition-[max-width,opacity]",
+                labelEase,
+                collapsed
+                  ? "max-w-0 opacity-0"
+                  : "max-w-[9rem] truncate opacity-100",
+              ].join(" ")
+        }
+      >
+        {item.label}
+      </span>
     </NavLink>
   );
 }
@@ -92,37 +107,51 @@ export function Nav({
         mobile
           ? "grid h-16 grid-cols-5 border-t border-line bg-paper-deep px-1 pb-[env(safe-area-inset-bottom)] md:hidden"
           : [
-              "hidden shrink-0 flex-col border-r border-line bg-paper-deep md:flex",
-              collapsed ? "w-16 px-2 py-5" : "w-64 p-5",
+              "relative hidden shrink-0 flex-col overflow-hidden border-r border-line bg-paper-deep py-5 md:flex",
+              "transition-[width,padding] motion-reduce:transition-none",
+              navEase,
+              collapsed ? "w-16 px-2" : "w-64 px-5",
             ].join(" ")
       }
     >
       {!mobile && (
         <div
           className={[
-            "mb-10",
-            collapsed ? "flex flex-col items-center gap-3" : "px-2",
+            "relative mb-10 transition-[min-height]",
+            navEase,
+            collapsed ? "min-h-[5.25rem]" : "min-h-9 px-2",
           ].join(" ")}
         >
-          <Brand compact={collapsed} />
+          <div
+            className={[
+              "flex",
+              collapsed ? "justify-center" : "justify-start",
+            ].join(" ")}
+          >
+            <Brand compact={collapsed} />
+          </div>
           {onCollapsedChange ? (
             <button
               aria-expanded={!collapsed}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               className={[
-                "rounded-md border border-line text-ink-soft transition-colors hover:border-lichen hover:text-ink",
+                "absolute z-10 flex size-9 items-center justify-center rounded-md text-ink-soft transition-[top,left,right,transform,color] hover:text-ink motion-reduce:transition-none",
+                navEase,
                 collapsed
-                  ? "flex size-9 items-center justify-center"
-                  : "mt-3 flex w-full items-center justify-center gap-2 px-3 py-2 text-sm",
+                  ? "top-12 left-1/2 -translate-x-1/2"
+                  : "top-0 right-2 translate-x-0",
               ].join(" ")}
               onClick={() => onCollapsedChange(!collapsed)}
               type="button"
             >
               <Icon
-                name={collapsed ? "chevronRight" : "chevronLeft"}
-                className="size-4"
+                className={[
+                  "size-4 transition-transform motion-reduce:transition-none",
+                  navEase,
+                  collapsed ? "rotate-180" : "rotate-0",
+                ].join(" ")}
+                name="chevronLeft"
               />
-              {collapsed ? null : <span>Collapse</span>}
             </button>
           ) : null}
         </div>

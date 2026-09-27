@@ -80,8 +80,8 @@ export function TaskForm({
       />
       {titleError ? <FieldError id={titleErrorId} message={titleError} /> : null}
 
-      <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_11rem]">
-        <div>
+      <div className="mt-4 grid items-stretch gap-4 md:grid-cols-[minmax(0,1fr)_11rem]">
+        <div className="flex min-h-0 flex-col">
           <label
             className="block text-sm font-medium text-ink"
             htmlFor={descriptionId}
@@ -89,7 +89,10 @@ export function TaskForm({
             Description
           </label>
           <textarea
-            className={fieldClass(false, "min-h-24 resize-y")}
+            className={fieldClass(
+              false,
+              "min-h-24 flex-1 resize-y md:min-h-0",
+            )}
             id={descriptionId}
             maxLength={10000}
             onChange={(event) => draft.setDescription(event.target.value)}

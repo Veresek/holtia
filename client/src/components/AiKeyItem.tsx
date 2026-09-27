@@ -48,7 +48,10 @@ export function AiKeyItem({
   onCancelDelete,
   onConfirmDelete,
 }: AiKeyItemProps) {
-  const label = `Key ending in ${item.keyHint}`;
+  const providerLabel = PROVIDER_LABELS[item.provider];
+  const title = `${providerLabel} · ${modelLabel}`;
+  const hint = `Key ending in ${item.keyHint}`;
+  const summary = `${providerLabel} ${modelLabel}, key ending in ${item.keyHint}`;
 
   return (
     <article
@@ -63,23 +66,23 @@ export function AiKeyItem({
       />
       {selectable && onSelect ? (
         <button
-          aria-label={`Use ${PROVIDER_LABELS[item.provider]} ${label}`}
+          aria-label={`Use ${summary}`}
           className="min-w-0 flex-1 text-left"
           disabled={pending || active}
           onClick={onSelect}
           type="button"
         >
-          <p className="truncate text-sm text-ink">{label}</p>
-          <p className="mt-0.5 truncate text-xs text-ink-soft">
-            {PROVIDER_LABELS[item.provider]} · {modelLabel}
+          <p className="text-sm text-ink">{title}</p>
+          <p className="mt-0.5 text-xs text-ink-soft">
+            {hint}
             {active ? " · In use" : ""}
           </p>
         </button>
       ) : (
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm text-ink">{label}</p>
-          <p className="mt-0.5 truncate text-xs text-ink-soft">
-            {PROVIDER_LABELS[item.provider]} · {modelLabel}
+          <p className="text-sm text-ink">{title}</p>
+          <p className="mt-0.5 text-xs text-ink-soft">
+            {hint}
             {active ? " · In use" : ""}
           </p>
         </div>
@@ -87,7 +90,7 @@ export function AiKeyItem({
       {onEdit || onDelete ? (
         <ItemMenu
           disabled={pending}
-          label={`Actions for ${label}`}
+          label={`Actions for ${summary}`}
           onDelete={onDelete}
           onEdit={onEdit}
         />

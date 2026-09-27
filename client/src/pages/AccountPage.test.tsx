@@ -209,9 +209,11 @@ describe("AccountPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save key" }));
 
+    expect(await screen.findByText("OpenAI · GPT-5.6 Luna")).toBeInTheDocument();
+    expect(screen.getAllByText("Key ending in alue · In use")).toHaveLength(1);
     expect(
-      await screen.findAllByText("Key ending in alue"),
-    ).toHaveLength(2);
+      screen.queryByRole("heading", { name: "In use" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("dialog", { name: "Add API key" }),
     ).not.toBeInTheDocument();
@@ -254,8 +256,9 @@ describe("AccountPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save key" }));
 
     expect(
-      await screen.findAllByText("Key ending in alue"),
-    ).toHaveLength(2);
+      await screen.findByText("Key ending in alue · In use"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Key ending in alue · In use")).toHaveLength(1);
   });
 
   it("replaces and removes a saved key", async () => {
@@ -273,9 +276,11 @@ describe("AccountPage", () => {
     );
     renderWithRouter(<App />, { route: "/account" });
 
-    await screen.findAllByText("Key ending in alue");
+    await screen.findByText("Key ending in alue · In use");
     fireEvent.click(
-      screen.getByRole("button", { name: "Actions for Key ending in alue" }),
+      screen.getByRole("button", {
+        name: "Actions for OpenAI GPT-5.6 Luna, key ending in alue",
+      }),
     );
     fireEvent.click(screen.getByRole("menuitem", { name: "Edit" }));
     expect(
@@ -286,11 +291,14 @@ describe("AccountPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save key" }));
     expect(
-      await screen.findAllByText("Key ending in alue"),
-    ).toHaveLength(2);
+      await screen.findByText("Key ending in alue · In use"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Key ending in alue · In use")).toHaveLength(1);
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Actions for Key ending in alue" }),
+      screen.getByRole("button", {
+        name: "Actions for OpenAI GPT-5.6 Luna, key ending in alue",
+      }),
     );
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
     fireEvent.click(screen.getByRole("button", { name: "Yes, remove the key" }));

@@ -20,7 +20,7 @@ export function PriorityField({ value, onChange, id }: PriorityFieldProps) {
       </legend>
       <div
         aria-labelledby={labelId}
-        className="mt-1 grid grid-cols-3 gap-1 rounded-md border border-line bg-paper p-1"
+        className="mt-1 flex gap-1 rounded-md border border-line bg-paper p-1"
         role="group"
       >
         {TASK_PRIORITIES.map((priority) => {
@@ -29,7 +29,7 @@ export function PriorityField({ value, onChange, id }: PriorityFieldProps) {
             <button
               aria-pressed={selected}
               className={[
-                "rounded-md px-2 py-1.5 text-sm transition-colors",
+                "min-w-0 grow rounded-md px-2 py-1.5 text-center text-sm whitespace-nowrap transition-colors",
                 selected
                   ? "bg-moss text-paper-raised"
                   : "text-ink-soft hover:text-ink",
