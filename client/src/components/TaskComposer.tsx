@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import { useNow } from "../hooks/useNow";
 import { useTaskDraft } from "../hooks/useTaskDraft";
@@ -26,26 +33,65 @@ export function TaskComposer({
   onCollapse,
   onSubmit,
 }: TaskComposerProps) {
-  if (!expanded) {
-    return (
-      <button
-        className="flex min-h-11 w-full items-center gap-2 py-2 text-sm text-moss hover:text-moss-hover"
-        onClick={onExpand}
-        type="button"
-      >
-        <Icon className="size-4" name="plus" />
-        Add task
-      </button>
-    );
-  }
+  const [revealed, setRevealed] = useState(expanded);
+  const revealEase =
+    "duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
+
+  useLayoutEffect(() => {
+    if (!expanded) {
+      setRevealed(false);
+      return;
+    }
+    const frame = requestAnimationFrame(() => setRevealed(true));
+    return () => cancelAnimationFrame(frame);
+  }, [expanded]);
 
   return (
-    <TaskComposerForm
-      blocks={blocks}
-      defaultDate={defaultDate}
-      onCancel={onCollapse}
-      onSubmit={onSubmit}
-    />
+    <div>
+      <div
+        className={[
+          "grid transition-[grid-template-rows,opacity]",
+          revealEase,
+          revealed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100",
+        ].join(" ")}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <button
+            aria-expanded={expanded}
+            aria-hidden={expanded || undefined}
+            className={[
+              "flex min-h-11 w-full items-center gap-2 rounded-md py-2 text-left text-sm text-moss transition-colors duration-150 hover:bg-paper-deep",
+              expanded ? "pointer-events-none" : "",
+            ].join(" ")}
+            onClick={onExpand}
+            tabIndex={expanded ? -1 : 0}
+            type="button"
+          >
+            <Icon className="size-4" name="plus" />
+            Add task
+          </button>
+        </div>
+      </div>
+      <div
+        className={[
+          "grid transition-[grid-template-rows,opacity]",
+          revealEase,
+          revealed ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        ].join(" ")}
+      >
+        <div className="min-h-0 overflow-hidden">
+          {expanded ? (
+            <TaskComposerForm
+              blocks={blocks}
+              defaultDate={defaultDate}
+              onCancel={onCollapse}
+              onSubmit={onSubmit}
+              ready={revealed}
+            />
+          ) : null}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -54,6 +100,7 @@ interface TaskComposerFormProps {
   defaultDate: string | null;
   onCancel: () => void;
   onSubmit: (payload: TaskCreate) => Promise<unknown>;
+  ready: boolean;
 }
 
 function TaskComposerForm({
@@ -61,6 +108,7 @@ function TaskComposerForm({
   defaultDate,
   onCancel,
   onSubmit,
+  ready,
 }: TaskComposerFormProps) {
   const titleId = useId();
   const titleErrorId = useId();
@@ -74,8 +122,11 @@ function TaskComposerForm({
   const [titleError, setTitleError] = useState<string | null>(null);
 
   useEffect(() => {
-    titleRef.current?.focus();
-  }, []);
+    if (!ready) {
+      return;
+    }
+    titleRef.current?.focus({ preventScroll: true });
+  }, [ready]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
