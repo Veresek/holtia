@@ -8,6 +8,8 @@ import {
   AuthCard,
   authErrorClassName,
   buttonClassName,
+  codeInputProps,
+  emptyStatusClassName,
   fieldClassName,
   secondaryButtonClassName,
   statusClassName,
@@ -18,7 +20,9 @@ type ResetStep = "email" | "code";
 
 export function ResetPage() {
   const navigate = useNavigate();
+  const emailInputRef = useRef<HTMLInputElement>(null);
   const codeInputRef = useRef<HTMLInputElement>(null);
+  const cameFromCodeStep = useRef(false);
   const [step, setStep] = useState<ResetStep>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,10 +31,17 @@ export function ResetPage() {
   const [showUnmet, setShowUnmet] = useState(false);
   const [sent, setSent] = useState(false);
 
-  // The step swap unmounts the focused button, so focus moves to the code field.
+  // Each step swap unmounts the focused element, so focus moves to the field the
+  // user faces next. The ref tells a deliberate Back from the first render,
+  // which must not steal focus from the page.
   useEffect(() => {
     if (step === "code") {
       codeInputRef.current?.focus();
+      return;
+    }
+    if (cameFromCodeStep.current) {
+      cameFromCodeStep.current = false;
+      emailInputRef.current?.focus();
     }
   }, [step]);
 
@@ -71,6 +82,9 @@ export function ResetPage() {
       await authApi.reset({ email, code, newPassword: password });
       navigate("/login", { replace: true });
     } catch (caught) {
+      // The “check your email” line would sit next to the failure claiming a
+      // code is waiting there.
+      setSent(false);
       setError(
         caught instanceof ApiError
           ? caught.message
@@ -87,7 +101,7 @@ export function ResetPage() {
       description={
         step === "email"
           ? "Enter your email and we’ll send a 6-digit code."
-          : `We sent a code to ${email}. Enter it with your new password.`
+          : "Enter the 6-digit code from your email."
       }
       footer={
         <Link className="text-moss hover:text-moss-hover" to="/login">
@@ -106,11 +120,14 @@ export function ResetPage() {
           <label className="block text-sm text-ink">
             Email
             <input
+              aria-describedby={error ? "reset-error" : undefined}
+              aria-invalid={error !== null}
               autoComplete="email"
               className={fieldClassName}
               name="email"
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
+              ref={emailInputRef}
               required
               type="email"
               value={email}
@@ -120,7 +137,12 @@ export function ResetPage() {
             {pending ? "Sending code…" : "Send code"}
           </button>
           {error ? (
-            <p aria-live="assertive" className={authErrorClassName} role="alert">
+            <p
+              aria-live="assertive"
+              className={authErrorClassName}
+              id="reset-error"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
@@ -134,16 +156,10 @@ export function ResetPage() {
           <label className="block text-sm text-ink">
             Verification code
             <input
-              autoComplete="one-time-code"
-              className={fieldClassName}
-              inputMode="numeric"
-              maxLength={6}
-              name="code"
-              placeholder="123456"
-              pattern="[0-9]{6}"
+              {...codeInputProps}
+              aria-describedby={error ? "reset-error" : undefined}
+              aria-invalid={error !== null}
               ref={codeInputRef}
-              required
-              type="text"
             />
           </label>
           <label className="mt-4 block text-sm text-ink">
@@ -168,6 +184,7 @@ export function ResetPage() {
             className={secondaryButtonClassName}
             disabled={pending}
             onClick={() => {
+              cameFromCodeStep.current = true;
               setError(null);
               setSent(false);
               setStep("email");
@@ -177,13 +194,22 @@ export function ResetPage() {
             Back
           </button>
           {error ? (
-            <p aria-live="assertive" className={authErrorClassName} role="alert">
+            <p
+              aria-live="assertive"
+              className={authErrorClassName}
+              id="reset-error"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
         </form>
       )}
-      <p aria-live="polite" className={statusClassName} role="status">
+      <p
+        aria-live="polite"
+        className={sent ? statusClassName : emptyStatusClassName}
+        role="status"
+      >
         {sent ? "Check your email for the code." : ""}
       </p>
     </AuthCard>

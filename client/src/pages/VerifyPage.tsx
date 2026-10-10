@@ -8,6 +8,8 @@ import {
   AuthCard,
   authErrorClassName,
   buttonClassName,
+  codeInputProps,
+  emptyStatusClassName,
   fieldClassName,
   secondaryButtonClassName,
   statusClassName,
@@ -116,15 +118,9 @@ export function VerifyPage() {
         <label className="mt-4 block text-sm text-ink">
           Verification code
           <input
-            autoComplete="one-time-code"
-            className={fieldClassName}
-            inputMode="numeric"
-            maxLength={6}
-            name="code"
-            pattern="[0-9]{6}"
-            placeholder="123456"
-            required
-            type="text"
+            {...codeInputProps}
+            aria-describedby={error ? "verify-error" : undefined}
+            aria-invalid={error !== null}
           />
         </label>
         <button className={buttonClassName} disabled={pending} type="submit">
@@ -138,11 +134,20 @@ export function VerifyPage() {
         >
           {resendLabel}
         </button>
-        <p aria-live="polite" className={statusClassName} role="status">
+        <p
+          aria-live="polite"
+          className={sent ? statusClassName : emptyStatusClassName}
+          role="status"
+        >
           {sent ? "Code sent. Check your email." : ""}
         </p>
         {error ? (
-          <p aria-live="assertive" className={authErrorClassName} role="alert">
+          <p
+            aria-live="assertive"
+            className={authErrorClassName}
+            id="verify-error"
+            role="alert"
+          >
             {error}
           </p>
         ) : null}

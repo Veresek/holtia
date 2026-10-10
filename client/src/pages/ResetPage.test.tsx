@@ -73,6 +73,7 @@ describe("ResetPage", () => {
     );
     expect(confirmation).toBe(statusRegion);
     expect(confirmation).toHaveAttribute("aria-live", "polite");
+    expect(confirmation).toHaveClass("mt-3");
 
     const code = screen.getByLabelText("Verification code");
     expect(code).toHaveFocus();
@@ -136,6 +137,14 @@ describe("ResetPage", () => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe(resetFailed);
     expect(alert).toHaveAttribute("aria-live", "assertive");
+    expect(alert).toHaveAttribute("id", "reset-error");
+    expect(screen.getByLabelText("Verification code")).toHaveAttribute(
+      "aria-describedby",
+      "reset-error",
+    );
+    // The “check your email” line would otherwise sit next to the failure,
+    // still claiming a code is on its way.
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
   it("does not send a reset when the password is weak", async () => {
@@ -171,14 +180,21 @@ describe("ResetPage", () => {
     renderWithRouter(<App />, { route: "/reset" });
 
     await toCodeStep();
+    expect(
+      await screen.findByText("Enter the 6-digit code from your email."),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
 
     expect(screen.getByLabelText("Email")).toHaveValue("ada@example.com");
+    // The swap unmounted the focused code field, so Back hands focus to the
+    // field it just put back on the page.
+    expect(screen.getByLabelText("Email")).toHaveFocus();
     expect(
       screen.getByRole("button", { name: "Send code" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(screen.getByRole("status")).not.toHaveClass("mt-3");
   });
 
   it("shows a readable pending state", async () => {

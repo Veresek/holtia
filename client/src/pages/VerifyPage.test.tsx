@@ -33,6 +33,7 @@ describe("VerifyPage", () => {
     expect(code).toHaveAttribute("autocomplete", "one-time-code");
     expect(code).toHaveAttribute("maxlength", "6");
     expect(code).toHaveAttribute("pattern", "[0-9]{6}");
+    expect(code).not.toHaveAttribute("aria-describedby");
     expect(
       screen.queryByText(/supplied by the person hosting/i),
     ).not.toBeInTheDocument();
@@ -78,6 +79,8 @@ describe("VerifyPage", () => {
     const statusRegion = container.querySelector('[aria-live="polite"]');
     expect(statusRegion).toBeInTheDocument();
     expect(statusRegion).toBeEmptyDOMElement();
+    // Empty, the region must not reserve a line of its own.
+    expect(statusRegion).not.toHaveClass("mt-3");
 
     fireEvent.click(screen.getByRole("button", { name: "Resend code" }));
 
@@ -85,6 +88,7 @@ describe("VerifyPage", () => {
       "Code sent. Check your email.",
     );
     expect(confirmation).toHaveAttribute("aria-live", "polite");
+    expect(confirmation).toHaveClass("mt-3");
     expect(bodyFor("/auth/send-code")).toEqual({
       email: "ada@example.com",
       purpose: "verify",
@@ -174,8 +178,16 @@ describe("VerifyPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Verify account" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
       "Verification failed. Check the code and try again.",
+    );
+    // The failure is read out as the code field's description (LoginPage
+    // precedent), not left as an orphan paragraph.
+    expect(alert).toHaveAttribute("id", "verify-error");
+    expect(screen.getByLabelText("Verification code")).toHaveAttribute(
+      "aria-describedby",
+      "verify-error",
     );
   });
 
