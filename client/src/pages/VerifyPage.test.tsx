@@ -66,11 +66,17 @@ describe("VerifyPage", () => {
 
   it("resends the code and confirms it was sent", async () => {
     stubApi({ "POST /auth/send-code": noContent });
-    renderWithRouter(<App />, { route: "/verify" });
+    const { container } = renderWithRouter(<App />, { route: "/verify" });
 
     fireEvent.change(await screen.findByLabelText("Email"), {
       target: { value: "ada@example.com" },
     });
+
+    // Mounted before the click so the text change is announced.
+    const statusRegion = container.querySelector('[aria-live="polite"]');
+    expect(statusRegion).toBeInTheDocument();
+    expect(statusRegion).toBeEmptyDOMElement();
+
     fireEvent.click(screen.getByRole("button", { name: "Resend code" }));
 
     const confirmation = await screen.findByText(

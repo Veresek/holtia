@@ -9,17 +9,11 @@ import {
   authErrorClassName,
   buttonClassName,
   fieldClassName,
+  secondaryButtonClassName,
+  statusClassName,
 } from "../components/AuthCard";
 
 const RESEND_COOLDOWN_SECONDS = 60;
-
-const resendClassName = [
-  "mt-3 w-full rounded-md border border-line px-4 py-2 text-sm text-ink-soft",
-  "transition hover:border-lichen hover:text-ink",
-  "disabled:cursor-not-allowed disabled:opacity-50",
-].join(" ");
-
-const sentClassName = "mt-3 text-center text-sm text-ink-soft";
 
 interface VerifyLocationState {
   email?: string;
@@ -137,18 +131,16 @@ export function VerifyPage() {
           {pending ? "Verifying…" : "Verify account"}
         </button>
         <button
-          className={resendClassName}
+          className={secondaryButtonClassName}
           disabled={coolingDown || resending || email.trim() === ""}
           onClick={() => void resendCode()}
           type="button"
         >
           {resendLabel}
         </button>
-        {sent ? (
-          <p aria-live="polite" className={sentClassName}>
-            Code sent. Check your email.
-          </p>
-        ) : null}
+        <p aria-live="polite" className={statusClassName} role="status">
+          {sent ? "Code sent. Check your email." : ""}
+        </p>
         {error ? (
           <p aria-live="assertive" className={authErrorClassName} role="alert">
             {error}

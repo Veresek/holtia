@@ -43,3 +43,11 @@ export const buttonClassName =
   "mt-6 w-full rounded-md bg-moss px-4 py-2.5 text-sm font-medium text-paper-raised transition hover:bg-moss-hover disabled:cursor-not-allowed disabled:opacity-50";
 
 export const authErrorClassName = "mt-3 text-center text-sm text-rust";
+
+export const secondaryButtonClassName = [
+  "mt-3 w-full rounded-md border border-line px-4 py-2 text-sm text-ink-soft",
+  "transition hover:border-lichen hover:text-ink",
+  "disabled:cursor-not-allowed disabled:opacity-50",
+].join(" ");
+
+export const statusClassName = "mt-3 text-center text-sm text-ink-soft";
