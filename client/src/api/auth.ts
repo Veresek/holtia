@@ -19,7 +19,7 @@ interface SendCodePayload {
 
 interface ResetPayload {
   email: string;
-  instanceCode: string;
+  code: string;
   newPassword: string;
 }
 
