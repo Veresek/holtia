@@ -274,7 +274,8 @@ same 400, and a request for an address with no account looks identical to one fo
 a real account, so these endpoints cannot confirm which emails are signed up.
 They answer at the same speed too: the mail goes out after the response, and an
 unknown address still pays for a code consume and a commit. What differs is only
-the database work behind a row that exists, which is not observable from outside.
+the database work behind a row that exists — sub-millisecond and invisible from
+outside the API, though not literally zero.
 
 If the sending mailbox’s credentials leak, change its password on Mailcow, put
 the new one in the VPS `.env`, and recreate the API container. Whoever holds it

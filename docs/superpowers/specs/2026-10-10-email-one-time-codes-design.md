@@ -92,11 +92,16 @@ inert and deleted on next request.
 - **Atomic consumption:** the confirm step selects the live code
   (`user_id`, `purpose`, `consumed_at IS NULL`, `expires_at > now`) with
   `.with_for_update()`, compares hashes with `secrets.compare_digest`, then
-  sets `consumed_at` in the same transaction. Two concurrent requests cannot
-  both succeed (roadmap requirement).
+  DELETES the row in the same transaction (amended per ledger Ruling 8 —
+  deletion is what makes a later resend start its budget at zero; the
+  mismatch path still marks `consumed_at` to burn). Two concurrent requests
+  cannot both succeed (roadmap requirement).
 - **Cooldown:** if the newest code for `(user_id, purpose)` was created less
   than `email_code_cooldown_seconds` ago (default 60), `send-code` skips
   generation and sending. The response stays identical (204) either way.
+  A successfully consumed pair has no row, so the next send after a
+  completed verify/reset is immediate — one mail burst per completed flow,
+  then the windowed 60 s again.
 
 ## Email service (`server/app/services/email.py`)
 

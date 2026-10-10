@@ -32,7 +32,8 @@ Pin a task to a block: `date` + `timeBlockId`; the date is a day the block occur
 
 **Now:** a 6-digit code per user and purpose, emailed over SMTP and stored only
 as a hash. It works once, expires after `EMAIL_CODE_TTL_MINUTES` (15 by
-default), and five wrong attempts burn it. A wrong, missing or expired code
+default), and five wrong attempts burn it — counted per account and purpose,
+carried across resends. A wrong, missing or expired code
 returns one generic 400, and a request for an unknown email is indistinguishable
 from one for a real account. An empty `SMTP_HOST` skips the codes entirely, which
 is how development accounts auto-verify; production refuses to start without a
