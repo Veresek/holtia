@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     auth_rate_limit_enabled: bool | None = None
     auth_rate_limit_requests: int = Field(default=10, gt=0)
     auth_rate_limit_window_seconds: int = Field(default=60, gt=0)
+    smtp_host: str = ""
+    smtp_port: int = Field(default=587, gt=0)
+    smtp_user: str = ""
+    smtp_password: str = ""
+    mail_from: str = ""
+    smtp_timeout_seconds: float = Field(default=10, gt=0)
+    email_code_ttl_minutes: int = Field(default=15, gt=0)
+    email_code_cooldown_seconds: int = Field(default=60, ge=0)
     ai_enabled: bool = False
     ai_encryption_key: str = ""
     ai_request_timeout_seconds: float = Field(default=30, gt=0)
@@ -84,6 +92,18 @@ class Settings(BaseSettings):
         if self.auth_rate_limit_enabled is not None:
             return self.auth_rate_limit_enabled
         return self.environment != "test"
+
+    @property
+    def smtp_configured(self) -> bool:
+        return all(
+            value != ""
+            for value in (
+                self.smtp_host,
+                self.smtp_user,
+                self.smtp_password,
+                self.mail_from,
+            )
+        )
 
     @property
     def zoneinfo(self) -> ZoneInfo:

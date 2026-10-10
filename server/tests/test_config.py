@@ -104,3 +104,47 @@ def test_production_rejects_an_insecure_client_origin() -> None:
             secret_key=STRONG_SECRET,
             client_origin="http://holtia.xyz",
         )
+
+
+SMTP_FIELDS = ("smtp_host", "smtp_user", "smtp_password", "mail_from")
+SMTP_VALUES = {
+    "smtp_host": "smtp.example.test",
+    "smtp_user": "holtia@example.test",
+    "smtp_password": "a-mailbox-password",
+    "mail_from": "holtia@example.test",
+}
+
+
+@pytest.mark.parametrize(
+    ("provided", "expected"),
+    [
+        ((), False),
+        (("smtp_host",), False),
+        (("mail_from",), False),
+        (("smtp_host", "smtp_user"), False),
+        (("smtp_host", "smtp_user", "smtp_password"), False),
+        (("smtp_user", "smtp_password", "mail_from"), False),
+        (SMTP_FIELDS, True),
+    ],
+)
+def test_smtp_configured_requires_all_four(
+    provided: tuple[str, ...],
+    expected: bool,
+) -> None:
+    settings = Settings(**{name: SMTP_VALUES[name] for name in provided})
+
+    assert settings.smtp_configured is expected
+
+
+def test_email_settings_default_to_an_unconfigured_instance() -> None:
+    settings = Settings()
+
+    assert settings.smtp_configured is False
+    assert settings.smtp_host == ""
+    assert settings.smtp_user == ""
+    assert settings.smtp_password == ""
+    assert settings.mail_from == ""
+    assert settings.smtp_port == 587
+    assert settings.smtp_timeout_seconds == 10
+    assert settings.email_code_ttl_minutes == 15
+    assert settings.email_code_cooldown_seconds == 60
