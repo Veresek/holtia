@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { authApi } from "../api/auth";
@@ -10,6 +10,7 @@ import {
   buttonClassName,
   fieldClassName,
   secondaryButtonClassName,
+  statusClassName,
 } from "../components/AuthCard";
 import { PasswordRules } from "../components/PasswordRules";
 
@@ -17,19 +18,30 @@ type ResetStep = "email" | "code";
 
 export function ResetPage() {
   const navigate = useNavigate();
+  const codeInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<ResetStep>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [showUnmet, setShowUnmet] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  // The step swap unmounts the focused button, so focus moves to the code field.
+  useEffect(() => {
+    if (step === "code") {
+      codeInputRef.current?.focus();
+    }
+  }, [step]);
 
   async function requestCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setSent(false);
     setPending(true);
     try {
       await authApi.sendCode({ email, purpose: "reset" });
+      setSent(true);
       setStep("code");
     } catch (caught) {
       setError(
@@ -83,8 +95,14 @@ export function ResetPage() {
         </Link>
       }
     >
+      {/* Distinct keys: without them the step swap reuses the email input's DOM
+          node, so the code field would arrive holding the email address. */}
       {step === "email" ? (
-        <form aria-busy={pending} onSubmit={(event) => void requestCode(event)}>
+        <form
+          key="email"
+          aria-busy={pending}
+          onSubmit={(event) => void requestCode(event)}
+        >
           <label className="block text-sm text-ink">
             Email
             <input
@@ -109,6 +127,7 @@ export function ResetPage() {
         </form>
       ) : (
         <form
+          key="code"
           aria-busy={pending}
           onSubmit={(event) => void resetPassword(event)}
         >
@@ -122,6 +141,7 @@ export function ResetPage() {
               name="code"
               placeholder="123456"
               pattern="[0-9]{6}"
+              ref={codeInputRef}
               required
               type="text"
             />
@@ -149,6 +169,7 @@ export function ResetPage() {
             disabled={pending}
             onClick={() => {
               setError(null);
+              setSent(false);
               setStep("email");
             }}
             type="button"
@@ -162,6 +183,9 @@ export function ResetPage() {
           ) : null}
         </form>
       )}
+      <p aria-live="polite" className={statusClassName} role="status">
+        {sent ? "Check your email for the code." : ""}
+      </p>
     </AuthCard>
   );
 }

@@ -53,6 +53,32 @@ describe("ResetPage", () => {
     expect(code).toHaveAttribute("pattern", "[0-9]{6}");
   });
 
+  it("announces the step switch and moves focus to the code field", async () => {
+    stubApi({ "POST /auth/send-code": noContent });
+    renderWithRouter(<App />, { route: "/reset" });
+
+    fireEvent.change(await screen.findByLabelText("Email"), {
+      target: { value: "ada@example.com" },
+    });
+
+    // Mounted before the switch so the text change is announced.
+    const statusRegion = screen.getByRole("status");
+    expect(statusRegion).toHaveAttribute("aria-live", "polite");
+    expect(statusRegion).toBeEmptyDOMElement();
+
+    fireEvent.click(screen.getByRole("button", { name: "Send code" }));
+
+    const confirmation = await screen.findByText(
+      "Check your email for the code.",
+    );
+    expect(confirmation).toBe(statusRegion);
+    expect(confirmation).toHaveAttribute("aria-live", "polite");
+
+    const code = screen.getByLabelText("Verification code");
+    expect(code).toHaveFocus();
+    expect(code).toHaveValue("");
+  });
+
   it("resets with the emailed code and returns to login", async () => {
     stubApi({
       "POST /auth/send-code": noContent,
@@ -81,9 +107,12 @@ describe("ResetPage", () => {
   });
 
   it("announces the server failure and links back to login", async () => {
+    // The server's own copy (server/app/services/auth.py RESET_FAILED): the
+    // client renders it verbatim and adds no code hint of its own.
+    const resetFailed = "Reset failed. Check the code and try again.";
     stubApi({
       "POST /auth/send-code": noContent,
-      "POST /auth/reset": () => jsonResponse({ detail: "Wrong code." }, 400),
+      "POST /auth/reset": () => jsonResponse({ detail: resetFailed }, 400),
     });
     renderWithRouter(<App />, { route: "/reset" });
 
@@ -104,7 +133,9 @@ describe("ResetPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Reset password" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Wrong code.");
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe(resetFailed);
+    expect(alert).toHaveAttribute("aria-live", "assertive");
   });
 
   it("does not send a reset when the password is weak", async () => {
@@ -147,6 +178,7 @@ describe("ResetPage", () => {
     expect(
       screen.getByRole("button", { name: "Send code" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
   it("shows a readable pending state", async () => {
