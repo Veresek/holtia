@@ -471,6 +471,27 @@ def test_reset_rejects_wrong_code(client: TestClient) -> None:
     assert reset(client, code=code).status_code == 204
 
 
+def test_reset_wrong_attempts_burn_across_requests(client: TestClient) -> None:
+    """The verify burn rule covers reset too: without that commit on the
+    wrong-code path the counter would restart at zero every request and a reset
+    code would be guessable inside its TTL."""
+    register_verified(client)
+    live = send_reset_code(client)
+
+    for _ in range(MAX_CODE_ATTEMPTS):
+        wrong = reset(client, code=other_code(live))
+        assert wrong.status_code == 400
+        assert wrong.json()["detail"] == RESET_FAILED
+
+    burned = reset(client, code=live)
+    assert burned.status_code == 400
+    assert burned.json()["detail"] == RESET_FAILED
+
+    client.cookies.clear()
+    assert login(client, password="password1").status_code == 200
+    assert login(client, password="password2").status_code == 401
+
+
 def test_reset_requires_strong_password_before_code(client: TestClient) -> None:
     """The password rule runs before the code is claimed, so a weak password
     cannot spend a live code or one of its five attempts."""
