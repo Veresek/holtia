@@ -538,6 +538,43 @@ def test_reset_does_not_reveal_an_unknown_email(client: TestClient) -> None:
     assert unknown.json() == wrong_code.json() == {"detail": RESET_FAILED}
 
 
+def test_verify_unknown_email_burns_nothing(client: TestClient) -> None:
+    """The unknown-email path spends the same DB work as a real miss by
+    consuming against a random user id; that burn must stay inert."""
+    register(client)
+    live = sent_code("ada@example.com", "verify")
+
+    unknown = client.post(
+        "/api/auth/verify",
+        json={"email": "ghost@example.com", "code": "000000"},
+    )
+
+    assert unknown.status_code == 400
+    assert unknown.json() == {"detail": VERIFY_FAILED}
+    with SessionLocal() as db:
+        row = db.scalar(select(EmailCode).where(EmailCode.purpose == "verify"))
+    assert row is not None
+    assert row.attempts == 0
+    assert row.consumed_at is None
+    assert verify(client, code=live).status_code == 200
+
+
+def test_reset_unknown_email_burns_nothing(client: TestClient) -> None:
+    register_verified(client)
+    code = send_reset_code(client)
+
+    unknown = reset(client, email="ghost@example.com", code="000000")
+
+    assert unknown.status_code == 400
+    assert unknown.json() == {"detail": RESET_FAILED}
+    with SessionLocal() as db:
+        row = db.scalar(select(EmailCode).where(EmailCode.purpose == "reset"))
+    assert row is not None
+    assert row.attempts == 0
+    assert row.consumed_at is None
+    assert reset(client, code=code).status_code == 204
+
+
 def test_dev_mode_skips_codes(client: TestClient) -> None:
     created = register(client)
 

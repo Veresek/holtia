@@ -1,3 +1,4 @@
+import inspect
 import logging
 import re
 
@@ -6,9 +7,18 @@ from fastapi.testclient import TestClient
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.config import Settings, get_settings
+from app.db import SessionLocal
 from app.main import app
+from app.routers import auth as auth_router
 from app.services import auth as auth_service
 from tests.conftest import SENT_EMAILS, register, register_verified, sent_code
+
+
+def recording_sender(handed: list[tuple[str, str, str]]):
+    def record(settings: Settings, *, to: str, code: str, purpose: str) -> None:
+        handed.append((to, code, purpose))
+
+    return record
 
 
 def request_code(
@@ -171,3 +181,95 @@ def test_send_failure_log_has_no_code(
     for code in handed_over:
         assert code not in caplog.text
     assert re.search(r"\b\d{6}\b", caplog.text) is None
+
+
+def test_send_code_service_defers_the_send(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Nothing reaches SMTP from inside the request: the caller commits the row,
+    gets the delivery back, and runs it after the response (ledger Ruling 7)."""
+    handed: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(auth_service, "send_code_email", recording_sender(handed))
+    register(client)
+    handed.clear()
+
+    with SessionLocal() as db:
+        pending = auth_service.send_code(db, get_settings(), "ada@example.com", "reset")
+
+    assert handed == []
+    assert pending is not None
+    assert (pending.to, pending.purpose) == ("ada@example.com", "reset")
+    assert re.fullmatch(r"[0-9]{6}", pending.code)
+
+    auth_service.deliver_code(get_settings(), pending)
+    assert handed == [("ada@example.com", pending.code, "reset")]
+
+
+def test_register_service_defers_the_send(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    handed: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(auth_service, "send_code_email", recording_sender(handed))
+
+    with SessionLocal() as db:
+        created = auth_service.register(
+            db, get_settings(), "grace@example.com", "password1"
+        )
+
+    user, tokens, pending = created
+    assert tokens is None
+    assert user.verified_at is None
+    assert handed == []
+    assert pending is not None
+    assert (pending.to, pending.purpose) == ("grace@example.com", "verify")
+
+    auth_service.deliver_code(get_settings(), pending)
+    assert handed == [("grace@example.com", pending.code, "verify")]
+
+
+def test_duplicate_register_has_nothing_to_send(
+    client: TestClient,
+) -> None:
+    register(client)
+
+    with SessionLocal() as db:
+        _user, tokens, pending = auth_service.register(
+            db, get_settings(), "ada@example.com", "password1"
+        )
+
+    assert tokens is None
+    assert pending is None
+
+
+def test_delivery_absorbs_smtp_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The never-raise contract moved with the sender: a dead SMTP must not
+    escape the background task, and must not put the code in the log."""
+    handed_over: list[str] = []
+    monkeypatch.setattr(
+        auth_service,
+        "send_code_email",
+        failing_sender(handed_over),
+    )
+    pending = auth_service.PendingEmail(
+        to="ada@example.com", code="123456", purpose="reset"
+    )
+
+    with caplog.at_level(logging.WARNING, logger="app.services.auth"):
+        auth_service.deliver_code(get_settings(), pending)
+
+    assert handed_over == ["123456"]
+    assert "ada@example.com" in caplog.text
+    assert "reset" in caplog.text
+    assert "123456" not in caplog.text
+
+
+def test_send_routes_schedule_delivery_after_the_response() -> None:
+    """The SMTP conversation may only start once the response is out; both
+    routes take a BackgroundTasks for it."""
+    for route in (auth_router.register, auth_router.send_code):
+        assert "background_tasks" in inspect.signature(route).parameters

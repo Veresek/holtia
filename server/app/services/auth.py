@@ -48,6 +48,20 @@ class SessionTokens:
     refresh_token: str
 
 
+@dataclass(frozen=True)
+class PendingEmail:
+    """A code that is committed and still has to be delivered.
+
+    The request path hands one back instead of opening an SMTP conversation, so
+    no response can be timed against a code send; the router schedules
+    `deliver_code` once the response is out.
+    """
+
+    to: str
+    code: str
+    purpose: str
+
+
 def normalize_email(email: str) -> str:
     return email.strip().lower()
 
@@ -206,42 +220,69 @@ def require_strong_password(password: str) -> None:
         )
 
 
-def send_code(db: Session, settings: Settings, email: str, purpose: str) -> None:
-    """Email a one-time code, never telling the caller what happened.
+def send_code(
+    db: Session,
+    settings: Settings,
+    email: str,
+    purpose: str,
+) -> PendingEmail | None:
+    """Commit a one-time code for this address and return what is left to send.
 
-    Unknown emails, a suppressed issue and a failed delivery all end the same
-    way, because the endpoint may not reveal that an account exists. A racing
-    double-issue loses on the unique pair row and counts as no send; the
-    winner's email is already on its way.
+    Nothing is delivered here. An SMTP conversation inside the request made an
+    existing account measurably slower than an unknown address, so the router
+    runs `deliver_code` as a background task instead (ledger Ruling 7).
 
-    This function never raises: any failure at all — a lagged migration, a
-    database error, a dead SMTP — is absorbed here and looks to the caller like
-    a no-send, so no caller can turn it into an existence oracle. Call it after
-    your own commit; it owns the rollback and the commit of its own work.
+    Unknown emails and a suppressed issue both return None, the same
+    nothing-to-send answer, because the endpoint may not reveal that an account
+    exists. A racing double-issue loses on the unique pair row and counts as no
+    send; the winner's email is already on its way.
+
+    This function never raises: any failure at all — a lagged migration or a
+    database error — is absorbed here and looks to the caller like a no-send, so
+    no caller can turn it into an existence oracle. Call it after your own
+    commit; it owns the rollback and the commit of its own work.
     """
     try:
         user = db.scalar(select(User).where(User.email == normalize_email(email)))
         if user is None:
-            return
+            return None
         code = issue_code(db, settings, user_id=user.id, purpose=purpose)
         if code is None:
-            return
-        try:
-            send_code_email(settings, to=user.email, code=code, purpose=purpose)
-        except Exception as exc:
-            logger.warning(
-                "Email send failed for %s purpose=%s (%s)",
-                user.email,
-                purpose,
-                type(exc).__name__,
-            )
-            return
+            return None
+        return PendingEmail(to=user.email, code=code, purpose=purpose)
     except Exception as exc:
         db.rollback()
         logger.warning(
             "Email code issue failed for %s purpose=%s (%s)",
             email,
             purpose,
+            type(exc).__name__,
+        )
+        return None
+
+
+def deliver_code(settings: Settings, pending: PendingEmail | None) -> None:
+    """Hand a committed code to SMTP, after the response has gone out.
+
+    The never-raise contract moved here with the sender: nothing is listening to
+    a background task, and a traceback escaping would be logged with the code
+    inside it. The user recovers through “Resend code” once the cooldown
+    passes.
+    """
+    if pending is None:
+        return
+    try:
+        send_code_email(
+            settings,
+            to=pending.to,
+            code=pending.code,
+            purpose=pending.purpose,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Email send failed for %s purpose=%s (%s)",
+            pending.to,
+            pending.purpose,
             type(exc).__name__,
         )
 
@@ -252,14 +293,21 @@ def register(
     email: str,
     password: str,
     timezone: str | None = None,
-) -> tuple[User, SessionTokens | None]:
+) -> tuple[User, SessionTokens | None, PendingEmail | None]:
+    """Create the account, plus the session and the delivery the caller owes.
+
+    The verify code is issued after the user is committed and returned rather
+    than sent, so the response never waits on SMTP. Both duplicate paths burn a
+    bcrypt hash and answer with an unverified look-alike user, so a duplicate
+    signup looks like a fresh one.
+    """
     require_strong_password(password)
     email = normalize_email(email)
     timezone = resolve_timezone(timezone, settings.timezone)
     existing = db.scalar(select(User).where(User.email == email))
     if existing is not None:
         hash_password(password)
-        return _opaque_unverified_user(email, timezone), None
+        return _opaque_unverified_user(email, timezone), None, None
 
     verified_at = datetime.now(UTC) if not settings.smtp_configured else None
     user = User(
@@ -274,14 +322,15 @@ def register(
     except IntegrityError:
         db.rollback()
         hash_password(password)
-        return _opaque_unverified_user(email, timezone), None
+        return _opaque_unverified_user(email, timezone), None, None
 
     tokens = issue_session(db, settings, user) if verified_at is not None else None
     db.commit()
     db.refresh(user)
-    if verified_at is None:
-        send_code(db, settings, email, "verify")
-    return user, tokens
+    pending = (
+        send_code(db, settings, email, "verify") if verified_at is None else None
+    )
+    return user, tokens, pending
 
 
 def login(
@@ -421,7 +470,17 @@ def verify(
         return _verify_without_code(db, settings, email)
 
     user = db.scalar(select(User).where(User.email == email))
-    if user is None or user.verified_at is not None:
+    if user is None:
+        # Same shape as `login`'s dummy hash: an unknown address still runs a
+        # full consume and a commit, so its response is not the cheap one. The
+        # id is random, so the consume finds no row and writes nothing.
+        consume_code(db, settings, user_id=uuid.uuid4(), purpose="verify", code=code)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=VERIFY_FAILED,
+        )
+    if user.verified_at is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=VERIFY_FAILED,
@@ -457,6 +516,10 @@ def reset_password(
         .with_for_update()
     )
     if user is None:
+        # Verify's dummy burn, mirrored here: the row lock, a consume that can
+        # only miss and the commit all happen for an unknown address too.
+        consume_code(db, settings, user_id=uuid.uuid4(), purpose="reset", code=code)
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=RESET_FAILED,
