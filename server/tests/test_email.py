@@ -1,3 +1,4 @@
+import ssl
 from collections.abc import Iterator
 from email.message import EmailMessage
 
@@ -29,6 +30,7 @@ class FakeSMTP:
         self.timeout = timeout
         self.calls: list[tuple[object, ...]] = []
         self.messages: list[EmailMessage] = []
+        self.starttls_context: ssl.SSLContext | None = None
 
     def __enter__(self) -> "FakeSMTP":
         self.calls.append(("enter",))
@@ -42,7 +44,8 @@ class FakeSMTP:
     ) -> None:
         self.calls.append(("exit",))
 
-    def starttls(self) -> None:
+    def starttls(self, context: ssl.SSLContext | None = None) -> None:
+        self.starttls_context = context
         self.calls.append(("starttls",))
 
     def login(self, user: str, password: str) -> None:
@@ -101,6 +104,8 @@ def test_verify_code_email_is_sent_over_tls(
     assert session.timeout == settings.smtp_timeout_seconds
     assert ("enter",) in session.calls
     assert ("starttls",) in session.calls
+    ctx = session.starttls_context
+    assert isinstance(ctx, ssl.SSLContext) and ctx.verify_mode == ssl.CERT_REQUIRED
     assert (
         "login",
         settings.smtp_user,

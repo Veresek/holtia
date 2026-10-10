@@ -1,4 +1,5 @@
 import smtplib
+import ssl
 from email.message import EmailMessage
 
 from app.config import Settings
@@ -28,7 +29,9 @@ def send_code_email(
         settings.smtp_port,
         timeout=settings.smtp_timeout_seconds,
     ) as smtp:
-        smtp.starttls()
+        # A bare starttls() negotiates an unverified context; the login
+        # credentials must not cross it.
+        smtp.starttls(context=ssl.create_default_context())
         smtp.login(settings.smtp_user, settings.smtp_password)
         smtp.send_message(message)
 
