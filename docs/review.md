@@ -59,6 +59,12 @@ list below and [roadmap-v2.md](roadmap-v2.md) keep the detail.
 response matches a fresh unverified signup (`201`, no cookies). Verify already
 used a uniform error for unknown vs already-verified accounts.
 
+Timing is part of that answer: a code is mailed only after the response has
+left, and an unknown address in verify or reset still runs a code consume and a
+commit, so the endpoints no longer differ in how long they take. What still
+differs is the database work behind a row that exists — invisible from outside
+the API, and not literally zero.
+
 ### 3. Refresh rotation vs two tabs — addressed
 
 A second use of a just-rotated refresh token within a short grace window

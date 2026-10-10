@@ -27,7 +27,9 @@ production. Codes then exist only as an email the user never receives, which is
 worse than a refused boot. `SMTP_PORT` defaults to `587`.
 
 Optional email knobs (defaults shown): `EMAIL_CODE_TTL_MINUTES=15`,
-`EMAIL_CODE_COOLDOWN_SECONDS=60`.
+`EMAIL_CODE_COOLDOWN_SECONDS=60`. `docker-compose.prod.yml` now passes both with
+those defaults, so leaving them out keeps 15 and 60 and a value in the VPS `.env`
+replaces them.
 
 Optional AI (off until you set both):
 
@@ -50,6 +52,14 @@ Optional AI (off until you set both):
 5. Accounts created earlier and never verified just need “Resend code” on the
    verify page; nothing is backfilled. Existing users resetting a password now
    need the code emailed to them.
+6. Confirm the mail really goes out: register a throwaway account and read the
+   code it emails you (or send a probe message from the same mailbox). Nothing
+   checks `MAIL_FROM` at startup — a typo, a mailbox that does not exist or
+   credentials the server rejects all boot happily, because the send runs after
+   the response and its failure is absorbed. The only sign is a line in the API
+   logs, `Email send failed for …`, with no code in it. Fix the `.env`, recreate
+   the container, and use “Resend code” once the cooldown has passed; the code
+   already issued stays valid until it expires.
 
 Mailcow runs on the same box as the app. That does not change what `SMTP_HOST`
 holds: the hostname the mail server’s certificate covers, resolvable from
@@ -252,15 +262,19 @@ If you change the key while rows still exist, `POST /api/ai/plan` returns
 ## Emailed codes
 
 A code is 6 digits, single-use, and expires after `EMAIL_CODE_TTL_MINUTES`
-(15 by default). Five wrong attempts burn it before it expires. Another code for
-the same address and purpose waits `EMAIL_CODE_COOLDOWN_SECONDS` (60 by
-default). The database stores only a SHA-256 hash and the raw code never reaches
-a log.
+(15 by default). Five wrong attempts burn it before it expires — counted per
+account and purpose, and carried across resends, so a new message does not
+restart the budget. Another code for the same address and purpose waits
+`EMAIL_CODE_COOLDOWN_SECONDS` (60 by default). The database stores only a SHA-256
+hash and the raw code never reaches a log.
 
 There is nothing to revoke when a code leaks: it stops working on its own, and
 using it consumes it. A wrong, missing, expired or already-used code returns the
 same 400, and a request for an address with no account looks identical to one for
 a real account, so these endpoints cannot confirm which emails are signed up.
+They answer at the same speed too: the mail goes out after the response, and an
+unknown address still pays for a code consume and a commit. What differs is only
+the database work behind a row that exists, which is not observable from outside.
 
 If the sending mailbox’s credentials leak, change its password on Mailcow, put
 the new one in the VPS `.env`, and recreate the API container. Whoever holds it
