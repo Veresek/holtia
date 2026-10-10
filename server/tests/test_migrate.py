@@ -110,12 +110,17 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
         block_indexes = {
             index["name"] for index in inspector.get_indexes("time_blocks")
         }
+        email_code_indexes = {
+            index["name"] for index in inspector.get_indexes("email_codes")
+        }
         assert "ix_tasks_user_id_date" in task_indexes
         assert "ix_tasks_time_block_id" in task_indexes
         assert "ix_notes_task_id" in note_indexes
         assert "ix_notes_time_block_id" in note_indexes
         assert "ix_notes_date" in note_indexes
         assert "ix_time_blocks_user_id_date" in block_indexes
+        assert "ix_email_codes_user_id" in email_code_indexes
+        assert "ix_email_codes_user_purpose" in email_code_indexes
     finally:
         engine.dispose()
 
