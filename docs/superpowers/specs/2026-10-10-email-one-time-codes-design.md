@@ -80,10 +80,15 @@ inert and deleted on next request.
   `hash_refresh_token` in `services/tokens.py`. A DB leak plus a 6-digit
   space is acceptable because TTL is short and attempts are capped.
 - **TTL:** `email_code_ttl_minutes` (default 15).
-- **Attempt cap:** `MAX_CODE_ATTEMPTS = 5`. A wrong entry increments
-  `attempts`; reaching the cap marks the code consumed (burned) so brute
-  force within the TTL is bounded to 5 tries per issued code, on top of the
-  per-IP `enforce_auth_rate_limit` on the endpoints.
+- **Attempt cap:** `MAX_CODE_ATTEMPTS = 5`, per `(user_id, purpose)` —
+  not per issued code (amended 2026-10-10 per ledger Ruling 8: resends
+  refreshed the budget, so a per-code cap meant 5 fresh guesses every
+  cooldown window forever). A wrong entry increments `attempts`; reaching
+  the cap burns the pair until the code is consumed successfully. A
+  successful consumption deletes the row, and a later resend therefore
+  starts at zero; an unsuccessful resend carries `attempts` onto the
+  replacement row. This sits on top of the per-IP
+  `enforce_auth_rate_limit` on the endpoints.
 - **Atomic consumption:** the confirm step selects the live code
   (`user_id`, `purpose`, `consumed_at IS NULL`, `expires_at > now`) with
   `.with_for_update()`, compares hashes with `secrets.compare_digest`, then
@@ -101,9 +106,13 @@ inert and deleted on next request.
   `email.message.EmailMessage`, plain-text body only, `From: mail_from`.
   (STARTTLS verifies the server certificate — amended 2026-10-10 per ledger
   Ruling 3 after a review found the bare call ships an unverified context.)
-- Sending happens inline in the request handler after the DB commit. SMTP is
-  local (same VPS), so latency is milliseconds; the timeout (default 10 s)
-  bounds the worst case.
+- Sending runs as a response-background task scheduled AFTER the DB commit
+  (amended 2026-10-10 per ledger Ruling 7: an inline SMTP conversation made
+  existing-account responses measurably slower than unknown-email ones — a
+  response-time existence oracle — and stalled the user up to
+  `smtp_timeout_seconds` when the mail server is down). The code row is
+  issued and committed synchronously; only the send happens after the
+  response. An absorbed failure costs the user a resend after the cooldown.
 - **Failure handling:** an SMTP error is caught, logged *without the code*
   (email address and exception only), and the endpoint still returns its
   normal opaque response. Returning an error would reveal that the account
