@@ -3,7 +3,15 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -11,7 +19,16 @@ from app.db import Base
 
 class EmailCode(Base):
     __tablename__ = "email_codes"
-    __table_args__ = (Index("ix_email_codes_user_purpose", "user_id", "purpose"),)
+    __table_args__ = (
+        Index("ix_email_codes_user_purpose", "user_id", "purpose"),
+        # Without this, overlapping sends can leave several live rows per pair,
+        # and the attempt cap and single-shot rule become per-row instead.
+        UniqueConstraint(
+            "user_id",
+            "purpose",
+            name="uq_email_codes_user_purpose",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(

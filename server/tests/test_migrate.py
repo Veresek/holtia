@@ -77,7 +77,7 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
 
     migrate(url)
 
-    assert current_revision(url) == "20261010_0015"
+    assert current_revision(url) == "20261010_0016"
     assert "session_version" in column_names(url, "users")
     assert "timezone" in column_names(url, "users")
     assert column_nullable(url, "users", "timezone") is False
@@ -113,6 +113,10 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
         email_code_indexes = {
             index["name"] for index in inspector.get_indexes("email_codes")
         }
+        email_code_uniques = {
+            constraint["name"]
+            for constraint in inspector.get_unique_constraints("email_codes")
+        }
         assert "ix_tasks_user_id_date" in task_indexes
         assert "ix_tasks_time_block_id" in task_indexes
         assert "ix_notes_task_id" in note_indexes
@@ -121,6 +125,7 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
         assert "ix_time_blocks_user_id_date" in block_indexes
         assert "ix_email_codes_user_id" in email_code_indexes
         assert "ix_email_codes_user_purpose" in email_code_indexes
+        assert "uq_email_codes_user_purpose" in email_code_uniques
     finally:
         engine.dispose()
 
@@ -154,7 +159,7 @@ def test_migrate_stamps_legacy_schema_and_preserves_data(tmp_path: Path) -> None
 
     migrate(url)
 
-    assert current_revision(url) == "20261010_0015"
+    assert current_revision(url) == "20261010_0016"
     assert column_nullable(url, "tasks", "date") is True
     assert column_nullable(url, "tasks", "updated_at") is False
     engine = create_engine(url)

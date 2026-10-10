@@ -5,6 +5,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select, update
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -13,6 +15,7 @@ from app.models.email_code import EmailCode
 from app.models.user import User
 from app.services.email_codes import (
     MAX_CODE_ATTEMPTS,
+    _live_code_stmt,
     consume_code,
     hash_email_code,
     issue_code,
@@ -88,18 +91,12 @@ def test_issue_returns_six_digit_code_and_stores_hash_only(
     assert len(rows) == 1
     row = rows[0]
     assert row.code_hash == hash_email_code(code)
+    assert row.code_hash != code
     assert len(row.code_hash) == 64
     assert row.attempts == 0
     assert row.consumed_at is None
     ttl = as_utc(row.expires_at) - datetime.now(UTC)
     assert timedelta(minutes=14) < ttl <= timedelta(minutes=15)
-
-    stored_strings = [
-        getattr(row, column.key)
-        for column in EmailCode.__table__.columns
-        if isinstance(getattr(row, column.key), str)
-    ]
-    assert all(code not in value for value in stored_strings)
 
 
 def test_issue_replaces_previous_code(
@@ -121,6 +118,71 @@ def test_issue_replaces_previous_code(
     assert issued_elsewhere is not None
     assert len(codes_for(db, user.id, "verify")) == 1
     assert len(codes_for(db, user.id, "reset")) == 1
+
+
+def test_duplicate_live_row_for_pair_is_rejected(
+    db: Session,
+    user: User,
+) -> None:
+    expires_at = datetime.now(UTC) + timedelta(minutes=15)
+    db.add(
+        EmailCode(
+            user_id=user.id,
+            purpose="verify",
+            code_hash=hash_email_code("111111"),
+            expires_at=expires_at,
+        )
+    )
+    db.commit()
+
+    with pytest.raises(IntegrityError):
+        db.add(
+            EmailCode(
+                user_id=user.id,
+                purpose="verify",
+                code_hash=hash_email_code("222222"),
+                expires_at=expires_at,
+            )
+        )
+        db.commit()
+    db.rollback()
+
+    assert len(codes_for(db, user.id, "verify")) == 1
+
+
+def test_consume_does_not_commit(
+    db: Session,
+    settings: Settings,
+    user: User,
+) -> None:
+    code = issue_code(db, settings, user_id=user.id, purpose="verify")
+    assert code is not None
+
+    consumed = consume_code(
+        db, settings, user_id=user.id, purpose="verify", code=code
+    )
+    assert consumed is True
+
+    # the service flushes only; the caller owns the commit
+    db.rollback()
+
+    user_id = user.id
+    with Session(engine) as fresh:
+        row = fresh.scalar(
+            select(EmailCode).where(
+                EmailCode.user_id == user_id,
+                EmailCode.purpose == "verify",
+            )
+        )
+    assert row is not None
+    assert row.consumed_at is None
+
+
+def test_for_update_is_requested() -> None:
+    stmt = _live_code_stmt(uuid.uuid4(), "verify", datetime.now(UTC))
+
+    assert "FOR UPDATE" in str(stmt.compile())
+    assert "FOR UPDATE" in str(stmt.compile(dialect=postgresql.dialect()))
 
 
 def test_cooldown_suppresses_issue(

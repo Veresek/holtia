@@ -11,7 +11,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import Select, delete, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -32,7 +32,12 @@ def issue_code(
     purpose: str,
 ) -> str | None:
     """Replace the pair's live code with a fresh one, or refuse inside the
-    cooldown window and return None."""
+    cooldown window and return None.
+
+    One row per pair is enforced by uq_email_codes_user_purpose, so two
+    overlapping sends on Postgres leave the loser an IntegrityError from the
+    commit below; the caller treats that as a send that did not happen.
+    """
     now = datetime.now(UTC)
     latest = db.scalar(
         select(EmailCode)
@@ -64,6 +69,27 @@ def issue_code(
     return code
 
 
+def _live_code_stmt(
+    user_id: uuid.UUID,
+    purpose: str,
+    now: datetime,
+) -> Select[tuple[EmailCode]]:
+    """The pair's live row, locked for the duration of the claim.
+
+    Postgres takes the row lock; SQLite parses FOR UPDATE and ignores it.
+    """
+    return (
+        select(EmailCode)
+        .where(
+            EmailCode.user_id == user_id,
+            EmailCode.purpose == purpose,
+            EmailCode.consumed_at.is_(None),
+            EmailCode.expires_at > now,
+        )
+        .with_for_update()
+    )
+
+
 def consume_code(
     db: Session,
     settings: Settings,
@@ -79,16 +105,7 @@ def consume_code(
     unused here and kept for the call sites' shape.
     """
     now = datetime.now(UTC)
-    row = db.scalar(
-        select(EmailCode)
-        .where(
-            EmailCode.user_id == user_id,
-            EmailCode.purpose == purpose,
-            EmailCode.consumed_at.is_(None),
-            EmailCode.expires_at > now,
-        )
-        .with_for_update()
-    )
+    row = db.scalar(_live_code_stmt(user_id, purpose, now))
     if row is None:
         return False
 
