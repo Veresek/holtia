@@ -105,7 +105,7 @@ def verify(
         db,
         settings,
         payload.email,
-        payload.instance_code,
+        payload.code,
     )
     auth_service.set_session_cookies(response, tokens, settings)
     return user
@@ -122,6 +122,6 @@ def reset(
         db,
         settings,
         payload.email,
-        payload.instance_code,
+        payload.code,
         payload.new_password,
     )

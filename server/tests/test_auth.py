@@ -8,10 +8,59 @@ from sqlalchemy import select
 from app.config import Settings, get_settings
 from app.db import SessionLocal
 from app.main import app
+from app.models.email_code import EmailCode
 from app.models.refresh_token import RefreshToken
+from app.services.email_codes import MAX_CODE_ATTEMPTS
 from app.services.passwords import PASSWORD_HINT
 from app.services.rate_limits import RATE_LIMITED
-from tests.conftest import SENT_EMAILS, login, register, register_verified, verify
+from tests.conftest import (
+    SENT_EMAILS,
+    login,
+    register,
+    register_verified,
+    sent_code,
+    verify,
+)
+
+VERIFY_FAILED = "Verification failed. Check the code and try again."
+RESET_FAILED = "Reset failed. Check the code and try again."
+UNVERIFIED = "Verify your account with the code sent to your email."
+NO_SMTP = {
+    "smtp_host": "",
+    "smtp_user": "",
+    "smtp_password": "",
+    "mail_from": "",
+}
+
+
+def other_code(live: str) -> str:
+    """A code that is certainly not the live one, so a wrong-code test cannot
+    win the one-in-a-million guess against the issued code."""
+    return "000000" if live != "000000" else "000001"
+
+
+def send_reset_code(client: TestClient, email: str = "ada@example.com") -> str:
+    """Ask for a reset code the way the reset flow does, then read it back from
+    the captured mail instead of the SMTP socket."""
+    response = client.post(
+        "/api/auth/send-code",
+        json={"email": email, "purpose": "reset"},
+    )
+    assert response.status_code == 204
+    return sent_code(email, "reset")
+
+
+def reset(
+    client: TestClient,
+    *,
+    code: str,
+    email: str = "ada@example.com",
+    new_password: str = "password2",
+):
+    return client.post(
+        "/api/auth/reset",
+        json={"email": email, "code": code, "newPassword": new_password},
+    )
 
 
 def _cookie_headers(response) -> list[str]:
@@ -154,7 +203,7 @@ def test_login_rejects_unverified_account(client: TestClient) -> None:
     response = login(client)
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "Verify your account with the instance code."
+    assert response.json()["detail"] == UNVERIFIED
 
 
 def test_login_and_me_after_verify(client: TestClient) -> None:
@@ -198,12 +247,76 @@ def test_me_without_cookie_is_unauthorized(client: TestClient) -> None:
     assert response.json()["detail"] == "Not authenticated."
 
 
-def test_verify_rejects_wrong_instance_code(client: TestClient) -> None:
+def test_verify_rejects_wrong_code(client: TestClient) -> None:
     register(client)
-    response = verify(client, instance_code="nope")
+    live = sent_code("ada@example.com", "verify")
 
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Invalid instance code."
+    response = verify(client, code=other_code(live))
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == VERIFY_FAILED
+    assert not any("access_token=" in header for header in _cookie_headers(response))
+    assert login(client).status_code == 403
+
+
+def test_verify_unknown_email_same_error(client: TestClient) -> None:
+    register(client)
+    live = sent_code("ada@example.com", "verify")
+
+    wrong_code = verify(client, code=other_code(live))
+    unknown = client.post(
+        "/api/auth/verify",
+        json={"email": "unknown@example.com", "code": "000000"},
+    )
+
+    assert wrong_code.status_code == unknown.status_code == 400
+    assert wrong_code.json() == unknown.json() == {"detail": VERIFY_FAILED}
+
+
+def test_verify_rejects_a_malformed_code(client: TestClient) -> None:
+    """Six digits are the wire shape; anything else never reaches the code row."""
+    register(client)
+
+    for code in ("12345", "1234567", "abcdef", "00000 "):
+        assert verify(client, code=code).status_code == 422
+
+    assert login(client).status_code == 403
+
+
+def test_verify_rejects_used_code(client: TestClient) -> None:
+    created = register(client)
+    assert created.status_code == 201
+
+    first = verify(client)
+    assert first.status_code == 200
+    client.cookies.clear()
+
+    second = verify(client)
+
+    assert second.status_code == 400
+    assert second.json()["detail"] == VERIFY_FAILED
+    assert not any("access_token=" in header for header in _cookie_headers(second))
+
+
+def test_verify_does_not_change_password(client: TestClient) -> None:
+    register_verified(client)
+    client.cookies.clear()
+
+    assert login(client).status_code == 200
+    assert login(client, password="wrong-password").status_code == 401
+
+
+def test_verify_wrong_attempts_burn_across_requests(client: TestClient) -> None:
+    """A wrong code is remembered across requests: without that commit the
+    counter would reset every call and codes would be guessable."""
+    register(client)
+    live = sent_code("ada@example.com", "verify")
+
+    for _ in range(MAX_CODE_ATTEMPTS):
+        assert verify(client, code=other_code(live)).status_code == 400
+
+    assert verify(client, code=live).status_code == 400
+    assert login(client).status_code == 403
 
 
 def test_verify_cannot_issue_a_session_for_an_activated_account(
@@ -211,15 +324,24 @@ def test_verify_cannot_issue_a_session_for_an_activated_account(
 ) -> None:
     register_verified(client)
     client.cookies.clear()
+    send = client.post(
+        "/api/auth/send-code",
+        json={"email": "ada@example.com", "purpose": "verify"},
+    )
+    assert send.status_code == 204
+    live = sent_code("ada@example.com", "verify")
 
-    response = verify(client)
+    response = verify(client, code=live)
 
     assert response.status_code == 400
-    assert response.json()["detail"] == (
-        "Account cannot be verified. Sign in or check the details."
-    )
+    assert response.json()["detail"] == VERIFY_FAILED
     assert not any("access_token=" in header for header in _cookie_headers(response))
     assert client.get("/api/users/me").status_code == 401
+    with SessionLocal() as db:
+        row = db.scalar(select(EmailCode).where(EmailCode.purpose == "verify"))
+        assert row is not None
+        assert row.attempts == 0
+        assert row.consumed_at is None
 
 
 def test_verify_does_not_distinguish_unknown_and_activated_accounts(
@@ -228,8 +350,11 @@ def test_verify_does_not_distinguish_unknown_and_activated_accounts(
     register_verified(client)
     client.cookies.clear()
 
-    activated = verify(client)
-    unknown = verify(client, email="unknown@example.com")
+    activated = verify(client, code="000000")
+    unknown = client.post(
+        "/api/auth/verify",
+        json={"email": "unknown@example.com", "code": "000000"},
+    )
 
     assert activated.status_code == unknown.status_code == 400
     assert activated.json() == unknown.json()
@@ -308,21 +433,15 @@ def test_logout_revokes_the_refresh_token(client: TestClient) -> None:
     assert stale.post("/api/auth/refresh").status_code == 401
 
 
-def test_reset_changes_password_and_revokes_sessions(client: TestClient) -> None:
+def test_reset_with_code_rotates_sessions(client: TestClient) -> None:
     register_verified(client)
     refresh_token = client.cookies.get("refresh_token")
     access_token = client.cookies.get("access_token")
     assert refresh_token
     assert access_token
+    code = send_reset_code(client)
 
-    response = client.post(
-        "/api/auth/reset",
-        json={
-            "email": "ada@example.com",
-            "instanceCode": "test-instance-code",
-            "newPassword": "password2",
-        },
-    )
+    response = reset(client, code=code)
 
     assert response.status_code == 204
 
@@ -339,33 +458,84 @@ def test_reset_changes_password_and_revokes_sessions(client: TestClient) -> None
     assert login(client, password="password2").status_code == 200
 
 
-def test_reset_rejects_wrong_instance_code(client: TestClient) -> None:
+def test_reset_rejects_wrong_code(client: TestClient) -> None:
     register_verified(client)
-    response = client.post(
-        "/api/auth/reset",
-        json={
-            "email": "ada@example.com",
-            "instanceCode": "nope",
-            "newPassword": "password2",
-        },
-    )
+    code = send_reset_code(client)
 
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Invalid instance code."
+    response = reset(client, code=other_code(code))
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == RESET_FAILED
+    client.cookies.clear()
+    assert login(client, password="password1").status_code == 200
+    assert reset(client, code=code).status_code == 204
+
+
+def test_reset_requires_strong_password_before_code(client: TestClient) -> None:
+    """The password rule runs before the code is claimed, so a weak password
+    cannot spend a live code or one of its five attempts."""
+    register_verified(client)
+    code = send_reset_code(client)
+
+    weak = reset(client, code=other_code(code), new_password="password")
+
+    assert weak.status_code == 422
+    assert weak.json()["detail"] == PASSWORD_HINT
+    with SessionLocal() as db:
+        row = db.scalar(select(EmailCode).where(EmailCode.purpose == "reset"))
+        assert row is not None
+        assert row.attempts == 0
+        assert row.consumed_at is None
+    assert reset(client, code=code).status_code == 204
+
+
+def test_reset_does_not_verify(client: TestClient) -> None:
+    register(client)
+    code = send_reset_code(client)
+
+    response = reset(client, code=code)
+
+    assert response.status_code == 204
+    client.cookies.clear()
+    attempt = login(client, password="password2")
+    assert attempt.status_code == 403
+    assert attempt.json()["detail"] == UNVERIFIED
 
 
 def test_reset_does_not_reveal_an_unknown_email(client: TestClient) -> None:
-    response = client.post(
-        "/api/auth/reset",
-        json={
-            "email": "unknown@example.com",
-            "instanceCode": "test-instance-code",
-            "newPassword": "password2",
-        },
-    )
+    register_verified(client)
+    code = send_reset_code(client)
 
-    assert response.status_code == 204
-    assert response.content == b""
+    unknown = reset(client, email="unknown@example.com", code=code)
+    wrong_code = reset(client, code=other_code(code))
+
+    assert unknown.status_code == wrong_code.status_code == 400
+    assert unknown.json() == wrong_code.json() == {"detail": RESET_FAILED}
+
+
+def test_dev_mode_skips_codes(client: TestClient) -> None:
+    created = register(client)
+
+    assert created.status_code == 201
+    assert created.json()["verifiedAt"] is None
+    assert len(SENT_EMAILS) == 1
+
+    app.dependency_overrides[get_settings] = lambda: Settings(**NO_SMTP)
+
+    unconfigured_signup = register(client, email="grace@example.com")
+    verified = verify(client, code="000000")
+    reset_response = reset(client, email="grace@example.com", code="000000")
+
+    assert unconfigured_signup.json()["verifiedAt"] is not None
+    assert verified.status_code == 200
+    assert verified.json()["verifiedAt"] is not None
+    assert reset_response.status_code == 204
+    assert len(SENT_EMAILS) == 1
+
+    client.cookies.clear()
+    assert (
+        login(client, email="grace@example.com", password="password2").status_code == 200
+    )
 
 
 def test_auth_rate_limit_uses_the_direct_client_address(
@@ -410,14 +580,14 @@ def test_auth_rate_limit_uses_the_direct_client_address(
             "/api/auth/verify",
             {
                 "email": "unknown@example.com",
-                "instanceCode": "test-instance-code",
+                "code": "000000",
             },
         ),
         (
             "/api/auth/reset",
             {
                 "email": "unknown@example.com",
-                "instanceCode": "test-instance-code",
+                "code": "000000",
                 "newPassword": "password2",
             },
         ),

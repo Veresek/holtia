@@ -1,5 +1,4 @@
 import logging
-import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -13,7 +12,7 @@ from app.config import Settings
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.services.email import send_code_email
-from app.services.email_codes import issue_code
+from app.services.email_codes import consume_code, issue_code
 from app.services.passwords import (
     DUMMY_PASSWORD_HASH,
     hash_password,
@@ -34,8 +33,9 @@ logger = logging.getLogger(__name__)
 
 INVALID_CREDENTIALS = "Invalid email or password."
 NOT_AUTHENTICATED = "Not authenticated."
-UNVERIFIED = "Verify your account with the instance code."
-INVALID_INSTANCE_CODE = "Invalid instance code."
+UNVERIFIED = "Verify your account with the code sent to your email."
+VERIFY_FAILED = "Verification failed. Check the code and try again."
+RESET_FAILED = "Reset failed. Check the code and try again."
 REFRESH_REUSE_GRACE = timedelta(seconds=15)
 VERIFICATION_UNAVAILABLE = (
     "Account cannot be verified. Sign in or check the details."
@@ -50,24 +50,6 @@ class SessionTokens:
 
 def normalize_email(email: str) -> str:
     return email.strip().lower()
-
-
-def instance_code_matches(settings: Settings, provided: str) -> bool:
-    expected = settings.instance_code
-    if expected == "":
-        return True
-    return secrets.compare_digest(
-        hash_refresh_token(provided),
-        hash_refresh_token(expected),
-    )
-
-
-def require_instance_code(settings: Settings, provided: str) -> None:
-    if not instance_code_matches(settings, provided):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=INVALID_INSTANCE_CODE,
-        )
 
 
 def set_session_cookies(
@@ -396,19 +378,16 @@ def logout(db: Session, raw_refresh: str | None) -> None:
         db.commit()
 
 
-def verify(
+def _verify_without_code(
     db: Session,
     settings: Settings,
     email: str,
-    instance_code: str,
 ) -> tuple[User, SessionTokens]:
-    require_instance_code(settings, instance_code)
+    """Local development with no mail server: nothing can be emailed, so the
+    account is opened on request. No code row is read, written or consumed."""
     user_id = db.scalar(
         update(User)
-        .where(
-            User.email == normalize_email(email),
-            User.verified_at.is_(None),
-        )
+        .where(User.email == email, User.verified_at.is_(None))
         .values(verified_at=datetime.now(UTC))
         .returning(User.id)
     )
@@ -431,14 +410,45 @@ def verify(
     return user, tokens
 
 
+def verify(
+    db: Session,
+    settings: Settings,
+    email: str,
+    code: str,
+) -> tuple[User, SessionTokens]:
+    email = normalize_email(email)
+    if not settings.smtp_configured:
+        return _verify_without_code(db, settings, email)
+
+    user = db.scalar(select(User).where(User.email == email))
+    if user is None or user.verified_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=VERIFY_FAILED,
+        )
+    if not consume_code(db, settings, user_id=user.id, purpose="verify", code=code):
+        # The failed attempt belongs to the row, not to this request: rolling
+        # back would put the counter back to zero and lift the attempt cap.
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=VERIFY_FAILED,
+        )
+
+    user.verified_at = datetime.now(UTC)
+    tokens = issue_session(db, settings, user)
+    db.commit()
+    db.refresh(user)
+    return user, tokens
+
+
 def reset_password(
     db: Session,
     settings: Settings,
     email: str,
-    instance_code: str,
+    code: str,
     new_password: str,
 ) -> None:
-    require_instance_code(settings, instance_code)
     require_strong_password(new_password)
     password_hash = hash_password(new_password)
     user = db.scalar(
@@ -447,7 +457,23 @@ def reset_password(
         .with_for_update()
     )
     if user is None:
-        return
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=RESET_FAILED,
+        )
+    if settings.smtp_configured and not consume_code(
+        db,
+        settings,
+        user_id=user.id,
+        purpose="reset",
+        code=code,
+    ):
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=RESET_FAILED,
+        )
+
     user.password_hash = password_hash
     user.session_version += 1
     _revoke_all_for_user(db, user.id)

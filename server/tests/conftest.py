@@ -98,11 +98,13 @@ def register(
 def verify(
     client: TestClient,
     email: str = "ada@example.com",
-    instance_code: str = "test-instance-code",
+    code: str | None = None,
 ):
+    if code is None:
+        code = sent_code(email, "verify")
     return client.post(
         "/api/auth/verify",
-        json={"email": email, "instanceCode": instance_code},
+        json={"email": email, "code": code},
     )
 
 

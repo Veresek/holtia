@@ -24,7 +24,7 @@ class SendCodeRequest(ApiModel):
 
 class VerifyRequest(ApiModel):
     email: EmailStr
-    instance_code: str = Field(min_length=1, max_length=256)
+    code: str = Field(pattern=r"^[0-9]{6}$")
 
 
 class ResetRequest(VerifyRequest):
