@@ -77,7 +77,7 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
 
     migrate(url)
 
-    assert current_revision(url) == "20260921_0014"
+    assert current_revision(url) == "20261010_0015"
     assert "session_version" in column_names(url, "users")
     assert "timezone" in column_names(url, "users")
     assert column_nullable(url, "users", "timezone") is False
@@ -86,6 +86,10 @@ def test_migrate_builds_an_empty_database(tmp_path: Path) -> None:
     assert "updated_at" in column_names(url, "time_blocks")
     assert "time_block_id" in column_names(url, "notes")
     assert "user_ai_settings" in table_names(url)
+    assert "email_codes" in table_names(url)
+    assert "code_hash" in column_names(url, "email_codes")
+    assert column_nullable(url, "email_codes", "consumed_at") is True
+    assert column_nullable(url, "email_codes", "attempts") is False
     assert "key_ciphertext" in column_names(url, "user_ai_settings")
     assert "id" in column_names(url, "user_ai_settings")
     assert "is_active" in column_names(url, "user_ai_settings")
@@ -145,7 +149,7 @@ def test_migrate_stamps_legacy_schema_and_preserves_data(tmp_path: Path) -> None
 
     migrate(url)
 
-    assert current_revision(url) == "20260921_0014"
+    assert current_revision(url) == "20261010_0015"
     assert column_nullable(url, "tasks", "date") is True
     assert column_nullable(url, "tasks", "updated_at") is False
     engine = create_engine(url)
