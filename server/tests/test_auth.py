@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -10,7 +11,7 @@ from app.main import app
 from app.models.refresh_token import RefreshToken
 from app.services.passwords import PASSWORD_HINT
 from app.services.rate_limits import RATE_LIMITED
-from tests.conftest import login, register, register_verified, verify
+from tests.conftest import SENT_EMAILS, login, register, register_verified, verify
 
 
 def _cookie_headers(response) -> list[str]:
@@ -96,7 +97,13 @@ def test_register_falls_back_when_timezone_is_unknown(client: TestClient) -> Non
 def test_register_auto_verifies_when_instance_code_is_empty(
     client: TestClient,
 ) -> None:
-    app.dependency_overrides[get_settings] = lambda: Settings(instance_code="")
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        instance_code="",
+        smtp_host="",
+        smtp_user="",
+        smtp_password="",
+        mail_from="",
+    )
 
     response = register(client)
 
@@ -108,6 +115,38 @@ def test_register_auto_verifies_when_instance_code_is_empty(
     me = client.get("/api/users/me")
     assert me.status_code == 200
     assert me.json()["email"] == "ada@example.com"
+    assert SENT_EMAILS == []
+
+
+def test_register_when_email_smtp_configured_sends_verify_code(
+    client: TestClient,
+) -> None:
+    # An empty instance code is not the dev switch any more: configured SMTP
+    # wins, so the account stays unverified and the code goes out by email.
+    app.dependency_overrides[get_settings] = lambda: Settings(instance_code="")
+
+    response = register(client)
+
+    assert response.status_code == 201
+    assert response.json()["verifiedAt"] is None
+    assert not any("access_token=" in header for header in _cookie_headers(response))
+    assert client.get("/api/users/me").status_code == 401
+    assert len(SENT_EMAILS) == 1
+    to, code, purpose = SENT_EMAILS[0]
+    assert (to, purpose) == ("ada@example.com", "verify")
+    assert re.fullmatch(r"[0-9]{6}", code)
+    assert login(client).status_code == 403
+
+
+def test_register_existing_email_sends_no_email(client: TestClient) -> None:
+    created = register(client)
+    assert created.status_code == 201
+    sent_before = len(SENT_EMAILS)
+
+    duplicate = register(client)
+
+    assert duplicate.status_code == 201
+    assert len(SENT_EMAILS) == sent_before
 
 
 def test_login_rejects_unverified_account(client: TestClient) -> None:
@@ -381,6 +420,10 @@ def test_auth_rate_limit_uses_the_direct_client_address(
                 "instanceCode": "test-instance-code",
                 "newPassword": "password2",
             },
+        ),
+        (
+            "/api/auth/send-code",
+            {"email": "unknown@example.com", "purpose": "reset"},
         ),
     ],
 )

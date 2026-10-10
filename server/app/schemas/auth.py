@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import EmailStr, Field
 
 from app.schemas.base import ApiModel
@@ -13,6 +15,11 @@ class RegisterRequest(ApiModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     timezone: str | None = Field(default=None, max_length=IANA_TIMEZONE_MAX_LENGTH)
+
+
+class SendCodeRequest(ApiModel):
+    email: EmailStr
+    purpose: Literal["verify", "reset"]
 
 
 class VerifyRequest(ApiModel):

@@ -1,3 +1,4 @@
+import logging
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -11,6 +12,8 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
+from app.services.email import send_code_email
+from app.services.email_codes import issue_code
 from app.services.passwords import (
     DUMMY_PASSWORD_HASH,
     hash_password,
@@ -26,6 +29,8 @@ from app.services.tokens import (
     new_refresh_token,
 )
 from app.timezones import resolve_timezone
+
+logger = logging.getLogger(__name__)
 
 INVALID_CREDENTIALS = "Invalid email or password."
 NOT_AUTHENTICATED = "Not authenticated."
@@ -219,6 +224,30 @@ def require_strong_password(password: str) -> None:
         )
 
 
+def send_code(db: Session, settings: Settings, email: str, purpose: str) -> None:
+    """Email a one-time code, never telling the caller what happened.
+
+    Unknown emails, a suppressed issue and a failed delivery all end the same
+    way, because the endpoint may not reveal that an account exists. A racing
+    double-issue loses on the unique pair row and counts as no send; the
+    winner's email is already on its way.
+    """
+    user = db.scalar(select(User).where(User.email == normalize_email(email)))
+    if user is None:
+        return
+    try:
+        code = issue_code(db, settings, user_id=user.id, purpose=purpose)
+    except IntegrityError:
+        db.rollback()
+        return
+    if code is None:
+        return
+    try:
+        send_code_email(settings, to=user.email, code=code, purpose=purpose)
+    except Exception:
+        logger.warning("Email send failed for %s purpose=%s", user.email, purpose)
+
+
 def register(
     db: Session,
     settings: Settings,
@@ -234,7 +263,7 @@ def register(
         hash_password(password)
         return _opaque_unverified_user(email, timezone), None
 
-    verified_at = datetime.now(UTC) if settings.instance_code == "" else None
+    verified_at = datetime.now(UTC) if not settings.smtp_configured else None
     user = User(
         email=email,
         password_hash=hash_password(password),
@@ -252,6 +281,8 @@ def register(
     tokens = issue_session(db, settings, user) if verified_at is not None else None
     db.commit()
     db.refresh(user)
+    if verified_at is None:
+        send_code(db, settings, email, "verify")
     return user, tokens
 
 

@@ -131,13 +131,36 @@ def test_smtp_configured_requires_all_four(
     provided: tuple[str, ...],
     expected: bool,
 ) -> None:
-    settings = Settings(**{name: SMTP_VALUES[name] for name in provided})
+    settings = Settings(
+        **{
+            name: SMTP_VALUES[name] if name in provided else ""
+            for name in SMTP_FIELDS
+        }
+    )
 
     assert settings.smtp_configured is expected
 
 
-def test_email_settings_default_to_an_unconfigured_instance() -> None:
-    settings = Settings()
+EMAIL_ENV_VARS = (
+    "SMTP_HOST",
+    "SMTP_PORT",
+    "SMTP_USER",
+    "SMTP_PASSWORD",
+    "MAIL_FROM",
+    "EMAIL_CODE_TTL_MINUTES",
+    "EMAIL_CODE_COOLDOWN_SECONDS",
+)
+
+
+def test_email_settings_default_to_an_unconfigured_instance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The suite's env is SMTP-configured so the auth flows can send; defaults
+    # are only observable with that environment and the .env file taken away.
+    for name in EMAIL_ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
+
+    settings = Settings(_env_file=None)
 
     assert settings.smtp_configured is False
     assert settings.smtp_host == ""

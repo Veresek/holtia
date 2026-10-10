@@ -4,7 +4,13 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models.user import User
-from app.schemas.auth import Credentials, RegisterRequest, ResetRequest, VerifyRequest
+from app.schemas.auth import (
+    Credentials,
+    RegisterRequest,
+    ResetRequest,
+    SendCodeRequest,
+    VerifyRequest,
+)
 from app.schemas.user import UserRead
 from app.services import auth as auth_service
 from app.services.rate_limits import enforce_auth_rate_limit
@@ -75,6 +81,16 @@ def logout(
 ) -> None:
     auth_service.logout(db, request.cookies.get(REFRESH_COOKIE))
     auth_service.clear_session_cookies(response, settings)
+
+
+@router.post("/send-code", status_code=status.HTTP_204_NO_CONTENT)
+def send_code(
+    payload: SendCodeRequest,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+    _rate_limit: None = Depends(enforce_auth_rate_limit),
+) -> None:
+    auth_service.send_code(db, settings, payload.email, payload.purpose)
 
 
 @router.post("/verify", response_model=UserRead)
