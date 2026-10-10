@@ -231,21 +231,37 @@ def send_code(db: Session, settings: Settings, email: str, purpose: str) -> None
     way, because the endpoint may not reveal that an account exists. A racing
     double-issue loses on the unique pair row and counts as no send; the
     winner's email is already on its way.
+
+    This function never raises: any failure at all — a lagged migration, a
+    database error, a dead SMTP — is absorbed here and looks to the caller like
+    a no-send, so no caller can turn it into an existence oracle. Call it after
+    your own commit; it owns the rollback and the commit of its own work.
     """
-    user = db.scalar(select(User).where(User.email == normalize_email(email)))
-    if user is None:
-        return
     try:
+        user = db.scalar(select(User).where(User.email == normalize_email(email)))
+        if user is None:
+            return
         code = issue_code(db, settings, user_id=user.id, purpose=purpose)
-    except IntegrityError:
+        if code is None:
+            return
+        try:
+            send_code_email(settings, to=user.email, code=code, purpose=purpose)
+        except Exception as exc:
+            logger.warning(
+                "Email send failed for %s purpose=%s (%s)",
+                user.email,
+                purpose,
+                type(exc).__name__,
+            )
+            return
+    except Exception as exc:
         db.rollback()
-        return
-    if code is None:
-        return
-    try:
-        send_code_email(settings, to=user.email, code=code, purpose=purpose)
-    except Exception:
-        logger.warning("Email send failed for %s purpose=%s", user.email, purpose)
+        logger.warning(
+            "Email code issue failed for %s purpose=%s (%s)",
+            email,
+            purpose,
+            type(exc).__name__,
+        )
 
 
 def register(

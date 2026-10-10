@@ -3,7 +3,7 @@ import re
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.config import Settings, get_settings
 from app.main import app
@@ -118,6 +118,29 @@ def test_send_code_absorbs_a_racing_issue(
 
     register(client)
     monkeypatch.setattr(auth_service, "issue_code", lose_the_race)
+    sent_before = len(SENT_EMAILS)
+
+    response = request_code(client, purpose="reset")
+
+    assert response.status_code == 204
+    assert len(SENT_EMAILS) == sent_before
+
+
+def test_send_code_absorbs_an_unexpected_issue_failure(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A broken insert path stays a 204: a 500 would confirm the account."""
+
+    def broken_schema(db, settings, *, user_id, purpose):
+        raise OperationalError(
+            "INSERT INTO email_codes",
+            None,
+            Exception("no such table: email_codes"),
+        )
+
+    register(client)
+    monkeypatch.setattr(auth_service, "issue_code", broken_schema)
     sent_before = len(SENT_EMAILS)
 
     response = request_code(client, purpose="reset")
