@@ -6,7 +6,8 @@ app, not another round of product questions. Locked decisions stay in
 
 ## Locked (and shipped)
 
-- Web, not Expo. React 19 + FastAPI + Postgres 18. No SMTP or Google in MVP.
+- Web, not Expo. React 19 + FastAPI + Postgres 18. No Google in MVP; SMTP was
+  added in October 2026 for the auth codes.
 - Five panels: Home, Calendar, Tasks, Notes, Account. Assistant sheet off until `AI_ENABLED`.
 - Home = around-now (1 h back, ≥3 h forward; desktop matches today’s tasks) + today’s **open** tasks (max 4,
   with a chevron to expand the rest) + **four** recent notes.
@@ -18,8 +19,9 @@ app, not another round of product questions. Locked decisions stay in
   24 h column. Month is a Monday-first grid.
 - Notes may hang on a day (`date`), a block **series** (`timeBlockId`) and
   optionally a task (`taskId`) from the note form.
-- Auth: email/password; verify and reset = one `INSTANCE_CODE`. Delete account
-  in MVP. Verify/reset UI is on guest routes, not on Account.
+- Auth: email/password; verify and reset = a 6-digit code emailed to that
+  account. Delete account in MVP. Verify/reset UI is on guest routes, not on
+  Account.
 - Production Compose (API on localhost:8001) + host reverse proxy, Alembic, CI (ruff + pytest; client lint / test / build).
 
 ## Before a public VPS
@@ -27,22 +29,25 @@ app, not another round of product questions. Locked decisions stay in
 These block opening registration to strangers. A private box for yourself is
 fine.
 
-### 1. Shared `INSTANCE_CODE` is account recovery — High
+### 1. One shared recovery secret was account recovery — resolved (October 2026)
 
-The same env secret verifies _and_ resets. `reset_password` does not require
-the old password. Anyone with the code and an email can take the account,
-including accounts that were already verified.
+Flagged High on 5 September 2026: the same env secret both verified an account
+_and_ reset any password, and `reset_password` did not require the old one.
+Anyone holding it could take any account, while hiding it meant strangers could
+not verify at all — so registration was never really open.
 
-Publishing the code to make signup “open” is therefore a takeover primitive.
-Hiding the code means strangers cannot verify — so registration is not actually
-open.
+The mechanism is deleted. `POST /api/auth/send-code` emails a 6-digit code to
+that account’s own address, the database stores only its SHA-256 hash, and
+verify and reset consume it once: 15 minutes of life (`EMAIL_CODE_TTL_MINUTES`),
+five wrong attempts burn it, and a per-address cooldown (`EMAIL_CODE_COOLDOWN_SECONDS`)
+sits between sends. A wrong, missing, expired or already-used code, and a request
+for an email with no account, all return the same generic 400. Nothing reads a
+shared secret any more: the setting is gone, production refuses to start without
+an SMTP sender, and an empty `SMTP_HOST` in development skips the codes.
 
-**Target (v2, not this chore):** see [roadmap-v2.md](roadmap-v2.md). Until that
-exists, **do not publish `INSTANCE_CODE`** and do not treat the VPS as a public
-instance.
-
-Production requires the code to be at least 12 characters. Development still
-skips verify when the code is empty.
+What still stands between this box and open signup is the list below and
+[roadmap-v2.md](roadmap-v2.md): a rate limiter shared across processes, a
+server-side expiry on refresh tokens, and change email.
 
 ### 2. Register enumerates emails — addressed
 
@@ -87,7 +92,7 @@ Not blockers for a private deploy; shipped so the snapshot stays true.
 - A collection list fetched before a local edit no longer overwrites that edit.
 - A note’s block chip names the real recurrence, and “today” in pin labels uses the account timezone.
 - Notes can be searched. Account picks a timezone from the IANA list. AI task proposals show priority. Desktop keyboard shortcuts are listed with `?` and the button beside Account.
-- Production `INSTANCE_CODE` must be at least 12 characters. API startup purges refresh tokens revoked more than 30 days ago, and a purge failure does not stop the process.
+- Production required a shared recovery secret of at least 12 characters (superseded in October 2026 by per-user emailed codes). API startup purges refresh tokens revoked more than 30 days ago, and a purge failure does not stop the process.
 
 ## Safety, privacy, performance
 
@@ -105,5 +110,7 @@ Everything after the MVP, including public registration, is in [roadmap-v2.md](r
 
 ## Next
 
-No round 4. Use the app in September. If it goes on the VPS, keep the instance
-code off the public internet. Email tokens are the gate for open registration.
+No round 4. Use the app. On the VPS the mailbox password is now the secret that
+matters: whoever holds it can read the codes it delivers. Emailed codes are no
+longer the gate for open registration — the shared rate limiter, a server-side
+refresh-token expiry, and change email are.

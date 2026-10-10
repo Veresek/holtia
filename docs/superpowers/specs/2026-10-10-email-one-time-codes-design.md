@@ -294,7 +294,8 @@ Client (Vitest):
 1. Operator creates the Mailcow mailbox and adds SMTP vars to the VPS `.env`
    **before** deploying (the new API refuses to start in production without
    them).
-2. Deploy runs migration `20261010_0015` as usual (`scripts/migrate.py`).
+2. Deploy runs migrations `20261010_0015` and `20261010_0016` as usual
+   (`scripts/migrate.py`); `20261010_0016` is the head.
 3. `INSTANCE_CODE` can be deleted from the VPS `.env` after deploy.
 4. Unverified accounts created before the change simply use “Resend code” /
    `send-code`; no data backfill is needed. Reset for existing users now

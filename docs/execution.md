@@ -1,6 +1,6 @@
 # Execution
 
-As of 5 September 2026. MVP deadline: **end of September 2026**, after hours, solo, budget 0 PLN, OVH VPS.
+As of 11 October 2026. MVP deadline was **end of September 2026**; after hours, solo, budget 0 PLN, OVH VPS.
 
 The four-week build is done in code. What remains is using the app, a private deploy if you want it on the VPS, and v2 work that must not ship as if it were ready.
 
@@ -9,7 +9,7 @@ The four-week build is done in code. What remains is using the app, a private de
 | #   | Capability                                                                                           | State                                       |
 | --- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------- |
 | 1   | Register and log in with email + password; one account = one user                                    | Done                                        |
-| 2   | Verify and reset with a shared **instance code** (env), zero SMTP                                    | Done — private instance only                |
+| 2   | Verify and reset with a **per-user code sent by email** (SMTP)                       | Done — codes are single-use and expire |
 | 3   | Shell: 5 panels + AI bar (off until `AI_ENABLED`)                                                    | Done                                        |
 | 4   | Tasks: title, done, description, priority, optional day; CRUD                                        | Done                                        |
 | 5   | Home: **today’s open** tasks (at most 4) + chevron to expand the rest + empty state                  | Done                                        |
@@ -24,19 +24,28 @@ The four-week build is done in code. What remains is using the app, a private de
 
 Pin a task to a block: `date` + `timeBlockId`; the date is a day the block occurs (autofilled from today when omitted). A note may pin to a day (`date`), to the series (`timeBlockId`) with no occurrence date, and/or to a task (`taskId`) from the note form. A block tile may **show** pinned items and open them; it does not contain a task list inside.
 
-**Ready for a private VPS** when `.env` is filled, DNS points at the box, and you can: create an account, verify / reset with the instance code you keep secret, walk through Home in the morning, lay out the week in Calendar, open all tasks and the notes collection.
+**Ready for a private VPS** when `.env` is filled with an SMTP sender, DNS points at the box, and you can: create an account, verify / reset with the code emailed to you, walk through Home in the morning, lay out the week in Calendar, open all tasks and the notes collection.
 
-**Not ready for a public instance** until verify and reset use per-user email tokens. Product success (separate from deploy): ≥ 20 days of September with a plan in Holtia.
+**Not ready for a public instance** until the remaining blockers in [roadmap-v2.md](roadmap-v2.md) ship: a rate limiter shared across processes, a server-side `expires_at` on refresh tokens, and change email. Product success (separate from deploy): ≥ 20 days of September with a plan in Holtia.
 
 ## Auth: current vs v2
 
-**Now:** one `INSTANCE_CODE` in env. Empty in development = skip verify (accounts work immediately). Non-empty = the same secret activates an account _and_ resets any password. Cookies: HttpOnly `access_token` (~30 min) and `refresh_token` (rotated, client max-age 10 years). Password reset increments `session_version` and revokes refresh tokens.
+**Now:** a 6-digit code per user and purpose, emailed over SMTP and stored only
+as a hash. It works once, expires after `EMAIL_CODE_TTL_MINUTES` (15 by
+default), and five wrong attempts burn it. A wrong, missing or expired code
+returns one generic 400, and a request for an unknown email is indistinguishable
+from one for a real account. An empty `SMTP_HOST` skips the codes entirely, which
+is how development accounts auto-verify; production refuses to start without a
+configured sender. Cookies: HttpOnly `access_token` (~30 min) and `refresh_token`
+(rotated, client max-age 10 years). Password reset increments `session_version`
+and revokes refresh tokens.
 
-**Do not publish the instance code.** Anyone with the code and an email can reset that account.
+**v2 (blocker for public open registration):** a rate limiter shared across
+processes, a server-side `expires_at` on refresh tokens, and change email.
+Requirements and acceptance criteria are in [roadmap-v2.md](roadmap-v2.md).
 
-**v2 (blocker for public open registration):** SMTP and per-user single-use tokens. Requirements and acceptance criteria are in [roadmap-v2.md](roadmap-v2.md).
-
-Until that ships, treat production as a trusted instance you operate for yourself (and people you hand the code to on purpose). In production the code must be at least 12 characters or the API will not start.
+Until those ship, treat production as a trusted instance you operate for yourself
+(and people who verify their own address by email).
 
 Refresh reuse within a short grace window no longer signs out a second tab as a replay. A real server-side refresh-token expiry is still later.
 
@@ -48,7 +57,7 @@ Public registration, habits and a draw inside a block, further AI tools, export,
 
 - Project planner
 - Polish UI
-- Google OAuth, Expo, SMTP
+- Google OAuth, Expo
 - Draw inside a block
 - Notifications, analytics
 - Admin vs user roles
@@ -72,8 +81,8 @@ Public registration, habits and a draw inside a block, further AI tools, export,
 | -------- | -------------------------------------------------------------------------------- |
 | Frontend | React 19, Vite, TypeScript, Tailwind v4 (phone in the browser)                   |
 | Backend  | FastAPI, Python 3.13                                                             |
-| Database | PostgreSQL 18, Alembic (head `20260921_0014`)                                    |
-| Auth     | email + password (bcrypt) + `INSTANCE_CODE`; cookies; Google and SMTP not in MVP |
+| Database | PostgreSQL 18, Alembic (head `20261010_0016`)                                    |
+| Auth     | email + password (bcrypt) + per-user emailed codes; cookies; Google not in MVP    |
 | Hosting  | VPS, `docker compose` / `docker-compose.prod.yml`                                |
 | CI       | GitHub Actions: ruff + pytest; client lint / test / build                        |
 | CD       | GitHub Actions: SSH to the VPS on push to `main`; Compose up --build + `client/dist` |
@@ -87,6 +96,9 @@ UserAiSettings id, user_id, provider, model, key_ciphertext, key_nonce, key_hint
                is_active, timestamps
                — many keys per user; one is_active at a time
 RefreshToken  id, user_id, token_hash, session_version, created_at, revoked_at?, replaced_by_id?
+EmailCode     id, user_id, purpose (verify | reset), code_hash, attempts,
+              expires_at, consumed_at?, created_at
+              — one live row per user and purpose; the raw code is never stored
 Task          id, user_id, title, description, done, priority (high | medium | low),
               date?          — null = Tasks panel only; required when pinned
               time_block_id? — pin to a block occurrence; null = not pinned
@@ -111,7 +123,7 @@ Home: `Task` with `date = today` and `done = false`, first 4; `TimeBlock` in the
 | ID  | Topic       | Requirement                                            | Priority    |
 | --- | ----------- | ------------------------------------------------------ | ----------- |
 | N01 | Performance | list < 500 ms                                          | P0          |
-| N02 | Security    | hashed passwords, HTTPS, instance code not in the repo | P0          |
+| N02 | Security    | hashed passwords, HTTPS, codes stored as hashes only | P0          |
 | N03 | Phone       | responsive web                                         | P0          |
 | N04 | Privacy     | no tracking; content only the owner’s; delete account  | P0          |
 | N05 | Sync        | across devices (with login: yes)                       | de facto P0 |
@@ -127,15 +139,15 @@ Open registration: rate-limit `/register` (in-process today). No captcha until i
 | Google     | convenient account      | no                               |
 | OpenRouter | optional later provider | no; users bring OpenAI, Anthropic, Gemini, DeepSeek, or xAI keys |
 | GitHub     | tasks from issues       | no                               |
-| SMTP       | reset / verify by email | no (v2; public-instance blocker) |
+| SMTP       | reset / verify by email | yes; Mailcow mailbox, STARTTLS     |
 
 ## Four weeks (done)
 
 | Week | Goal                                                                                | Outcome         |
 | ---- | ----------------------------------------------------------------------------------- | --------------- |
-| 1    | Docker; email+password; `INSTANCE_CODE`; 5 panels; empty Home + AI disabled         | Shipped         |
+| 1    | Docker; email+password; a shared env code for verify / reset; 5 panels; empty Home + AI disabled | Shipped         |
 | 2    | Tasks: Home (today) + Tasks panel (all)                                             | Shipped         |
 | 3    | 24 h Calendar + preview; repeat with the same id; notes collection + recent on Home | Shipped         |
 | 4    | HTTPS compose, delete account, empty states, assignments                            | Shipped in repo; prod now host reverse proxy + `client/dist` |
 
-The cut “drop `task_id` on notes” was **not** applied: the column exists from the baseline schema. The cut that still matters is “do not open the instance to strangers on the shared code”.
+The cut “drop `task_id` on notes” was **not** applied: the column exists from the baseline schema. The cut that still matters is not opening the instance to strangers before the blockers in [roadmap-v2.md](roadmap-v2.md) land.

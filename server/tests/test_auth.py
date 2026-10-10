@@ -143,11 +143,10 @@ def test_register_falls_back_when_timezone_is_unknown(client: TestClient) -> Non
     assert response.json()["timezone"] == "Europe/Warsaw"
 
 
-def test_register_auto_verifies_when_instance_code_is_empty(
+def test_register_auto_verifies_when_smtp_is_unconfigured(
     client: TestClient,
 ) -> None:
     app.dependency_overrides[get_settings] = lambda: Settings(
-        instance_code="",
         smtp_host="",
         smtp_user="",
         smtp_password="",
@@ -170,9 +169,14 @@ def test_register_auto_verifies_when_instance_code_is_empty(
 def test_register_when_email_smtp_configured_sends_verify_code(
     client: TestClient,
 ) -> None:
-    # An empty instance code is not the dev switch any more: configured SMTP
-    # wins, so the account stays unverified and the code goes out by email.
-    app.dependency_overrides[get_settings] = lambda: Settings(instance_code="")
+    # Configured SMTP is the switch: the account stays unverified and the code
+    # goes out by email.
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        smtp_host="smtp.example.test",
+        smtp_user="holtia@example.test",
+        smtp_password="a-mailbox-password",
+        mail_from="holtia@example.test",
+    )
 
     response = register(client)
 

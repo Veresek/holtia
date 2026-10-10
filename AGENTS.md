@@ -34,7 +34,7 @@ server/                 FastAPI + SQLAlchemy + PostgreSQL
     schemas/            Pydantic request/response models
     routers/            one router per resource, mounted under /api
     services/           domain logic (auth, recurrence, pins, AI BYOK)
-  migrations/           Alembic versions; head is 20260921_0014
+  migrations/           Alembic versions; head is 20261010_0016
   scripts/              migrate.py, purge_revoked_tokens.py
   tests/                pytest + FastAPI TestClient
 docs/                   product.md is the source of truth
@@ -147,14 +147,16 @@ markup into components and do not add icon dependencies.
 
 ## Scope and safety
 
-- MVP is web-only and ends September 2026. Google login, Expo, and SMTP are v2.
-  The assistant stays off until `AI_ENABLED`; users then bring their own provider
+- MVP is web-only and ends September 2026. Google login and Expo are v2. The
+  assistant stays off until `AI_ENABLED`; users then bring their own provider
   key. See [docs/ai-tools.md](docs/ai-tools.md).
-- Verification and password reset currently use one `INSTANCE_CODE` from env.
-  That is a private-instance stand-in. Do not publish the code. v2 replaces it
-  with per-user, single-use email tokens. See `docs/execution.md`.
-- Never commit `.env`, secrets, or the instance code; `.env.example` documents
-  the variables.
+- Verification and password reset use per-user, single-use 6-digit codes sent
+  by email over SMTP. Production refuses to start unless SMTP is configured; an
+  empty `SMTP_HOST` in development skips the codes. A wrong, missing or expired
+  code returns one generic 400, and an unknown email is not distinguishable.
+  See `docs/execution.md`.
+- Never commit `.env`, secrets, or the SMTP mailbox password; `.env.example`
+  documents the variables.
 - No analytics or tracking, ever.
 - Do not add dependencies for problems the existing stack already solves.
 

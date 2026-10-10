@@ -5,38 +5,66 @@ from app.config import Settings
 
 STRONG_SECRET = "a-unique-production-secret-with-32-characters"
 
+SMTP_FIELDS = ("smtp_host", "smtp_user", "smtp_password", "mail_from")
+SMTP_VALUES = {
+    "smtp_host": "smtp.example.test",
+    "smtp_user": "holtia@example.test",
+    "smtp_password": "a-mailbox-password",
+    "mail_from": "holtia@example.test",
+}
 
-def test_development_allows_an_empty_instance_code() -> None:
+PRODUCTION_SMTP_ERROR = (
+    "SMTP_HOST, SMTP_USER, SMTP_PASSWORD and MAIL_FROM are required in production."
+)
+
+
+def test_production_requires_configured_smtp() -> None:
+    with pytest.raises(ValidationError, match=PRODUCTION_SMTP_ERROR):
+        Settings(
+            environment="production",
+            secret_key=STRONG_SECRET,
+            client_origin="https://holtia.xyz",
+            smtp_host="",
+            smtp_user="",
+            smtp_password="",
+            mail_from="",
+        )
+
+
+@pytest.mark.parametrize("missing", SMTP_FIELDS)
+def test_production_requires_every_smtp_setting(missing: str) -> None:
+    values = {**SMTP_VALUES, missing: ""}
+
+    with pytest.raises(ValidationError, match=PRODUCTION_SMTP_ERROR):
+        Settings(
+            environment="production",
+            secret_key=STRONG_SECRET,
+            client_origin="https://holtia.xyz",
+            **values,
+        )
+
+
+def test_production_accepts_configured_email() -> None:
     settings = Settings(
-        environment="development",
-        instance_code="",
+        environment="production",
+        secret_key=STRONG_SECRET,
+        client_origin="https://holtia.xyz",
+        **SMTP_VALUES,
     )
 
-    assert settings.instance_code == ""
+    assert settings.smtp_configured is True
 
 
-def test_production_rejects_an_empty_instance_code() -> None:
-    with pytest.raises(
-        ValidationError,
-        match="INSTANCE_CODE must be at least 12 characters in production",
-    ):
-        Settings(
-            environment="production",
-            instance_code="",
-            secret_key=STRONG_SECRET,
-        )
+def test_development_allows_unconfigured_email() -> None:
+    settings = Settings(
+        environment="development",
+        smtp_host="",
+        smtp_user="",
+        smtp_password="",
+        mail_from="",
+    )
 
-
-def test_production_rejects_a_short_instance_code() -> None:
-    with pytest.raises(
-        ValidationError,
-        match="INSTANCE_CODE must be at least 12 characters in production",
-    ):
-        Settings(
-            environment="production",
-            instance_code="short-code",
-            secret_key=STRONG_SECRET,
-        )
+    assert settings.smtp_configured is False
 
 
 @pytest.mark.parametrize(
@@ -58,17 +86,17 @@ def test_production_rejects_weak_or_default_secret_keys(
     ):
         Settings(
             environment="production",
-            instance_code="instance-code",
             secret_key=secret_key,
+            **SMTP_VALUES,
         )
 
 
 def test_production_accepts_explicit_security_configuration() -> None:
     settings = Settings(
         environment="production",
-        instance_code="instance-code",
         secret_key=STRONG_SECRET,
         client_origin="https://holtia.xyz",
+        **SMTP_VALUES,
     )
 
     assert settings.environment == "production"
@@ -100,19 +128,10 @@ def test_production_rejects_an_insecure_client_origin() -> None:
     ):
         Settings(
             environment="production",
-            instance_code="instance-code",
             secret_key=STRONG_SECRET,
             client_origin="http://holtia.xyz",
+            **SMTP_VALUES,
         )
-
-
-SMTP_FIELDS = ("smtp_host", "smtp_user", "smtp_password", "mail_from")
-SMTP_VALUES = {
-    "smtp_host": "smtp.example.test",
-    "smtp_user": "holtia@example.test",
-    "smtp_password": "a-mailbox-password",
-    "mail_from": "holtia@example.test",
-}
 
 
 @pytest.mark.parametrize(
@@ -139,6 +158,17 @@ def test_smtp_configured_requires_all_four(
     )
 
     assert settings.smtp_configured is expected
+
+
+@pytest.mark.parametrize("blank_name", SMTP_FIELDS)
+@pytest.mark.parametrize("blank_value", [" ", "\t\n"])
+def test_smtp_configured_treats_whitespace_as_missing(
+    blank_name: str,
+    blank_value: str,
+) -> None:
+    settings = Settings(**{**SMTP_VALUES, blank_name: blank_value})
+
+    assert settings.smtp_configured is False
 
 
 EMAIL_ENV_VARS = (

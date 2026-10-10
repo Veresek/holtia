@@ -19,7 +19,7 @@ describe("VerifyPage", () => {
     vi.useRealTimers();
   });
 
-  it("asks for the emailed code, never an instance code", async () => {
+  it("asks for the emailed code, not a code from the host", async () => {
     stubApi();
     renderWithRouter(<App />, { route: "/verify" });
 
@@ -33,7 +33,9 @@ describe("VerifyPage", () => {
     expect(code).toHaveAttribute("autocomplete", "one-time-code");
     expect(code).toHaveAttribute("maxlength", "6");
     expect(code).toHaveAttribute("pattern", "[0-9]{6}");
-    expect(screen.queryByText(/instance code/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/supplied by the person hosting/i),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Resend code" }),
     ).toBeDisabled();

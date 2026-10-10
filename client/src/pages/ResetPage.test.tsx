@@ -23,7 +23,7 @@ async function toCodeStep() {
 }
 
 describe("ResetPage", () => {
-  it("sends an emailed code instead of asking for an instance code", async () => {
+  it("sends an emailed code before asking for a new password", async () => {
     stubApi({ "POST /auth/send-code": noContent });
     renderWithRouter(<App />, { route: "/reset" });
 
@@ -33,7 +33,7 @@ describe("ResetPage", () => {
     expect(
       screen.getByRole("button", { name: "Send code" }),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/instance code/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/this server/i)).not.toBeInTheDocument();
 
     await toCodeStep();
 
@@ -42,7 +42,7 @@ describe("ResetPage", () => {
       purpose: "reset",
     });
     expect(screen.getByLabelText("New password")).toBeInTheDocument();
-    expect(screen.queryByText(/instance code/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/this server/i)).not.toBeInTheDocument();
 
     const code = screen.getByLabelText("Verification code");
     expect(code).toHaveAttribute("name", "code");

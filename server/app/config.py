@@ -20,7 +20,6 @@ class Settings(BaseSettings):
     app_name: str = "Holtia API"
     environment: Literal["development", "test", "production"] = "development"
     database_url: str = "postgresql+psycopg://holtia:holtia@localhost:5432/holtia"
-    instance_code: str = ""
     secret_key: str = DEFAULT_SECRET_KEY
     timezone: str = DEFAULT_TIMEZONE
     client_origin: str = "http://localhost:5173"
@@ -60,9 +59,10 @@ class Settings(BaseSettings):
     def validate_production_security(self) -> "Settings":
         if self.environment != "production":
             return self
-        if len(self.instance_code.strip()) < 12:
+        if not self.smtp_configured:
             raise ValueError(
-                "INSTANCE_CODE must be at least 12 characters in production."
+                "SMTP_HOST, SMTP_USER, SMTP_PASSWORD and MAIL_FROM are "
+                "required in production."
             )
         if (
             len(self.secret_key) < 32
@@ -96,7 +96,7 @@ class Settings(BaseSettings):
     @property
     def smtp_configured(self) -> bool:
         return all(
-            value != ""
+            value.strip() != ""
             for value in (
                 self.smtp_host,
                 self.smtp_user,
