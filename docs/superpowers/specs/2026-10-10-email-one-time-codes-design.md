@@ -1,7 +1,7 @@
 # Email one-time codes — design
 
 Date: 2026-10-10
-Status: approved direction, pending spec review
+Status: approved by the maintainer; amended in-flight per ledger rulings on the execution branch
 Replaces: the shared `INSTANCE_CODE` used by `POST /auth/verify` and `POST /auth/reset`
 Implements: `docs/roadmap-v2.md` → “Public registration → SMTP and per-user tokens”
 
@@ -92,8 +92,11 @@ No purge job is added; expired rows are inert and deleted on next request.
 ## Email service (`server/app/services/email.py`)
 
 - Plain stdlib: `smtplib.SMTP(host, port, timeout=smtp_timeout_seconds)`,
-  `starttls()`, `login(user, password)`, `send_message`. Message built with
+  `starttls(context=ssl.create_default_context())`, `login(user, password)`,
+  `send_message`. Message built with
   `email.message.EmailMessage`, plain-text body only, `From: mail_from`.
+  (STARTTLS verifies the server certificate — amended 2026-10-10 per ledger
+  Ruling 3 after a review found the bare call ships an unverified context.)
 - Sending happens inline in the request handler after the DB commit. SMTP is
   local (same VPS), so latency is milliseconds; the timeout (default 10 s)
   bounds the worst case.
@@ -219,9 +222,10 @@ All new/changed endpoints keep `Depends(enforce_auth_rate_limit)`.
   `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` (required via
   `${VAR:?…}` for host/user/password/from). Add
   `extra_hosts: ["host.docker.internal:host-gateway"]` so the API container
-  reaches Mailcow’s Postfix (port 587, STARTTLS) published on the host;
-  `SMTP_HOST=host.docker.internal` is the documented default. Using the mail
-  hostname instead is possible — `docs/operations.md` documents both.
+  can reach the host when needed; `SMTP_HOST` must be the mail server’s
+  canonical hostname (e.g. `mail.holtia.xyz`) because STARTTLS now verifies
+  its certificate (ledger Ruling 3). `docs/operations.md` documents the
+  Mailcow specifics.
 - `docker-compose.yml` (dev): drop the `INSTANCE_CODE` passthrough; no SMTP
   variables → dev auto-verify.
 - `.env.example`: remove the `INSTANCE_CODE` block; add an SMTP block
