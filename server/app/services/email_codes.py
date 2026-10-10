@@ -37,6 +37,12 @@ def issue_code(
     One row per pair is enforced by uq_email_codes_user_purpose, so two
     overlapping sends on Postgres leave the loser an IntegrityError from the
     commit below; the caller treats that as a send that did not happen.
+
+    The replacement inherits the attempts already spent on this pair
+    (`MAX_CODE_ATTEMPTS` is per pair, not per message — ledger Ruling 8), so
+    resending does not hand whoever is guessing a fresh budget. A spent code is
+    deleted rather than flagged, so only an unsuccessful resend carries
+    anything over; a new pair after a successful consume starts at zero.
     """
     now = datetime.now(UTC)
     latest = db.scalar(
@@ -50,6 +56,7 @@ def issue_code(
         if age < settings.email_code_cooldown_seconds:
             return None
 
+    spent = latest.attempts if latest is not None else 0
     code = f"{secrets.randbelow(1_000_000):06d}"
     db.execute(
         delete(EmailCode).where(
@@ -62,6 +69,7 @@ def issue_code(
             user_id=user_id,
             purpose=purpose,
             code_hash=hash_email_code(code),
+            attempts=spent,
             expires_at=now + timedelta(minutes=settings.email_code_ttl_minutes),
         )
     )
@@ -103,6 +111,11 @@ def consume_code(
     The caller owns the transaction: failures must be committed too, or the
     attempt counter resets and the burn limit is unreachable. `settings` is
     unused here and kept for the call sites' shape.
+
+    A claimed row is deleted rather than stamped, so the pair is empty again and
+    the next `issue_code` starts from a clean budget; only a row that is still
+    live or burned by the attempt cap is there to carry `attempts` over. A
+    burn-by-cap row keeps `consumed_at` set and is removed by the next resend.
     """
     now = datetime.now(UTC)
     row = db.scalar(_live_code_stmt(user_id, purpose, now))
@@ -116,7 +129,7 @@ def consume_code(
         db.flush()
         return False
 
-    row.consumed_at = now
+    db.delete(row)
     db.flush()
     return True
 

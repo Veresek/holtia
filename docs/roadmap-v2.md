@@ -20,7 +20,9 @@ criterion and what landed:
   stores only a SHA-256 hash.
 - TTL is short — 15 minutes by default (`EMAIL_CODE_TTL_MINUTES`). Use is
   single-shot and consumed atomically under a row lock, so two requests cannot
-  both succeed with the same code. Five wrong attempts burn it early.
+  both succeed with the same code. Five wrong attempts burn it early, per account
+  and purpose across resends (attempts carry onto the replacement code, so a
+  resend never refreshes the budget).
 - Request and confirm endpoints do not reveal whether the email exists:
   `POST /auth/send-code` always answers 204, and one generic 400 covers a wrong,
   missing, expired or already-used code.

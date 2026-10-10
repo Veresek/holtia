@@ -10,7 +10,7 @@ from app.db import SessionLocal
 from app.main import app
 from app.models.email_code import EmailCode
 from app.models.refresh_token import RefreshToken
-from app.services.email_codes import MAX_CODE_ATTEMPTS
+from app.services.email_codes import MAX_CODE_ATTEMPTS, hash_email_code
 from app.services.passwords import PASSWORD_HINT
 from app.services.rate_limits import RATE_LIMITED
 from tests.conftest import (
@@ -323,6 +323,37 @@ def test_verify_wrong_attempts_burn_across_requests(client: TestClient) -> None:
     assert login(client).status_code == 403
 
 
+def test_verify_resend_does_not_refresh_the_attempt_budget(client: TestClient) -> None:
+    """Five guesses are the account’s whole `verify` budget, not five per
+    message (ledger Ruling 8): a resend carries what has been spent."""
+    register(client)
+    sent = other_code(sent_code("ada@example.com", "verify"))
+
+    for _ in range(2):
+        assert verify(client, code=sent).status_code == 400
+    with SessionLocal() as db:
+        row = db.scalar(select(EmailCode).where(EmailCode.purpose == "verify"))
+        assert row is not None and row.attempts == 2
+
+    assert client.post(
+        "/api/auth/send-code",
+        json={"email": "ada@example.com", "purpose": "verify"},
+    ).status_code == 204
+    fresh = sent_code("ada@example.com", "verify")
+    with SessionLocal() as db:
+        row = db.scalar(select(EmailCode).where(EmailCode.purpose == "verify"))
+        assert row is not None
+        assert row.attempts == 2
+        assert row.consumed_at is None
+        assert row.code_hash == hash_email_code(fresh)
+
+    for _ in range(MAX_CODE_ATTEMPTS - 2):
+        assert verify(client, code=other_code(fresh)).status_code == 400
+
+    assert verify(client, code=fresh).status_code == 400
+    assert login(client).status_code == 403
+
+
 def test_verify_cannot_issue_a_session_for_an_activated_account(
     client: TestClient,
 ) -> None:
@@ -491,6 +522,35 @@ def test_reset_wrong_attempts_burn_across_requests(client: TestClient) -> None:
     assert burned.status_code == 400
     assert burned.json()["detail"] == RESET_FAILED
 
+    client.cookies.clear()
+    assert login(client, password="password1").status_code == 200
+    assert login(client, password="password2").status_code == 401
+
+
+def test_reset_resend_does_not_refresh_the_attempt_budget(client: TestClient) -> None:
+    """Reset keeps the same per-pair budget as verify: a resend replaces the
+    code and carries the attempts spent on the old one."""
+    register_verified(client)
+    first = send_reset_code(client)
+
+    for _ in range(3):
+        assert reset(client, code=other_code(first)).status_code == 400
+    with SessionLocal() as db:
+        row = db.scalar(select(EmailCode).where(EmailCode.purpose == "reset"))
+        assert row is not None and row.attempts == 3
+
+    live = send_reset_code(client)
+    with SessionLocal() as db:
+        row = db.scalar(select(EmailCode).where(EmailCode.purpose == "reset"))
+        assert row is not None
+        assert row.attempts == 3
+        assert row.consumed_at is None
+        assert row.code_hash == hash_email_code(live)
+
+    for _ in range(MAX_CODE_ATTEMPTS - 3):
+        assert reset(client, code=other_code(live)).status_code == 400
+
+    assert reset(client, code=live).status_code == 400
     client.cookies.clear()
     assert login(client, password="password1").status_code == 200
     assert login(client, password="password2").status_code == 401

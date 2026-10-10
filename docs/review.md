@@ -39,15 +39,19 @@ not verify at all — so registration was never really open.
 The mechanism is deleted. `POST /api/auth/send-code` emails a 6-digit code to
 that account’s own address, the database stores only its SHA-256 hash, and
 verify and reset consume it once: 15 minutes of life (`EMAIL_CODE_TTL_MINUTES`),
-five wrong attempts burn it, and a per-address cooldown (`EMAIL_CODE_COOLDOWN_SECONDS`)
-sits between sends. A wrong, missing, expired or already-used code, and a request
-for an email with no account, all return the same generic 400. Nothing reads a
-shared secret any more: the setting is gone, production refuses to start without
-an SMTP sender, and an empty `SMTP_HOST` in development skips the codes.
+five wrong attempts per account and purpose burn it — the count carries across
+resends, so a new message does not hand whoever is guessing a fresh budget — and
+a per-address cooldown (`EMAIL_CODE_COOLDOWN_SECONDS`) sits between sends. A
+wrong, missing, expired or already-used code, and a request for an email with no
+account, all return the same generic 400. Nothing reads a shared secret any more:
+the setting is gone, production refuses to start without an SMTP sender, and an
+empty `SMTP_HOST` in development skips the codes.
 
-What still stands between this box and open signup is the list below and
-[roadmap-v2.md](roadmap-v2.md): a rate limiter shared across processes, a
-server-side expiry on refresh tokens, and change email.
+What remains is the mail itself: while an address is attacked, the cooldown still
+lets one message per minute through, and only the per-IP limiter sits in front of
+it. What still stands between this box and open signup is the rate limiter shared
+across processes, a server-side expiry on refresh tokens, and change email; the
+list below and [roadmap-v2.md](roadmap-v2.md) keep the detail.
 
 ### 2. Register enumerates emails — addressed
 

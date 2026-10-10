@@ -234,8 +234,110 @@ def test_consume_is_single_shot(
     db.commit()
     assert replayed is False
 
+    # A claimed code leaves no row behind: the pair is empty, so the next
+    # resend starts from a clean attempt budget.
+    assert codes_for(db, user.id, "verify") == []
+
+
+def test_successful_consume_deletes_the_row(
+    db: Session,
+    settings: Settings,
+    user: User,
+) -> None:
+    code = issue_code(db, settings, user_id=user.id, purpose="verify")
+    assert code is not None
+
+    assert (
+        consume_code(db, settings, user_id=user.id, purpose="verify", code=code)
+        is True
+    )
+    db.commit()
+
+    assert codes_for(db, user.id, "verify") == []
+    with Session(engine) as fresh:
+        assert (
+            fresh.scalar(
+                select(EmailCode).where(
+                    EmailCode.user_id == user.id, EmailCode.purpose == "verify"
+                )
+            )
+            is None
+        )
+
+
+def test_resend_carries_the_attempt_budget(
+    db: Session,
+    settings: Settings,
+    user: User,
+) -> None:
+    """The 5-try cap is per pair, not per message (ledger Ruling 8): an
+    unsuccessful resend replaces the code but keeps what has been spent."""
+    code = issue_code(db, settings, user_id=user.id, purpose="verify")
+    assert code is not None
+
+    for _ in range(4):
+        assert (
+            consume_code(
+                db, settings, user_id=user.id, purpose="verify", code=wrong_code(code)
+            )
+            is False
+        )
+        db.commit()
+
+    resent = issue_code(db, settings, user_id=user.id, purpose="verify")
+    assert resent is not None
+    rows = codes_for(db, user.id, "verify")
+    assert len(rows) == 1
+    assert rows[0].attempts == 4
+    assert rows[0].consumed_at is None
+
+    # One wrong guess reaches the cap on the replacement row.
+    assert (
+        consume_code(
+            db,
+            settings,
+            user_id=user.id,
+            purpose="verify",
+            code=wrong_code(resent),
+        )
+        is False
+    )
+    db.commit()
     row = codes_for(db, user.id, "verify")[0]
+    assert row.attempts == MAX_CODE_ATTEMPTS
     assert row.consumed_at is not None
+    assert (
+        consume_code(db, settings, user_id=user.id, purpose="verify", code=resent)
+        is False
+    )
+
+
+def test_budget_is_fresh_after_a_successful_consume(
+    db: Session,
+    settings: Settings,
+    user: User,
+) -> None:
+    code = issue_code(db, settings, user_id=user.id, purpose="verify")
+    assert code is not None
+    for _ in range(3):
+        assert (
+            consume_code(
+                db, settings, user_id=user.id, purpose="verify", code=wrong_code(code)
+            )
+            is False
+        )
+        db.commit()
+
+    assert (
+        consume_code(db, settings, user_id=user.id, purpose="verify", code=code) is True
+    )
+    db.commit()
+
+    resent = issue_code(db, settings, user_id=user.id, purpose="verify")
+    assert resent is not None
+    rows = codes_for(db, user.id, "verify")
+    assert len(rows) == 1
+    assert rows[0].attempts == 0
 
 
 def test_consume_rejects_expired(
