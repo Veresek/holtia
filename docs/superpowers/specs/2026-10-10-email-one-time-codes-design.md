@@ -59,13 +59,17 @@ New table `email_codes` (SQLAlchemy 2 style, UUID PK, migration
 | `consumed_at`| DateTime, nullable   | set atomically on successful use         |
 | `created_at` | DateTime(timezone=True) | `server_default=func.now()`            |
 
-Index on `(user_id, purpose)`. Model in `server/app/models/email_code.py`,
+Index on `(user_id, purpose)`, and a `UniqueConstraint("user_id", "purpose")`
+(`uq_email_codes_user_purpose`, added per ledger Ruling 5): at most one row
+ever exists per pair, so the attempt cap and single-shot guarantee are
+per-pair, not per-row. Model in `server/app/models/email_code.py`,
 registered on `Base` like the others; `User` gains an `email_codes`
 relationship with `cascade="all, delete-orphan"`.
 
 Hygiene: creating a new code for a `(user_id, purpose)` deletes that pair’s
-previous rows, so at most one candidate code exists per user and purpose.
-No purge job is added; expired rows are inert and deleted on next request.
+previous rows; the unique constraint makes a racing second insert fail
+instead of leaving two live codes. No purge job is added; expired rows are
+inert and deleted on next request.
 
 ## Code lifecycle (service `server/app/services/email_codes.py`)
 

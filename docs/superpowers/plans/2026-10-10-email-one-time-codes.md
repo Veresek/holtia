@@ -80,28 +80,33 @@ Failure modes the spec implies; each is pinned by a test in the named task.
 
 **Files:**
 - Create: `server/app/services/email_codes.py`
-- Test: `server/tests/test_email_codes.py`
+- Modify: `server/app/models/email_code.py` (composite `UniqueConstraint` per ledger Ruling 5)
+- Create: `server/migrations/versions/20261010_0016_email_codes_unique_pair.py` (revises `20261010_0015`)
+- Test: `server/tests/test_email_codes.py`, update head/index assertions in `server/tests/test_migrate.py`
 
 **Interfaces:**
 - Consumes: `EmailCode` (Task 1), `Settings.email_code_*` fields (Task 2).
-- Produces: `MAX_CODE_ATTEMPTS = 5`; `hash_email_code(code: str) -> str` (SHA-256 hexdigest, same shape as `hash_refresh_token`); `issue_code(db: Session, settings: Settings, *, user_id: uuid.UUID, purpose: str) -> str | None` (returns the raw 6-digit code, or `None` when suppressed by cooldown; deletes previous rows for the pair; commits); `consume_code(db: Session, settings: Settings, *, user_id: uuid.UUID, purpose: str, code: str) -> bool` (finds the live row `FOR UPDATE`, compares with `secrets.compare_digest`, sets `consumed_at` on match, increments `attempts` and burns at `MAX_CODE_ATTEMPTS` on mismatch; never commits — caller owns the transaction, and the auth service must commit even the failed-attempt path so the counter persists).
+- Produces: `MAX_CODE_ATTEMPTS = 5`; `hash_email_code(code: str) -> str` (SHA-256 hexdigest, same shape as `hash_refresh_token`); `issue_code(db: Session, settings: Settings, *, user_id: uuid.UUID, purpose: str) -> str | None` (returns the raw 6-digit code, or `None` when suppressed by cooldown; deletes previous rows for the pair; commits); `consume_code(db: Session, settings: Settings, *, user_id: uuid.UUID, purpose: str, code: str) -> bool` (finds the live row `FOR UPDATE`, compares with `secrets.compare_digest`, sets `consumed_at` on match, increments `attempts` and burns at `MAX_CODE_ATTEMPTS` on mismatch; never commits — caller owns the transaction, and the auth service must commit even the failed-attempt path so the counter persists). At most **one row per `(user_id, purpose)`** is enforced by `uq_email_codes_user_purpose` — the 5-attempt cap and the single-shot guarantee are per-pair, not per-row (Ruling 5).
 
 - [ ] **Step 1: Write failing tests** — `test_email_codes.py` uses a `Session(engine)` directly (fixture pattern from Task 1). Settings fixture: `Settings(environment="test", database_url="sqlite+pysqlite:///:memory:", secret_key="x"*32, smtp_host="smtp.test", smtp_user="u", smtp_password="p", mail_from="h@test", email_code_cooldown_seconds=0, email_code_ttl_minutes=15)`. Tests:
-  - `test_issue_returns_six_digit_code_and_stores_hash_only` — code matches `^[0-9]{6}$`; stored row `code_hash == hash_email_code(code)`; raw code not present in any column.
+  - `test_issue_returns_six_digit_code_and_stores_hash_only` — code matches `^[0-9]{6}$`; stored row `code_hash == hash_email_code(code)`; `code_hash != code`; raw code not present in any other string column (purpose is fine).
   - `test_issue_replaces_previous_code` — after two issues, one row for the pair.
+  - `test_duplicate_live_row_for_pair_is_rejected` — inserting two rows with the same `(user_id, purpose)` raises `IntegrityError` (SQLite enforces the unique constraint; pins Ruling 5).
+  - `test_consume_does_not_commit` — issue + caller commit; call `consume_code` (correct code, returns True) and then `db.rollback()` WITHOUT any caller commit; a fresh read shows `consumed_at is None` — proving the service only flushes and never commits internally.
+  - `test_for_update_is_requested` — compile the live-row select (expose it or rebuild the same statement) and assert the compiled SQL contains `FOR UPDATE` on backends that render it, or assert via `str(select(...).with_for_update().compile())` tripwire (Ruling 6).
   - `test_cooldown_suppresses_issue` — settings with `email_code_cooldown_seconds=60`: second `issue_code` immediately → `None`, previous row still alive.
-  - `test_consume_is_single_shot` — consume(correct) True; consume(correct) again False.
+  - `test_consume_is_single_shot` — consume(correct) True + caller commit; consume(correct) again False.
   - `test_consume_rejects_expired` — row with `expires_at` in the past → False.
   - `test_wrong_attempts_burn_code` — 5 wrong entries → subsequent consume with the right code returns False; assert `attempts` grew on the row before burning.
   - `test_consume_wrong_code_increments_attempts` — 1 wrong attempt: `attempts == 1`, code still consumable afterwards.
 
 - [ ] **Step 2: Run, verify fail** — `cd server ; .\.venv\Scripts\python.exe -m pytest tests/test_email_codes.py -v`.
 
-- [ ] **Step 3: Implement** — `issue_code`: `latest = db.scalar(select(EmailCode).where(user_id, purpose).order_by(EmailCode.created_at.desc()).limit(1))`; if cooldown and `latest` younger than `email_code_cooldown_seconds` → `None`. Otherwise `db.execute(delete(EmailCode).where(user_id, purpose))`, `code = f"{secrets.randbelow(1_000_000):06d}"`, add row with `expires_at=datetime.now(UTC) + timedelta(minutes=settings.email_code_ttl_minutes)`, `db.commit()`, return code. `consume_code`: `row = db.scalar(select(EmailCode).where(EmailCode.user_id == user_id, EmailCode.purpose == purpose, EmailCode.consumed_at.is_(None), EmailCode.expires_at > datetime.now(UTC)).with_for_update())`; `None` → False; digest mismatch → `row.attempts += 1`; if `row.attempts >= MAX_CODE_ATTEMPTS: row.consumed_at = now`; `db.flush()`; False. Match → `row.consumed_at = now`, `db.flush()`, True. SQLite ignores `FOR UPDATE` — fine in tests; Postgres enforces it.
+- [ ] **Step 3: Implement** — `issue_code`: `latest = db.scalar(select(EmailCode).where(user_id, purpose).order_by(EmailCode.created_at.desc()).limit(1))`; if cooldown and `latest` younger than `email_code_cooldown_seconds` → `None`. Otherwise `db.execute(delete(EmailCode).where(user_id, purpose))`, `code = f"{secrets.randbelow(1_000_000):06d}"`, add row with `expires_at=datetime.now(UTC) + timedelta(minutes=settings.email_code_ttl_minutes)`, `db.commit()`, return code. `consume_code`: `row = db.scalar(select(EmailCode).where(EmailCode.user_id == user_id, EmailCode.purpose == purpose, EmailCode.consumed_at.is_(None), EmailCode.expires_at > datetime.now(UTC)).with_for_update())`; `None` → False; digest mismatch → `row.attempts += 1`; if `row.attempts >= MAX_CODE_ATTEMPTS: row.consumed_at = now`; `db.flush()`; False. Match → `row.consumed_at = now`, `db.flush()`, True. SQLite ignores `FOR UPDATE` — fine in tests; Postgres enforces it. Add to the model `__table_args__`: `UniqueConstraint("user_id", "purpose", name="uq_email_codes_user_purpose")` and migration `20261010_0016` (`op.create_unique_constraint` / downgrade drops it); update `server/tests/test_migrate.py` head assertions to `20261010_0016`, keep its index assertions, and assert the new constraint's presence on the fresh-built DB.
 
-- [ ] **Step 4: Run tests, verify pass** — same command; ruff clean.
+- [ ] **Step 4: Run tests, verify pass** — same command; ruff clean; full suite green including `test_migrate.py`.
 
-- [ ] **Step 5: Commit** — `git add server/app/services/email_codes.py server/tests/test_email_codes.py ; git commit -m "feat(server): atomic email code issue and consume"`
+- [ ] **Step 5: Commit** — `git add server/app/services/email_codes.py server/app/models/email_code.py server/migrations/versions/20261010_0016_email_codes_unique_pair.py server/tests ; git commit -m "feat(server): atomic email code issue and consume"`
 
 ### Task 4: `POST /auth/send-code` + register auto-send
 
