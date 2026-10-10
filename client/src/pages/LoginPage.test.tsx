@@ -31,7 +31,7 @@ describe("LoginPage", () => {
     stubApi({
       "POST /auth/login": () =>
         jsonResponse(
-          { detail: "Verify your account with the instance code." },
+          { detail: "Verify your account with the code sent to your email." },
           403,
         ),
     });

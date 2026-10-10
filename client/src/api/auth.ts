@@ -9,10 +9,17 @@ interface Credentials {
 
 interface VerifyPayload {
   email: string;
-  instanceCode: string;
+  code: string;
 }
 
-interface ResetPayload extends VerifyPayload {
+interface SendCodePayload {
+  email: string;
+  purpose: "verify" | "reset";
+}
+
+interface ResetPayload {
+  email: string;
+  instanceCode: string;
   newPassword: string;
 }
 
@@ -27,6 +34,11 @@ export const authApi = {
     }),
   login: (payload: Credentials) =>
     apiRequest<User>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  sendCode: (payload: SendCodePayload) =>
+    apiRequest<void>("/auth/send-code", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
