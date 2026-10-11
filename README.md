@@ -6,12 +6,12 @@ Open source ([GNU GPL v3](LICENSE)), self-hostable, one person at a time. UI in
 English. Product decisions live in [`docs/product.md`](docs/product.md). How to
 work in this repo is in [`AGENTS.md`](AGENTS.md).
 
-## Status (5 September 2026)
+## Status (11 October 2026)
 
 The September MVP is feature-complete in code:
 
-- Email/password accounts, HttpOnly cookie sessions, instance-code verification
-  and password reset, logout, and account deletion.
+- Email/password accounts, HttpOnly cookie sessions, verification and password
+  reset with a one-time code sent by email, logout, and account deletion.
 - Tasks, calendar time blocks (including recurrence and overnight spans), and
   markdown notes, including pins from a task to a block occurrence, from a
   note to a block series, and from a note to a day.
@@ -23,10 +23,11 @@ The September MVP is feature-complete in code:
 - Docker Compose for development and for production (API on localhost:8001,
   SPA built to `client/dist` for the host reverse proxy).
 
-This instance is still a **private / trusted deployment**. The shared
-`INSTANCE_CODE` is a temporary stand-in for email. Do not publish it: anyone
-who has the code and an account email can reset that password. Public open
-registration waits on per-user email codes. See
+Verify and reset send a 6-digit code to the account’s own email address, so no
+operator secret is shared between accounts. The instance is still **private**.
+Open registration for strangers waits on the remaining blockers in
+[`docs/roadmap-v2.md`](docs/roadmap-v2.md): a rate limiter shared across
+processes, a server-side expiry on refresh tokens, and change email. See
 [`docs/review.md`](docs/review.md) and [`docs/operations.md`](docs/operations.md).
 
 ## Requirements
@@ -57,8 +58,10 @@ docker compose up --build
 - OpenAPI: <http://localhost:8000/docs>
 
 Compose starts Postgres, runs `scripts/migrate.py`, then the API and the Vite
-dev server. Leave `INSTANCE_CODE` empty in `.env` so local accounts skip
-verification.
+dev server. This stack sets no SMTP variables, so local accounts skip
+verification and work immediately. To exercise emailed codes locally, run the
+API outside Docker with `SMTP_HOST` and the rest of the SMTP block in
+`server/.env`.
 
 ## Run without Docker
 
@@ -116,11 +119,13 @@ Revoked refresh-token rows can be cleaned with
 ## Production
 
 Create `.env` from `.env.example` and replace every production placeholder.
-`DOMAIN`, `INSTANCE_CODE`, `SECRET_KEY`, and `POSTGRES_PASSWORD` are required.
-Production validation rejects an instance code shorter than 12 characters, or
-a weak secret key. Treat `INSTANCE_CODE` as an operator secret, not a public
-invite. Generate one with
-`python -c "import secrets; print(secrets.token_urlsafe(12))"`.
+`DOMAIN`, `SECRET_KEY`, `POSTGRES_PASSWORD`, `SMTP_HOST`, `SMTP_USER`,
+`SMTP_PASSWORD`, and `MAIL_FROM` are required. Production refuses to start
+without a configured SMTP sender or with a weak secret key. Create the sending
+mailbox first (this instance sends through Mailcow, e.g. `holtia@holtia.xyz`)
+and set `SMTP_HOST` to the mail server’s canonical hostname, e.g.
+`mail.holtia.xyz` — the API verifies its TLS certificate. Treat the mailbox
+password as an operator secret.
 
 Point `holtia.xyz` at the VPS. Port 80/443 stay on the host nginx. Compose
 publishes the API on `127.0.0.1:8001` only.

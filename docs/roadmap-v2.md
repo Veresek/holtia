@@ -2,26 +2,44 @@
 
 Work after the September 2026 MVP. [product.md](product.md) keeps the short
 product intent. This file is the detail: conditions and acceptance criteria.
-None of it is shipped.
+The email codes under “Public registration” shipped in October 2026; none of the
+rest is shipped.
 
 ## Public registration
 
-Open signup stays blocked until verify and reset no longer share one
-`INSTANCE_CODE`.
+Open signup no longer depends on an operator secret — verify and reset email a
+code to the account’s own address. What still blocks a public box is the rest of
+this section.
 
-### SMTP and per-user tokens
+### SMTP and per-user tokens — shipped (October 2026)
 
-One token per user and purpose (`verify` or `reset`), delivered by email.
+One code per user and purpose (`verify` or `reset`), delivered by mail. Each
+criterion and what landed:
 
-- The value is cryptographically random. The database stores only a hash.
-- TTL is short. Use is single-shot and consumed atomically, so two requests
-  cannot both succeed with the same token.
-- Request and confirm endpoints do not reveal whether the email exists.
-- Rate limits apply per IP and per normalized email, with a cooldown before
-  another message is sent.
-- Codes never appear in logs.
+- The value is cryptographically random — 6 digits from `secrets`. The database
+  stores only a SHA-256 hash.
+- TTL is short — 15 minutes by default (`EMAIL_CODE_TTL_MINUTES`). Use is
+  single-shot and consumed atomically under a row lock, so two requests cannot
+  both succeed with the same code. Five wrong attempts burn it early, per account
+  and purpose across resends (attempts carry onto the replacement code, so a
+  resend never refreshes the budget).
+- Request and confirm endpoints do not reveal whether the email exists:
+  `POST /auth/send-code` always answers 204, and one generic 400 covers a wrong,
+  missing, expired or already-used code.
+- Rate limits apply per IP on every auth endpoint, with a per-address cooldown
+  (`EMAIL_CODE_COOLDOWN_SECONDS`, 60 by default) before another message is sent.
+  The cooldown replaced the planned per-normalized-email counter.
+- Codes never appear in logs; the raw value exists only in the mail body.
 - A password reset invalidates every session (`session_version`, and refresh
   tokens).
+- Retire `INSTANCE_CODE`. Done: the setting, its production check, the Compose
+  passthrough and `.env.example` are gone. Development keeps `SMTP_HOST` empty
+  so local accounts skip verify; production refuses to start without a sender.
+
+**Accepted when** a stranger can register, verify, and reset without an
+operator secret; a used or expired token cannot be reused; a request for an
+unknown email looks the same as one for a real account; and the API starts
+with no `INSTANCE_CODE`. All of that holds.
 
 Also required before the instance is public:
 
@@ -30,13 +48,6 @@ Also required before the instance is public:
 - A server-side `expires_at` on refresh tokens. The client max-age is not an
   expiry.
 - Change email. `PATCH /api/users/me` with `email` still returns 501.
-- Retire `INSTANCE_CODE`. Development may keep an empty code so local accounts
-  skip verify; production must not depend on a shared secret.
-
-**Accepted when** a stranger can register, verify, and reset without an
-operator secret; a used or expired token cannot be reused; a request for an
-unknown email looks the same as one for a real account; and the API starts
-with no `INSTANCE_CODE`.
 
 ## Habits and a draw inside a block
 

@@ -20,7 +20,6 @@ class Settings(BaseSettings):
     app_name: str = "Holtia API"
     environment: Literal["development", "test", "production"] = "development"
     database_url: str = "postgresql+psycopg://holtia:holtia@localhost:5432/holtia"
-    instance_code: str = ""
     secret_key: str = DEFAULT_SECRET_KEY
     timezone: str = DEFAULT_TIMEZONE
     client_origin: str = "http://localhost:5173"
@@ -28,6 +27,14 @@ class Settings(BaseSettings):
     auth_rate_limit_enabled: bool | None = None
     auth_rate_limit_requests: int = Field(default=10, gt=0)
     auth_rate_limit_window_seconds: int = Field(default=60, gt=0)
+    smtp_host: str = ""
+    smtp_port: int = Field(default=587, gt=0)
+    smtp_user: str = ""
+    smtp_password: str = ""
+    mail_from: str = ""
+    smtp_timeout_seconds: float = Field(default=10, gt=0)
+    email_code_ttl_minutes: int = Field(default=15, gt=0)
+    email_code_cooldown_seconds: int = Field(default=60, ge=0)
     ai_enabled: bool = False
     ai_encryption_key: str = ""
     ai_request_timeout_seconds: float = Field(default=30, gt=0)
@@ -52,9 +59,10 @@ class Settings(BaseSettings):
     def validate_production_security(self) -> "Settings":
         if self.environment != "production":
             return self
-        if len(self.instance_code.strip()) < 12:
+        if not self.smtp_configured:
             raise ValueError(
-                "INSTANCE_CODE must be at least 12 characters in production."
+                "SMTP_HOST, SMTP_USER, SMTP_PASSWORD and MAIL_FROM are "
+                "required in production."
             )
         if (
             len(self.secret_key) < 32
@@ -84,6 +92,18 @@ class Settings(BaseSettings):
         if self.auth_rate_limit_enabled is not None:
             return self.auth_rate_limit_enabled
         return self.environment != "test"
+
+    @property
+    def smtp_configured(self) -> bool:
+        return all(
+            value.strip() != ""
+            for value in (
+                self.smtp_host,
+                self.smtp_user,
+                self.smtp_password,
+                self.mail_from,
+            )
+        )
 
     @property
     def zoneinfo(self) -> ZoneInfo:

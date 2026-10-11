@@ -69,7 +69,7 @@ describe("App routes", () => {
       await screen.findByRole("heading", { name: "Reset your password" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Reset password" }),
+      screen.getByRole("button", { name: "Send code" }),
     ).toBeInTheDocument();
   });
 

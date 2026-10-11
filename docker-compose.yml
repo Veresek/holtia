@@ -22,7 +22,6 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       DATABASE_URL: postgresql+psycopg://holtia:holtia@db:5432/holtia
-      INSTANCE_CODE: ${INSTANCE_CODE:-}
       SECRET_KEY: ${SECRET_KEY:-local-development-only}
       TIMEZONE: ${TIMEZONE:-Europe/Warsaw}
       CLIENT_ORIGIN: http://localhost:5173

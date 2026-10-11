@@ -51,7 +51,6 @@ describe("AccountPage", () => {
     expect(
       screen.queryByText("This account is verified."),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText(/instance code/i)).not.toBeInTheDocument();
   });
 
   it("saves this device’s timezone", async () => {

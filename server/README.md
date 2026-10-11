@@ -3,7 +3,10 @@
 FastAPI application that owns authentication and all user data.
 
 Auth, Tasks, time blocks (including recurrence expansion on read), and Notes are
-implemented. Sessions last until password reset, logout, or account deletion.
+implemented. Verify and reset send a per-user 6-digit code through SMTP; with
+no SMTP sender configured the API skips the codes, which is how development
+accounts auto-verify. Sessions last until password reset, logout, or account
+deletion.
 `PATCH /api/users/me` saves the account timezone; change email still returns
 `501`. Auth rate limiting is
 in-memory per process; a single API worker is assumed. The assistant
@@ -50,7 +53,9 @@ Revoked refresh-token rows left behind by rotation can be cleaned with
 
 The application never creates tables at runtime. Alembic reads
 `Settings.database_url`, so configuration comes from `DATABASE_URL` or the
-server `.env` file. Current head: `20260921_0014` (`tasks.priority`).
+server `.env` file. Current head: `20261010_0016`. `20261010_0015` adds the
+`email_codes` table and `20261010_0016` puts a unique `user_id` + `purpose`
+pair on it.
 
 ```powershell
 python scripts/migrate.py
@@ -70,12 +75,16 @@ Already versioned databases receive the normal Alembic upgrade. Tests
 intentionally create and drop their isolated SQLite schema in
 `tests/conftest.py`.
 
-In production use `ENVIRONMENT=production`, an HTTPS `CLIENT_ORIGIN`, an
-`INSTANCE_CODE` of at least 12 characters, and a unique `SECRET_KEY` of at
-least 32 characters. A shorter instance code refuses to start. The production
+In production use `ENVIRONMENT=production`, an HTTPS `CLIENT_ORIGIN`, a unique
+`SECRET_KEY` of at least 32 characters, and a complete SMTP sender
+(`SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`). The API refuses to
+start without that sender, so codes can never be promised to users and then
+never arrive. `SMTP_HOST` is the mail server’s canonical hostname because
+STARTTLS verifies its certificate. The production
 Compose command also runs `scripts/purge_revoked_tokens.py` after migrations;
 that step deletes tokens revoked more than 30 days ago, and a failure there
 does not stop the API.
 The production Compose stack publishes this service on `127.0.0.1:8001`. The
 host reverse proxy should expose it at `/api` on the same origin as the SPA.
-Do not publish `INSTANCE_CODE`; see [`docs/operations.md`](../docs/operations.md).
+Do not publish the mailbox password; see
+[`docs/operations.md`](../docs/operations.md).

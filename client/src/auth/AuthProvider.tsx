@@ -19,7 +19,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
   register: (email: string, password: string) => Promise<User>;
-  verify: (email: string, instanceCode: string) => Promise<User>;
+  verify: (email: string, code: string) => Promise<User>;
   logout: () => Promise<void>;
   updateUser: (payload: Partial<Pick<User, "timezone">>) => Promise<User>;
   deleteAccount: () => Promise<void>;
@@ -79,8 +79,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return next;
   }, []);
 
-  const verify = useCallback(async (email: string, instanceCode: string) => {
-    const next = await authApi.verify({ email, instanceCode });
+  const verify = useCallback(async (email: string, code: string) => {
+    const next = await authApi.verify({ email, code });
     sessionChange.current += 1;
     setUser(next);
     return next;

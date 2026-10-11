@@ -41,3 +41,8 @@ class User(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    email_codes: Mapped[list["EmailCode"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )

@@ -1,8 +1,9 @@
 # Operations
 
 Private-instance runbook. Product decisions stay in [product.md](product.md).
-Do not treat this box as a public signup host until verify/reset use per-user
-email tokens. See [review.md](review.md).
+Verify and reset send a per-user code to the account’s own email address, so no
+secret is shared between accounts. This box is still not a public signup host:
+the remaining blockers are listed in [review.md](review.md).
 
 ## Deploy
 
@@ -12,9 +13,23 @@ Required for `docker-compose.prod.yml`:
 | Variable | Notes |
 |----------|--------|
 | `DOMAIN` | Public hostname (`holtia.xyz`). DNS must already point at the VPS |
-| `INSTANCE_CODE` | Operator secret, at least 12 characters. Anyone with the code and an email can reset that password. Generate with `python -c "import secrets; print(secrets.token_urlsafe(12))"`. A shorter code stops the API from starting, so check the VPS `.env` before the next deploy. |
 | `SECRET_KEY` | ≥32 characters, not a known default |
 | `POSTGRES_PASSWORD` | Alphanumeric so it is safe inside `DATABASE_URL` |
+| `SMTP_HOST` | The mail server’s canonical hostname (Mailcow on this VPS, e.g. `mail.holtia.xyz`), **not** `DOMAIN` and not an IP. STARTTLS verifies the server certificate, so a name the certificate does not cover fails at send time |
+| `SMTP_PORT` | `587` by default. Mailcow’s submission port |
+| `SMTP_USER` | Sending mailbox login, e.g. `holtia@holtia.xyz` |
+| `SMTP_PASSWORD` | That mailbox’s password. Operator secret — never in the repo |
+| `MAIL_FROM` | From address on the code emails, the same mailbox |
+
+`SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, and `MAIL_FROM` must all be set: an
+empty or whitespace-only value counts as unset and the API refuses to start in
+production. Codes then exist only as an email the user never receives, which is
+worse than a refused boot. `SMTP_PORT` defaults to `587`.
+
+Optional email knobs (defaults shown): `EMAIL_CODE_TTL_MINUTES=15`,
+`EMAIL_CODE_COOLDOWN_SECONDS=60`. `docker-compose.prod.yml` now passes both with
+those defaults, so leaving them out keeps 15 and 60 and a value in the VPS `.env`
+replaces them.
 
 Optional AI (off until you set both):
 
@@ -22,6 +37,37 @@ Optional AI (off until you set both):
 |----------|--------|
 | `AI_ENABLED` | `true` to turn the assistant on |
 | `AI_ENCRYPTION_KEY` | **Required when AI is enabled.** 32 bytes as standard base64 or 64 hex characters |
+
+### First deploy on emailed codes
+
+1. Create the Mailcow mailbox that sends the codes (e.g. `holtia@holtia.xyz`)
+   and note its SMTP login and password.
+2. Put `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, and `MAIL_FROM` in the VPS
+   `.env` **before** deploying. The new API will not start without them.
+3. Deploy. Migrations `20261010_0015` and `20261010_0016` create the code table
+   and its unique `user_id` + `purpose` pair.
+4. Once the API is healthy, drop the obsolete shared-secret line from the VPS
+   `.env`. Nothing reads it any more, so it is dead weight rather than a secret
+   that still needs guarding.
+5. Accounts created earlier and never verified just need “Resend code” on the
+   verify page; nothing is backfilled. Existing users resetting a password now
+   need the code emailed to them.
+6. Confirm the mail really goes out: register a throwaway account and read the
+   code it emails you (or send a probe message from the same mailbox). Nothing
+   checks `MAIL_FROM` at startup — a typo, a mailbox that does not exist or
+   credentials the server rejects all boot happily, because the send runs after
+   the response and its failure is absorbed. The only sign is a line in the API
+   logs, `Email send failed for …`, with no code in it. Fix the `.env`, recreate
+   the container, and use “Resend code” once the cooldown has passed; the code
+   already issued stays valid until it expires.
+
+Mailcow runs on the same box as the app. That does not change what `SMTP_HOST`
+holds: the hostname the mail server’s certificate covers, resolvable from
+inside the API container. `docker-compose.prod.yml` keeps
+`extra_hosts: host.docker.internal:host-gateway` so a service on the host stays
+reachable when you need it. A self-signed certificate means installing its
+certificate authority into the API image, never disabling the check — the
+sender uses a verifying TLS context.
 
 Point DNS at the VPS. Port 80/443 stay on the host nginx. Compose does not
 bind them.
@@ -92,7 +138,7 @@ with Node 24 via nvm, dumps Postgres, then runs
 All of that lives in the workflow file; there is no separate deploy script.
 
 Secrets stay on the box in `.env`. The workflow never receives
-`INSTANCE_CODE`, `SECRET_KEY`, or `AI_ENCRYPTION_KEY`.
+`SMTP_PASSWORD`, `SECRET_KEY`, or `AI_ENCRYPTION_KEY`.
 
 ### VPS bootstrap (once)
 
@@ -106,7 +152,8 @@ sudo chown "$USER:$USER" /opt/holtia
 git clone https://github.com/Veresek/holtia.git /opt/holtia
 cd /opt/holtia
 cp .env.example .env
-# fill DOMAIN=holtia.xyz, INSTANCE_CODE, SECRET_KEY, POSTGRES_PASSWORD
+# fill DOMAIN=holtia.xyz, SECRET_KEY, POSTGRES_PASSWORD,
+# SMTP_HOST, SMTP_USER, SMTP_PASSWORD, MAIL_FROM
 # add the nginx site above, then reload nginx
 
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
@@ -212,9 +259,33 @@ If you change the key while rows still exist, `POST /api/ai/plan` returns
   `AI_RATE_LIMIT_WINDOW_SECONDS` (default 20 / hour). In-memory, per process.
 - Do not enable access/error body logging for `/api/ai/*` on nginx or Uvicorn.
 
+## Emailed codes
+
+A code is 6 digits, single-use, and expires after `EMAIL_CODE_TTL_MINUTES`
+(15 by default). Five wrong attempts burn it before it expires — counted per
+account and purpose, and carried across resends, so a new message does not
+restart the budget. Another code for the same address and purpose waits
+`EMAIL_CODE_COOLDOWN_SECONDS` (60 by default). The database stores only a SHA-256
+hash and the raw code never reaches a log.
+
+There is nothing to revoke when a code leaks: it stops working on its own, and
+using it consumes it. A wrong, missing, expired or already-used code returns the
+same 400, and a request for an address with no account looks identical to one for
+a real account, so these endpoints cannot confirm which emails are signed up.
+They answer at the same speed too: the mail goes out after the response, and an
+unknown address still pays for a code consume and a commit. What differs is only
+the database work behind a row that exists — sub-millisecond and invisible from
+outside the API, though not literally zero.
+
+If the sending mailbox’s credentials leak, change its password on Mailcow, put
+the new one in the VPS `.env`, and recreate the API container. Whoever holds it
+can read and send as the mailbox that delivers every code, so it is guarded like
+any other operator secret.
+
 ## Secrets checklist
 
-Never commit `.env`. Do not publish `INSTANCE_CODE`. After a leaked
-`SECRET_KEY`, rotate it and treat every session as compromised. After a leaked
+Never commit `.env`. Do not publish `SMTP_PASSWORD`, `SECRET_KEY`, or
+`AI_ENCRYPTION_KEY`. After a leaked `SECRET_KEY`, rotate it and treat every
+session as compromised. After a leaked
 `AI_ENCRYPTION_KEY`, rotate it and treat stored provider keys as readable by
 whoever has a database dump from that window.

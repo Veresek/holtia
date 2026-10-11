@@ -1,10 +1,16 @@
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models.user import User
-from app.schemas.auth import Credentials, RegisterRequest, ResetRequest, VerifyRequest
+from app.schemas.auth import (
+    Credentials,
+    RegisterRequest,
+    ResetRequest,
+    SendCodeRequest,
+    VerifyRequest,
+)
 from app.schemas.user import UserRead
 from app.services import auth as auth_service
 from app.services.rate_limits import enforce_auth_rate_limit
@@ -21,11 +27,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def register(
     payload: RegisterRequest,
     response: Response,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
     _rate_limit: None = Depends(enforce_auth_rate_limit),
 ) -> User:
-    user, tokens = auth_service.register(
+    user, tokens, pending = auth_service.register(
         db,
         settings,
         payload.email,
@@ -34,6 +41,9 @@ def register(
     )
     if tokens is not None:
         auth_service.set_session_cookies(response, tokens, settings)
+    # The code is committed; only its delivery waits for the response, so a
+    # signup cannot be timed against an unknown email.
+    background_tasks.add_task(auth_service.deliver_code, settings, pending)
     return user
 
 
@@ -77,6 +87,18 @@ def logout(
     auth_service.clear_session_cookies(response, settings)
 
 
+@router.post("/send-code", status_code=status.HTTP_204_NO_CONTENT)
+def send_code(
+    payload: SendCodeRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+    _rate_limit: None = Depends(enforce_auth_rate_limit),
+) -> None:
+    pending = auth_service.send_code(db, settings, payload.email, payload.purpose)
+    background_tasks.add_task(auth_service.deliver_code, settings, pending)
+
+
 @router.post("/verify", response_model=UserRead)
 def verify(
     payload: VerifyRequest,
@@ -89,7 +111,7 @@ def verify(
         db,
         settings,
         payload.email,
-        payload.instance_code,
+        payload.code,
     )
     auth_service.set_session_cookies(response, tokens, settings)
     return user
@@ -106,6 +128,6 @@ def reset(
         db,
         settings,
         payload.email,
-        payload.instance_code,
+        payload.code,
         payload.new_password,
     )

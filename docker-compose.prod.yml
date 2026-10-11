@@ -31,15 +31,26 @@ services:
     environment:
       ENVIRONMENT: production
       DATABASE_URL: postgresql+psycopg://holtia:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/holtia
-      INSTANCE_CODE: ${INSTANCE_CODE:?Set INSTANCE_CODE}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY}
       TIMEZONE: ${TIMEZONE:-Europe/Warsaw}
       CLIENT_ORIGIN: https://${DOMAIN:?Set DOMAIN}
+      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:?Set SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP_PASSWORD}
+      MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM}
+      EMAIL_CODE_TTL_MINUTES: ${EMAIL_CODE_TTL_MINUTES:-15}
+      EMAIL_CODE_COOLDOWN_SECONDS: ${EMAIL_CODE_COOLDOWN_SECONDS:-60}
       AI_ENABLED: ${AI_ENABLED:-false}
       AI_ENCRYPTION_KEY: ${AI_ENCRYPTION_KEY:-}
     depends_on:
       db:
         condition: service_healthy
+    # Lets the API reach a mail server running on the host. SMTP_HOST must
+    # still be the mail server's own hostname: STARTTLS verifies its
+    # certificate.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test:
         - CMD

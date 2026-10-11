@@ -11,7 +11,7 @@ from app.schemas.task import TaskRead
 from app.schemas.time_block import TimeBlockRead
 from app.schemas.ai import AiPlanResponse, AiSettingsRead
 from app.schemas.user import UserRead
-from tests.conftest import register, register_verified
+from tests.conftest import register, register_verified, sent_code
 
 
 def test_read_schemas_serialize_with_camel_case() -> None:
@@ -158,7 +158,7 @@ def test_auth_contract_uses_camel_case(client: TestClient) -> None:
         "/api/auth/verify",
         json={
             "email": "ada@example.com",
-            "instanceCode": "test-instance-code",
+            "code": sent_code("ada@example.com", "verify"),
         },
     )
     assert verified.status_code == 200
@@ -170,11 +170,18 @@ def test_auth_contract_uses_camel_case(client: TestClient) -> None:
         "createdAt",
     }
 
+    assert (
+        client.post(
+            "/api/auth/send-code",
+            json={"email": "ada@example.com", "purpose": "reset"},
+        ).status_code
+        == 204
+    )
     reset = client.post(
         "/api/auth/reset",
         json={
             "email": "ada@example.com",
-            "instanceCode": "test-instance-code",
+            "code": sent_code("ada@example.com", "reset"),
             "newPassword": "password2",
         },
     )

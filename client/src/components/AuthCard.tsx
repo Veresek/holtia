@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { InputHTMLAttributes, ReactNode } from "react";
 
 import { Brand } from "./Brand";
 
@@ -43,3 +43,29 @@ export const buttonClassName =
   "mt-6 w-full rounded-md bg-moss px-4 py-2.5 text-sm font-medium text-paper-raised transition hover:bg-moss-hover disabled:cursor-not-allowed disabled:opacity-50";
 
 export const authErrorClassName = "mt-3 text-center text-sm text-rust";
+
+export const secondaryButtonClassName = [
+  "mt-3 w-full rounded-md border border-line px-4 py-2 text-sm text-ink-soft",
+  "transition hover:border-lichen hover:text-ink",
+  "disabled:cursor-not-allowed disabled:opacity-50",
+].join(" ");
+
+export const statusClassName = "mt-3 text-center text-sm text-ink-soft";
+
+// The region itself never unmounts, so its text is announced; while it has no
+// text it must not reserve a line of its own.
+export const emptyStatusClassName = "text-center text-sm text-ink-soft";
+
+// Verify and reset ask for the same 6-digit field. Spread this and add only
+// what a page differs in: its ref and its aria wiring.
+export const codeInputProps: InputHTMLAttributes<HTMLInputElement> = {
+  autoComplete: "one-time-code",
+  className: fieldClassName,
+  inputMode: "numeric",
+  maxLength: 6,
+  name: "code",
+  pattern: "[0-9]{6}",
+  placeholder: "123456",
+  required: true,
+  type: "text",
+};

@@ -88,7 +88,7 @@ A block may **show** pinned tasks and notes on its tile. It is still not a list 
 
 - **Habits / pool in a block:** e.g. a 30 min block with 3 activities; each day **one is drawn** (world countries / chemical elements / Greek alphabet). Variant: a block focused on one kind of work, no draw. Variant: a queue — in order, not random.
 - **AI later:** pin to existing blocks, edit/delete, repeating blocks, conversation history, streaming, OpenRouter as another provider. Suggest times from title/description like Todoist when the model is not guessing.
-- Email: per-user, single-use codes for verify and reset (replaces the shared `INSTANCE_CODE`). Google login, notifications, native app (Expo), GitHub, export.
+- Email: **shipped** — per-user, single-use codes for verify and reset. Still v2: Google login, notifications, native app (Expo), GitHub, export.
 - Separate occurrences in a series (like Calendar) — deliberately out.
 
 Detail and acceptance criteria: [roadmap-v2.md](roadmap-v2.md).
@@ -107,7 +107,12 @@ If something must be cut: **task list → time blocks → notes**. Email/passwor
 - MVP: **web** (phone in the browser). Expo / native app after MVP.
 - You are **not** building a project planner.
 - Open source, **GPL-3.0**, no analytics / tracking. Accounts and content live in the instance database.
-- Registration on your VPS: **open** as a product intent. Until per-user email codes exist, keep `INSTANCE_CODE` private — the current code is a trusted-instance stand-in, not a public invite. Self-host for anyone who wants it.
-- Verify and password reset in MVP: one **instance code** from config (env), not email. Treat it as an operator secret. v2: a random, short-lived, single-use code per user, sent by mail.
+- Registration on your VPS: **open** as a product intent. Every account proves its
+  own address — the code goes to that email and to nobody else, so there is no
+  operator secret to hand out. Opening signup to strangers still waits on the
+  blockers in [roadmap-v2.md](roadmap-v2.md). Self-host for anyone who wants it.
+- Verify and password reset: a random, short-lived, single-use **code per user**,
+  sent by mail and stored only as a hash. Failure is one generic message, so the
+  endpoints cannot confirm which emails have accounts.
 - Notifications: not in MVP (maybe never).
 - Auth in MVP: **own email + password**, not Google. One account = one user.
